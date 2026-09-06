@@ -41,11 +41,14 @@ def harness_commit() -> str:
     return result.stdout.strip() if result.returncode == 0 else "unversioned"
 
 
-def build_packs(cases: Sequence[Case], types: Sequence[str]) -> list[context_pack.Pack]:
+def build_packs(
+    cases: Sequence[Case], types: Sequence[str],
+    prompt_version: str = prompt.PROMPT_VERSION,
+) -> list[context_pack.Pack]:
     packs: list[context_pack.Pack] = []
     for case in cases:
         found = candidate_module.enumerate_case(case, list(types))
-        packs.extend(context_pack.packs_for_case(case, found))
+        packs.extend(context_pack.packs_for_case(case, found, prompt_version))
     return packs
 
 
@@ -109,6 +112,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="Ollama server; an ngrok https URL when the card is remote")
     parser.add_argument("--stub", choices=sorted(client_module.STUBS), help="run without a server")
     parser.add_argument("--dry-run", action="store_true", help="write prompts and budget only")
+    parser.add_argument("--prompt-version", default=prompt.PROMPT_VERSION, choices=sorted(prompt.PROMPTS))
     parser.add_argument("--num-ctx", type=int, default=8192)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=7)
@@ -138,7 +142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if problem:
             raise SystemExit(f"{args.base_url}: {problem}")
 
-    packs = build_packs(cases, args.types)
+    packs = build_packs(cases, args.types, args.prompt_version)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
     run_id = args.run_id or f"{stamp}_{slug}"
@@ -154,7 +158,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "user": pack.user,
         }, ensure_ascii=False) + "\n" for pack in packs
     ), encoding="utf-8", newline="\n")
-    (run_dir / "system_prompt.txt").write_text(prompt.SYSTEM, encoding="utf-8", newline="\n")
+    (run_dir / "system_prompt.txt").write_text(
+        prompt.system(args.prompt_version), encoding="utf-8", newline="\n"
+    )
 
     predictions: list[Prediction] = []
     responses: list[client_module.Response] = []
@@ -194,7 +200,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "model": None if detector is None else detector.name,
         "quantization": None,
         "context_tokens": args.num_ctx,
-        "prompt_version": prompt.PROMPT_VERSION,
+        "prompt_version": args.prompt_version,
         "detectors": [DETECTOR], "types": list(args.types),
         "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
         "base_url": args.base_url if isinstance(detector, client_module.OllamaClient) else None,

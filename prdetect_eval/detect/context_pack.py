@@ -151,7 +151,10 @@ def _describe(candidate: Candidate) -> str:
     return f"- line {candidate.focus.start_line}{where}: {kind}{detail}"
 
 
-def build(case: Case, tree: Tree, candidates: Sequence[Candidate], filename: str) -> Pack:
+def build(
+    case: Case, tree: Tree, candidates: Sequence[Candidate], filename: str,
+    prompt_version: str = prompt_module.PROMPT_VERSION,
+) -> Pack:
     ordered = sorted(candidates, key=lambda candidate: (candidate.focus.start_line, candidate.detector))
     spans = [candidate.region for candidate in ordered]
     blocks = _merge(spans)
@@ -186,14 +189,20 @@ def build(case: Case, tree: Tree, candidates: Sequence[Candidate], filename: str
 
     return Pack(
         case_id=case.case_id, filename=filename, candidates=tuple(ordered),
-        system=prompt_module.SYSTEM, user="\n".join(body), shown_lines=shown,
+        system=prompt_module.system(prompt_version), user="\n".join(body), shown_lines=shown,
     )
 
 
-def packs_for_case(case: Case, candidates: Iterable[Candidate]) -> list[Pack]:
+def packs_for_case(
+    case: Case, candidates: Iterable[Candidate],
+    prompt_version: str = prompt_module.PROMPT_VERSION,
+) -> list[Pack]:
     """One pack per file that has at least one candidate."""
     tree = Tree(case)
     by_file: dict[str, list[Candidate]] = {}
     for candidate in candidates:
         by_file.setdefault(candidate.region.file, []).append(candidate)
-    return [build(case, tree, group, filename) for filename, group in sorted(by_file.items())]
+    return [
+        build(case, tree, group, filename, prompt_version)
+        for filename, group in sorted(by_file.items())
+    ]

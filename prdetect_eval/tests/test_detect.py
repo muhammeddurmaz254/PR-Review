@@ -45,8 +45,10 @@ def test_every_case_is_asked(cases, packs):
 def test_prompt_prefix_is_byte_identical(packs):
     """Prefix caching is the load-bearing optimization; drift here is silent."""
     assert len({pack.system for pack in packs}) == 1
-    assert prompt.SYSTEM == prompt.system()
-    assert "{" not in prompt.SYSTEM.split("## How to answer")[0]
+    for version, text in prompt.PROMPTS.items():
+        assert prompt.system(version) is text
+        assert "{" not in text.split("## How to answer")[0], version
+    assert prompt.PROMPT_VERSION in prompt.PROMPTS
 
 
 def test_code_block_line_numbers_match_the_file(cases, packs):
@@ -243,7 +245,7 @@ def test_client_speaks_the_ollama_api(fake_server, packs):
     assert sent["stream"] is False
     assert sent["format"] == contract.RESPONSE_SCHEMA
     assert [message["role"] for message in sent["messages"]] == ["system", "user"]
-    assert sent["messages"][0]["content"] == prompt.SYSTEM
+    assert sent["messages"][0]["content"] == prompt.system()
     assert sent["options"]["temperature"] == 0.0
 
     assert response.prompt_tokens == 1234

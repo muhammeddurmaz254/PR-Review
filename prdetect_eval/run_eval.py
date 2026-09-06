@@ -13,6 +13,7 @@ import platform
 import subprocess
 import sys
 from datetime import datetime, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Sequence
 
@@ -72,14 +73,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--threshold", type=float, default=0.0, help="minimum confidence")
     parser.add_argument("--run-id", help="defaults to a UTC timestamp plus the source name")
     parser.add_argument("--out", type=Path, default=RUNS, help="directory holding run artefacts")
+    parser.add_argument("--case-glob", action="append", default=[],
+                        help="score only cases whose id matches (repeatable); for held-out splits")
     parser.add_argument("--no-baselines", action="store_true", help="skip the trivial baseline table")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--note", action="append", default=[], help="free-form note recorded with the run")
     args = parser.parse_args(argv)
 
     cases = load_cases(args.eval)
+    if args.case_glob:
+        cases = [case for case in cases if any(fnmatch(case.case_id, p) for p in args.case_glob)]
+        if not cases:
+            raise SystemExit(f"no case matches {args.case_glob}")
     config = MatchConfig(tolerance=args.tolerance, type_mode=args.type_mode)
     predictions, source = resolve_predictions(args, cases)
+    # A prediction for a case outside the split is neither a hit nor a false
+    # alarm here; dropping it keeps precision honest for the subset.
+    kept = {case.case_id for case in cases}
+    predictions = [prediction for prediction in predictions if prediction.case_id in kept]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = source.replace(":", "-").replace("/", "-").replace("\\", "-")[:40]
@@ -98,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "cases": len(cases),
         "scored_labels": sum(len(case.scored_labels) for case in cases),
         "predictions": len(predictions),
+        "case_glob": args.case_glob,
         "tolerance": args.tolerance,
         "type_mode": args.type_mode,
         "threshold": args.threshold,
