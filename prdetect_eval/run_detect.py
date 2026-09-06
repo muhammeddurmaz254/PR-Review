@@ -96,6 +96,7 @@ def resolve_client(args: argparse.Namespace) -> client_module.Client | None:
     return client_module.OllamaClient(
         model=args.model, base_url=args.base_url, num_ctx=args.num_ctx,
         temperature=args.temperature, seed=args.seed, timeout=args.timeout,
+        think=args.think,
     )
 
 
@@ -112,6 +113,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--timeout", type=float, default=300.0)
+    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None,
+                        help="reasoning models only: --no-think keeps the answer parseable")
     parser.add_argument("--limit", type=int, help="first N cases only, for a smoke run")
     parser.add_argument("--case", action="append", default=[], help="restrict to these case ids")
     parser.add_argument("--run-id")
@@ -193,7 +196,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "context_tokens": args.num_ctx,
         "prompt_version": prompt.PROMPT_VERSION,
         "detectors": [DETECTOR], "types": list(args.types),
-        "sampling": {"temperature": args.temperature, "seed": args.seed},
+        "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
         "base_url": args.base_url if isinstance(detector, client_module.OllamaClient) else None,
         "budget": budget(packs, responses),
         "harness_commit": harness_commit(),

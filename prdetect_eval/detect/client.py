@@ -67,6 +67,10 @@ class OllamaClient:
     timeout: float = 300.0
     keep_alive: str = "30m"
     retries: int = 2
+    # Reasoning models emit a thinking block before the answer, which a schema
+    # cannot constrain and a JSON parser cannot read. Left unset for every other
+    # model, because Ollama rejects the key when the model has no such mode.
+    think: bool | None = None
 
     @property
     def name(self) -> str:
@@ -79,7 +83,7 @@ class OllamaClient:
         return {"Content-Type": "application/json", "ngrok-skip-browser-warning": "true"}
 
     def _payload(self, pack: Pack, schema: dict) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": pack.system},
@@ -94,6 +98,9 @@ class OllamaClient:
                 "num_ctx": self.num_ctx,
             },
         }
+        if self.think is not None:
+            payload["think"] = self.think
+        return payload
 
     def complete(self, pack: Pack, schema: dict) -> Response:
         body = json.dumps(self._payload(pack, schema)).encode("utf-8")
