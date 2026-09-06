@@ -95,6 +95,30 @@ def _request_derived(node: ast.AST) -> Iterator[ast.AST]:
                 yield child
 
 
+def narrows_to_organization(node: ast.AST) -> bool:
+    """True when this code restricts a queryset to one organization.
+
+    The obvious test -- does the word "organization" appear -- reads
+    ``select_related("organization")`` as tenant scoping, which is a join hint and
+    scopes nothing. It agrees with ``filter(organization_id=...)`` and with a
+    selector that takes the organization as an argument, so the evidence handed
+    to the model would be identical for a broken read, a filtered one and one
+    scoped a layer down. That is the whole judgment, so it is worth an AST walk.
+    """
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Call):
+            continue
+        for keyword in child.keywords:
+            if keyword.arg and "organization" in keyword.arg:
+                return True
+        for argument in child.args:
+            if isinstance(argument, ast.Attribute) and "organization" in argument.attr:
+                return True
+            if isinstance(argument, ast.Name) and "organization" in argument.id:
+                return True
+    return False
+
+
 def _unused_scope_parameters(unit: pyunits.Unit) -> list[str]:
     node = unit.node
     if node is None or unit.kind != "function":
@@ -129,7 +153,7 @@ def sibling_table(tree: Tree, filename: str) -> list[dict]:
             "authentication_classes": _declares(unit, "authentication_classes"),
             "methods": [member.name for member in methods],
             "scoped_queryset": any(
-                "organization" in "\n".join(tree.lines(filename)[member.def_line - 1:member.end_line])
+                member.node is not None and narrows_to_organization(member.node)
                 for member in methods if member.name == "get_queryset"
             ),
         })
@@ -139,7 +163,6 @@ def sibling_table(tree: Tree, filename: str) -> list[dict]:
 def enumerate_case(case: Case, tree: Tree) -> list[Candidate]:
     found: list[Candidate] = []
     for filename in tree.changed:
-        lines = tree.lines(filename)
         all_units = tree.units(filename)
         siblings = sibling_table(tree, filename)
 
@@ -164,13 +187,12 @@ def enumerate_case(case: Case, tree: Tree) -> list[Candidate]:
                 continue
             region = unit.span
             for call in _orm_reads(unit.node):
-                text = "\n".join(lines[call.lineno - 1:(call.end_lineno or call.lineno)])
                 found.append(Candidate(
                     case_id=case.case_id, type="authz", detector="authz.orm_read",
                     focus=Span(filename, call.lineno, call.lineno), region=region,
                     symbol=unit.qualname,
                     evidence={
-                        "scoped": "organization" in text, "kind": "orm_read",
+                        "scoped": narrows_to_organization(call), "kind": "orm_read",
                         "siblings": siblings,
                     },
                 ))

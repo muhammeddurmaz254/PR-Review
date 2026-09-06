@@ -1,6 +1,7 @@
 # prdetect-eval
 
-Measurement harness for the PR defect detector. Phase 0a: no GPU, no model.
+Measurement harness for the PR defect detector, and the `authz` detector that
+runs against it. Everything except the model call itself works without a GPU.
 
 The corpus lives in `../repo` (fieldops-bench) and is consumed only through
 `../repo/eval.jsonl`. Scoring never touches the built git repository, so a
@@ -18,9 +19,14 @@ detector — on a GPU pipeline that difference is hours.
 | `baselines.py` | the trivial heuristics every real number is reported against |
 | `pyunits.py` | line-preserving structural view of a Python file (`ast`, not LibCST) |
 | `candidates/` | stage [2] enumerators: arm A population counters, arm B static patterns |
+| `detect/context_pack.py` | stage [3] — one file's sites, its sibling table and its code, with real line numbers |
+| `detect/prompt.py` | the `authz` system prompt, versioned and byte-stable |
+| `detect/contract.py` | the response JSON schema and its parser |
+| `detect/client.py` | stage [4] — Ollama chat, plus the `silent` and `flag_all` stubs |
 | `report.py` | Markdown and console rendering |
 | `run_eval.py` | score a prediction file or a baseline |
 | `run_ceiling.py` | oracle-judgment ablation: the ceiling of candidate enumeration |
+| `run_detect.py` | run the `authz` detector over the corpus |
 
 ## Commands
 
@@ -29,7 +35,25 @@ python run_ceiling.py                                  # phase 0a deliverable
 python run_eval.py --baseline largest_diff_file        # one trivial baseline
 python run_eval.py --predictions path/to/preds.jsonl   # score a detector run
 python -m pytest tests/ -q
+
+python run_detect.py --dry-run                         # prompts + context budget, no server
+python run_detect.py --stub flag_all                   # upper bound through the real path
+python run_detect.py --model qwen2.5-coder:32b --base-url https://<ngrok>.app
 ```
+
+`run_detect.py` writes `predictions.jsonl`; `run_eval.py --predictions` scores it.
+The split is deliberate — a changed metric never costs a second GPU pass.
+
+## Running the model on a rented card
+
+The detector talks to Ollama over HTTP and nothing else, so a tunnelled remote
+card is the same as a local one: start `ollama serve`, expose it, and pass the
+URL to `--base-url`. `--model` is checked against `/api/tags` before the corpus
+runs, so a wrong tag fails in a second rather than 111 timeouts later.
+
+Decoding is constrained by `detect/contract.RESPONSE_SCHEMA`, and
+`detect/prompt.SYSTEM` is a constant with nothing interpolated into it so the
+server can reuse its KV cache across calls. Both are asserted by tests.
 
 Every run writes `runs/<run_id>/` holding `config.json` (model, quantization,
 context, prompt version, detectors, sampling, harness commit — empty until a

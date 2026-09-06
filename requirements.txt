@@ -3,4 +3,10 @@
 libcst==1.9.0    # corpus generation only (repo/tools/gen); the harness uses ast
 pytest==9.1.1    # corpus acceptance gate and harness tests
 
-# Python 3.11.9
+# Python 3.11.9 -- the minor version is load-bearing, not a preference. The
+# enumerators read `ast`, and PEP 701 changed the f-string tree in 3.12, which
+# moves candidate counts (sql_injection: 24 on 3.11, 27 on 3.13).
+#
+#   uv python install 3.11.9
+#   uv venv --python 3.11.9 venv
+#   uv pip install --python venv/bin/python -r requirements.txt
