@@ -129,7 +129,10 @@ def test_oracle_scores_perfectly(cases, oracle):
     assert result["primary"]["precision"] == 1.0
     assert result["primary"]["fn"] == 0
     assert result["pairwise_in_scope"]["accuracy"] == 1.0
-    assert result["pr_level_in_scope"]["tn"] == 46
+    # The in-scope universe skips defective cases whose labels are all out of
+    # scope, so its negatives are exactly the clean cases. Derived rather than
+    # hardcoded: a growing corpus must not need the constant edited.
+    assert result["pr_level_in_scope"]["tn"] == sum(1 for case in cases if not case.is_defective)
 
 
 def test_cascade_recall_is_monotone(cases, oracle):
