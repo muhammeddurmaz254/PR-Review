@@ -1,0 +1,6 @@
+# Phase 0a runs entirely on CPU: corpus generation, scoring and candidate
+# enumeration. Serving dependencies (vLLM/SGLang, the model) arrive in 0b.
+libcst==1.9.0    # corpus generation only (repo/tools/gen); the harness uses ast
+pytest==9.1.1    # corpus acceptance gate and harness tests
+
+# Python 3.11.9
