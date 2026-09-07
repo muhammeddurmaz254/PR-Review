@@ -1,858 +1,944 @@
 {
-  "dataset": "swrbench",
-  "source": "datas/swrbench_analiz_50.jsonl",
-  "note": "Dosya icerigi yok, yalniz hunk'lar. Kol C (hunk okuma) icin uygun; tam dosya baglami isteniyorsa 11 upstream repo base_commit'te klonlanmali.",
-  "localization_rule": "start_line..end_line, sorunu getiren hunk'in yeni-taraf araligidir; tahmin bu araliga duserse lokalizasyon dogrudur. focus_line..focus_end duzeltme diff'inde silinen satirlar, yani kusurun dar hali; IoU her ikisine karsi raporlanir.",
-  "cases": [
+ "dataset": "swrbench",
+ "source": "datas/swrbench_analiz_50.jsonl",
+ "note": "Dosya icerigi yok, yalniz hunk'lar. Kol C (hunk okuma) icin uygun; tam dosya baglami isteniyorsa 11 upstream repo base_commit'te klonlanmali. Some findings carry required=false and a provenance line: they are real defects confirmed by hand that no reviewer commented on. SWRBench's 'clean' means 'no reviewer objected', not 'the code is correct', so they are scored as neutral -- neither recall nor a false alarm.",
+ "localization_rule": "start_line..end_line, sorunu getiren hunk'in yeni-taraf araligidir; tahmin bu araliga duserse lokalizasyon dogrudur. focus_line..focus_end duzeltme diff'inde silinen satirlar, yani kusurun dar hali; IoU her ikisine karsi raporlanir.",
+ "cases": [
+  {
+   "case_id": "pydata__xarray-109",
+   "repo": "pydata/xarray",
+   "base_commit": "8cd667db011af74f33dee05824b6762010378943",
+   "title": "Lazy indexing for loading remote/disk datasets",
+   "statement": "@akleeman @ToddSmall I'd love if you could take a quick look, even if it's just at my unit tests.\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": [
     {
-      "case_id": "pydata__xarray-109",
-      "repo": "pydata/xarray",
-      "base_commit": "8cd667db011af74f33dee05824b6762010378943",
-      "title": "Lazy indexing for loading remote/disk datasets",
-      "statement": "@akleeman @ToddSmall I'd love if you could take a quick look, even if it's just at my unit tests.\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sympy__sympy-10853",
-      "repo": "sympy/sympy",
-      "base_commit": "dfbc29b8cf3026694929171286db3631ccff9efe",
-      "title": "Define __signature__ on Function",
-      "statement": "This lets Python 3's inspect.signature give a useful signature for Function subclasses.\n\nFor example,\n\n**BEFORE**\n\n``` py\nIn [1]: import inspect\n\nIn [2]: inspect.signature(LambertW)\nOut[2]: <Signature (*args, **options)>\n```\n\n**AFTER**\n\n``` py\nIn [1]: import inspect\n\nIn [2]: inspect.signature(LambertW)\nOut[2]: <Signature (x, k=None)>\n```\n\nI was hoping this would also improve the IPython `?` help, but that is contingent\non https://github.com/ipython/ipython/issues/3678.\n",
-      "primary_type": "F.5 Support",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.5 Support",
-          "file": "sympy/core/function.py",
-          "start_line": 137,
-          "end_line": 155,
-          "focus_line": 146,
-          "focus_end": 148,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (minrk) pointed out that the assumption `# Python 3 only` was incorrect because backports like IPython's exist for Python 2, which could lead to an `ImportError`. The reviewer suggested a",
-          "in_scope": true,
-          "review_snippet": "sympy/core/function.py\n@@ -137,6 +137,19 @@ def __init__(cls, *args, **kwargs):\n             nargs = (as_int(nargs),)\n         cls._nargs = nargs\n \n+      @property\n+      def __signature__(self):\n+          \"\"\"\n+          Allow Python 3's inspect.signature to give a useful signature for\n+          Function subclasses.\n+          \"\"\"\n+          # Python 3 only, but this method is also only ever called in Python\n+          # 3.\n+          from inspect import signature\n+  \n+          # TODO: Look at nargs\n+          return signature(self.eval)\n+  \n       @property\n       def nargs(self):\n           \"\"\"Return a set of the allowed number of arguments for the function."
-        }
-      ]
-    },
-    {
-      "case_id": "matplotlib__matplotlib-1874",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "86055794415a0fb908697ca4aba64648028c6c7a",
-      "title": "Building Matplotlib on Ubuntu",
-      "statement": "Hi,\nI experienced a problem when compiling matplotlib on Ubuntu 13.04. The setup determined that the freetype2 headers are not installed (although they are). The reason for this is a function in setupext.py script that searches for \"ft2build.h\" in the freetype2 include directories (\"/usr/include/freetype2\" and below), whereas the file resides in \"/usr/include/ft2build.h\". As a quick workaround, I linked /usr/include/ft2build.h to /usr/include/freetype2/ft2build.h and matplotlib compiled just fine.\n\nI don't know it this has been caused by a change in the ubuntu package or by a modification in setupext.py though..\n",
-      "primary_type": "F.3 Resource",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.3 Resource",
-          "file": "setupext.py",
-          "start_line": 77,
-          "end_line": 83,
-          "focus_line": 80,
-          "focus_end": 80,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `pelson` pointed out that splitting the `basedirlist` string from `setup.cfg` by comma might leave leading/trailing whitespace if users format the list with spaces (e.g., `/usr, /usr/local`),",
-          "in_scope": true,
-          "review_snippet": "setupext.py\n@@ -77,7 +77,7 @@ def check_output(*popenargs, **kwargs):\n         pass\n \n     try:\n-        options['basedirlist'] = config.get(\"directories\", \"basedirlist\")\n+        options['basedirlist'] = config.get(\"directories\", \"basedirlist\").split(',')\n     except:\n         pass\n else:"
-        }
-      ]
-    },
-    {
-      "case_id": "pallets__flask-2748",
-      "repo": "pallets/flask",
-      "base_commit": "3fd7abec3c8c4a32da9579d0824b10d5ba0add83",
-      "title": "Fix blueprint route for \"\"",
-      "statement": "1. url_prefix = '/posts'\r\n2. rule = ''\r\n\r\nExpected result `/posts`, instead got `/posts/`.",
-      "primary_type": "F.2 Logic",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.2 Logic",
-          "file": "flask/blueprints.py",
-          "start_line": 66,
-          "end_line": 75,
-          "focus_line": 70,
-          "focus_end": 70,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `davidism` identified that the logic introduced in commit `f7a3bdc` to handle empty rules (`''`) would likely produce incorrect URLs for other combinations, such as a rule of `'/'` combined w",
-          "in_scope": true,
-          "review_snippet": "```diff\n--- a/flask/blueprints.py\n+++ b/flask/blueprints.py\n@@ -66,7 +66,10 @@ def add_url_rule(self, rule, endpoint=None, view_func=None, **options):\n           blueprint's name.\n           \"\"\"\n           if self.url_prefix is not None:\n-            rule = '/'.join((self.url_prefix, rule.lstrip('/')))\n+            if rule:\n+                rule = '/'.join((self.url_prefix, rule.lstrip('/')))\n+            else:\n+                rule = self.url_prefix\n           options.setdefault('subdomain', self.subdomain)\n           if endpoint is None:\n               endpoint = _endpoint_from_view_func(view_func)\n\n```"
-        }
-      ]
-    },
-    {
-      "case_id": "matplotlib__matplotlib-5233",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "b3290d44404a0dc72b88473dd836d2e5dbed6555",
-      "title": "Skip over broken TTF font when creating cache",
-      "statement": "Fixes #5232.\n",
-      "primary_type": "F.5 Support",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.5 Support",
-          "file": "lib/matplotlib/font_manager.py",
-          "start_line": 587,
-          "end_line": 593,
-          "focus_line": 590,
-          "focus_end": 590,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `tacaswell` pointed out that the syntax used for catching multiple exceptions (`except KeyError, RuntimeError:`) was valid in Python 2 but would cause a `SyntaxError` in Python 3, which requi",
-          "in_scope": true,
-          "review_snippet": "lib/matplotlib/font_manager.py\n@@ -587,7 +587,7 @@ def createFontList(fontfiles, fontext='ttf'):\n                 continue\n             try:\n                 prop = ttfFontProperty(font)\n-            except KeyError:\n+            except KeyError, RuntimeError:\n                 continue\n \n         fontlist.append(prop)"
-        }
-      ]
-    },
-    {
-      "case_id": "pylint-dev__pylint-6782",
-      "repo": "pylint-dev/pylint",
-      "base_commit": "bd33f79b69bef522fd8d0790d215213954a82707",
-      "title": "Fix ``.git`` in package links in the primer",
-      "statement": "- [x] Add yourself to CONTRIBUTORS if you are a new contributor.\r\n- [x] Write a good description on what the PR does.\r\n\r\n## Type of Changes\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :hammer: Refactoring   |\r\n\r\n## Description",
-      "primary_type": "F.4 Check",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.4 Check",
-          "file": "tests/primer/primer_tool.py",
-          "start_line": 240,
-          "end_line": 246,
-          "focus_line": 240,
-          "focus_end": 246,
-          "span_kind": "range",
-          "focus_source": "introduce",
-          "title": "The reviewer (Pierre-Sassoulas) suggested adding an `assert` statement to ensure that the `package_data.url` does not end with `.git`, reinforcing the change made earlier in the PR where `.git` suffix",
-          "in_scope": true,
-          "review_snippet": "tests/primer/primer_tool.py\n@@ -240,8 +240,7 @@ def _create_comment(\n                 filepath = str(message[\"path\"]).replace(\n                     str(package_data.clone_directory), \"\"\n                 )\n-                without_suffix = package_data.url.rsplit(\".git\")[0]\n-                comment += f\"{without_suffix}/blob/{package_data.branch}{filepath}#L{message['line']}\\n\"\n+                comment += f\"{package_data.url}/blob/{package_data.branch}{filepath}#L{message['line']}\\n\"\n                 count += 1\n                 print(message)\n             if missing_messages:"
-        }
-      ]
-    },
-    {
-      "case_id": "pydata__xarray-6939",
-      "repo": "pydata/xarray",
-      "base_commit": "c4e40d991c28be51de9ac560ce895ac7f9b14924",
-      "title": "Improve quantile method docstring + error",
-      "statement": "<!-- Feel free to remove check-list items aren't relevant to your change -->\r\n\r\n- [x] Closes #6875\r\n- [x] ~~Tests added~~\r\n- [ ] User visible changes (including notable bug fixes) are documented in `whats-new.rst`\r\n- [x] ~~New functions/methods are listed in `api.rst`~~\r\n",
-      "primary_type": "F.2 Logic",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.2 Logic",
-          "file": "xarray/core/variable.py",
-          "start_line": 2143,
-          "end_line": 2149,
-          "focus_line": 2146,
-          "focus_end": 2146,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `mathause` pointed out via a direct code suggestion that the error message string was missing the `f` prefix required for f-string formatting in Python. This meant the `{method}` placeholder ",
-          "in_scope": true,
-          "review_snippet": "xarray/core/variable.py\n@@ -2143,7 +2143,7 @@ def _wrapper(npa, **kwargs):\n         else:\n             if method not in (\"linear\", \"lower\", \"higher\", \"midpoint\", \"nearest\"):\n                 raise ValueError(\n-                    \"Interpolation method '{method}' requires numpy >= 1.22 or is not supported.\"\n+                    \"Interpolation method '{method}' requires numpy >= 1.22 or is not supported.\"\n                 )\n             kwargs = {\"q\": q, \"axis\": axis, \"interpolation\": method}"
-        }
-      ]
-    },
-    {
-      "case_id": "mwaskom__seaborn-2417",
-      "repo": "mwaskom/seaborn",
-      "base_commit": "aad96f8d2e36ceceb82a42b69aa3a8f47ef7210d",
-      "title": "Improve NA robustness in VectorPlotter.comp_data",
-      "statement": "This PR avoids passing `nan` through the matplotlib converters used to obtain a numeric/computable representation of the data (i.e. `VectorPlotter.comp_data`).\r\n\r\nIt also\r\n- codifies that the converted columns in `comp_data` have a float dtype\r\n- converts `inf` to `nan`, in line with what matplotlib does\r\n\r\nFixes #2295 \r\n\r\nAdditionally this will implicitly address #1971 once the regression plots are refactored to use `comp_data` internally. (@mojones, funny that you opened both issues).",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "astropy__astropy-5494",
-      "repo": "astropy/astropy",
-      "base_commit": "435c82275be420c51d8d0f8bd663ae0c63ae5ad3",
-      "title": "Make footprint_to_file more useful",
-      "statement": "I discovered `WCS.footprint_to_file` recently while looking for a similar method, but found a few issues that I attempt to fix here:\r\n\r\n- The default coordinate system was 'linear', which was not working with aplpy/pyregion. Instead I changed to use by default the one from `wcs.radesys` (typically ICRS or FK5) and added a new parameter to allow to overwrite this coordinate system. See the [supported coordinate systems](http://ds9.si.edu/doc/ref/region.html#RegionFileFormat), is it useful to add a check that the value is correct ?\r\n\r\n- When using the method multiple times, the new string were appended to the old ones,  with the global parameters written multiple times. So I changed to overwrite the file ('w' instead of 'a'). I thought about adding a parameter for this, but ideally in append mode this would need to detect if the global parameters are already there to not write them again.\r\n\r\ncc @nden ",
-      "primary_type": "F.4 Check",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.4 Check",
-          "file": "astropy/wcs/wcs.py",
-          "start_line": 2645,
-          "end_line": 2670,
-          "focus_line": 2655,
-          "focus_end": 2664,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`nden`) pointed out that using `wcs.radesys` directly might lead to issues if it's an empty string or an invalid value for the region file format, suggesting adding a check (warning or e",
-          "in_scope": true,
-          "review_snippet": "astropy/wcs/wcs.py:\n@@ -2644,21 +2645,26 @@ def footprint_to_file(self, filename=None, color='green', width=2):\n+                          coordsys=None):\n          \"\"\"\n          Writes out a `ds9`_ style regions file. It can be loaded\n          directly by `ds9`_.\n@@ -2652,16 +2652,23 @@ def footprint_to_file(self, filename=None, color='green', width=2):\n+\n+        coordsys : str, optional\n+            Coordinate system. If not specified (default), the ``radesys``\n+            value is used. For all possible values, see\n+            http://ds9.si.edu/doc/ref/region.html#RegionFileFormat\n+\n          \"\"\"\n-        if not filename:\n-            filename = 'footprint.reg'\n-        comments = '# Region file format: DS9 version 4.0 \\n'\n-        comments += ('# global color=green font=\"helvetica 12 bold ' +\n-                     'select=1 highlite=1 edit=1 move=1 delete=1 ' +\n-                     'include=1 fixed=0 source\\n')\n-\n-        f = open(filename, 'a')\n-        f.write(comments)\n-        f.write('linear\\n')\n-        f.write('polygon(')\n-        self.calc_footprint().tofile(f, sep=',')\n-        f.write(') # color={0}, width={1:d} \\n'.format(color, width))\n-        f.close()\n+        comments = ('# Region file format: DS9 version 4.0 \\n'\n+                    '# global color=green font=\"helvetica 12 bold '\n+                    'select=1 highlite=1 edit=1 move=1 delete=1 '\n+                    'include=1 fixed=0 source\\n')\n+\n+        with open(filename, mode='w') as f:\n+            f.write(comments)\n+            f.write('{}\n'.format(self.wcs.radesys)) # <-- Uses wcs.radesys directly\n+            f.write('polygon(')\n+            self.calc_footprint().tofile(f, sep=',')\n+            f.write(') # color={0}, width={1:d} \\n'.format(color, width))"
-        }
-      ]
-    },
-    {
-      "case_id": "sympy__sympy-22957",
-      "repo": "sympy/sympy",
-      "base_commit": "640eb2cc87c924ab70b50b7a90e87404754dc4d9",
-      "title": "maint: check all AUTHORS are in .mailmap",
-      "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\n\r\n\r\n#### Brief description of what is fixed or changed\r\n\r\n\r\n#### Other comments\r\n\r\n\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below between the BEGIN and END\r\nstatements. The basic format is a bulleted list with the name of the subpackage\r\nand the release note for this PR. For example:\r\n\r\n* solvers\r\n  * Added a new solver for logarithmic equations.\r\n\r\n* functions\r\n  * Fixed a bug with log of integers.\r\n\r\nor if no release note(s) should be included use:\r\n\r\nNO ENTRY\r\n\r\nSee https://github.com/sympy/sympy/wiki/Writing-Release-Notes for more\r\ninformation on how to write release notes. The bot will check your release\r\nnotes automatically to see if they are formatted correctly. -->\r\n\r\n<!-- BEGIN RELEASE NOTES -->\r\nNO ENTRY\r\n<!-- END RELEASE NOTES -->\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sphinx-doc__sphinx-3527",
-      "repo": "sphinx-doc/sphinx",
-      "base_commit": "38b38d8affe9110968a5dc0cf91f4e566c1739a2",
-      "title": "Protect TeX double quotes ligatures in inline literals (refs #3507)",
-      "statement": "Subject: fix #3507\r\n\r\n### Feature or Bugfix\r\n- Bugfix\r\n\r\n\r\n### Purpose\r\n- Make sure inline literals in LaTeX allow TeX ligatures for ```` `` ```` and `''`. This is done by modifying LaTeX's writer call to smartypants ``educate_quotes_latex`` to insert macros rather than explicit TeX input ```` `` ```` and `''`. \r\n- This needs review because my knowledge of Docutils is not enough to verify when exactly is ``visit_Text()`` executed. It does not seem to interfere with literal blocks and their Pygmentization.\r\n\r\nMemo : Sphinx has a dissymmetry between inline literals and literal blocks in handling of `\"`. In the former the `\"` may have been transformed into a pair of directional quotes, with the TeX input form ```` `` ```` and `''` (up to this PR.) The latter pygmentizes `\"` with no directionality, one needs to have directional quotes in the reST source to start with.\r\n\r\nSide remark: spacing before and after the ``productionlist`` environment does not appear to be ideal.\r\n\r\n### Test file\r\n\r\n```\r\n\r\n“entry”\r\n\r\n.. productionlist::\r\n   entry: \"entry\" `block`\r\n\r\n.. productionlist::\r\n   entry: “entry” `block`\r\n\r\n::\r\n\r\n   \"entry\" ``entry'' “entry”\r\n\r\n```\r\n\r\n### Relates\r\n- #3507, #2627.\r\n\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "astropy__astropy-14782",
-      "repo": "astropy/astropy",
-      "base_commit": "dd0317de9fff2b5d3b12f6d488ae3ebdf58c3596",
-      "title": "remove deprecated import path",
-      "statement": "Importing FLRW from core has been deprecated since v5.0. Now it's removed. \r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "astropy__astropy-2775",
-      "repo": "astropy/astropy",
-      "base_commit": "00f691fc42043048eca2422aa656224cd014ab5e",
-      "title": "Use astropy_helpers for setup_helpers in wcs test_api_extension",
-      "statement": "This just removes an internal dependency on the deprecated internal copy of setup_helpers.\n",
-      "primary_type": "F.3 Resource",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.3 Resource",
-          "file": "astropy/wcs/tests/extension/setup.py",
-          "start_line": 11,
-          "end_line": 17,
-          "focus_line": 14,
-          "focus_end": 14,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `astrofrog` identified that the change introduced in commit `e95589ab` (switching to `astropy_helpers`) would cause the test setup script to fail when run via the standard `astropy.test()` co",
-          "in_scope": true,
-          "review_snippet": "```diff\nastropy/wcs/tests/extension/setup.py\n@@ -11,7 +11,7 @@\n     sys.path.insert(0, astropy_path)\n \n     from astropy import wcs\n-    from astropy import setup_helpers\n+    from astropy_helpers import setup_helpers\n     from distutils.core import setup, Extension\n \n     if sys.platform == 'win32':\n```"
-        }
-      ]
-    },
-    {
-      "case_id": "sympy__sympy-2078",
-      "repo": "sympy/sympy",
-      "base_commit": "56b0a014a384c66fa34674a57d6e24cf50062d93",
-      "title": "theano printing handles Function",
-      "statement": "theano printing handles user defined functions applied to symbols as TensorVariables.\n\nThis handles the same problem as https://github.com/sympy/sympy/pull/1920 does in `lambdify`\n\n@gilbertgede Does this look reasonable to you?\n",
-      "primary_type": "F.1 Interface",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.1 Interface",
-          "file": "sympy/printing/tests/test_theanocode.py",
-          "start_line": 214,
-          "end_line": 223,
-          "focus_line": 218,
-          "focus_end": 222,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`gilbertgede`) questioned whether the test should be calling `theano_code` on the applied function `f(t)` rather than the function definition `f`. The author (`mrocklin`) acknowledged th",
-          "in_scope": true,
-          "review_snippet": "sympy/printing/tests/test_theanocode.py\n@@ -214,3 +214,10 @@ def test_DenseMatrix():\n         tX = theano_code(X)\n         assert isinstance(tX, tt.TensorVariable)\n         assert tX.owner.op == tt.join\n+\n+def test_Function():\n+    t = sy.Symbol('t')\n+    f = sy.Function('f')\n+    ft = theano_code(f)\n+    assert isinstance(ft, tt.TheanoVariable)\n+    assert ft.name == 'f_t'"
-        }
-      ]
-    },
-    {
-      "case_id": "scikit-learn__scikit-learn-11509",
-      "repo": "scikit-learn/scikit-learn",
-      "base_commit": "baa18eea47ae013c1b34fdea08e3806f0b71d9ea",
-      "title": "[MRG] Fix collections.abc deprecations with Python 3.7 (0.19.X backport)",
-      "statement": "Backport of https://github.com/scikit-learn/scikit-learn/pull/11431 to 0.19.X that removes the deprecation warning about ABC being moved from collections to collections.abc when importing scikit-learn in Python 3.7.\r\n\r\n~~**Do not merge** while the parent PR is not merged.~~ Done as part of https://github.com/scikit-learn/scikit-learn/pull/11422",
-      "primary_type": "F.5 Support",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.5 Support",
-          "file": "sklearn/tests/test_init.py",
-          "start_line": 1,
-          "end_line": 18,
-          "focus_line": 7,
-          "focus_end": 10,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `amueller` pointed out that the newly added test relied on `pytest`, which was not a dependency in the target 0.19.X branch. The author `rth` confirmed this (\"Yes, working on it..\").",
-          "in_scope": true,
-          "review_snippet": "sklearn/tests/test_init.py\n@@ -1,11 +1,18 @@\n # Basic unittests to test functioning of module's top-level\n \n-__author__ = 'Yaroslav Halchenko'\n-__license__ = 'BSD'\n+import subprocess\n \n+import pkgutil\n \n+import pytest\n+\n import sklearn\n-from sklearn.utils.testing import assert_equal\n+from sklearn.utils.testing import assert_equal\n \n+__author__ = 'Yaroslav Halchenko'\n+__license__ = 'BSD'\n+\n+\n try:\n     from sklearn import *  # noqa\n     _top_import_error = None\n@@ -18,3 +25,35 @@ def test_import_skl():\n     # \"import *\" is discouraged outside of the module level, hence we\n     # rely on setting up the variable above\n     assert_equal(_top_import_error, None)\n+\n+\n+def test_import_sklearn_no_warnings():\n+    # Test that importing scikit-learn main modules doesn't raise any warnings.\n+\n+    try:\n+        pkgs = pkgutil.iter_modules(path=sklearn.__path__, prefix='sklearn.')\n+        import_modules = '; '.join(['import ' + modname\n+                                    for _, modname, _ in pkgs\n+                                    if not modname.startswith('_')])\n+\n+        message = subprocess.check_output(['python', '-Wdefault',\n+                                           '-c', import_modules],\n+                                          stderr=subprocess.STDOUT)\n+        message = message.decode(\"utf-8\")\n+        message = '\\n'.join([line for line in message.splitlines()\n+                             if not (  # ignore ImportWarning\n+                                     \"ImportWarning\" in line or\n+                                     # ignore DeprecationWarning due to pytest\n+                                     \"pytest\" in line or\n+                                     # ignore DeprecationWarnings due to\n+                                     # numpy.oldnumeric\n+                                     \"oldnumeric\" in line or\n+                                     # ignore FutureWarnings\n+                                     \"FutureWarning\" in line\n+                                     )])\n+        assert 'Warning' not in message\n+        assert 'Error' not in message\n+\n+    except Exception as e:\n+        pytest.skip('soft-failed test_import_sklearn_no_warnings.\\n'\n+                    ' %s' % e)\n"
-        }
-      ]
-    },
-    {
-      "case_id": "pydata__xarray-177",
-      "repo": "pydata/xarray",
-      "base_commit": "7e0e7b1f2b3663c9fddb7b9f1767e4e7f744d19c",
-      "title": "Add python2.6 compatibility",
-      "statement": "This change mainly involves an alternative import of OrderedDict, modified dict and set comprehensions, and using unittest2 for testing. \n",
-      "primary_type": "F.2 Logic",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.2 Logic",
-          "file": "xray/data_array.py",
-          "start_line": 702,
-          "end_line": 711,
-          "focus_line": 707,
-          "focus_end": 708,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`shoyer`) pointed out that the logic introduced in commit `d4c2ad1f...` was flawed. Specifically, the operation `set(concat_over) | set([name])` (which adds the current DataArray's name ",
-          "in_scope": true,
-          "review_snippet": "--- a/xray/data_array.py\n+++ b/xray/data_array.py\n@@ -702,7 +702,10 @@ def concat(cls, arrays, dimension='concat_dimension', indexers=None,\n              datasets.append(arr.dataset)\n          if concat_over is None:\n              concat_over = set()\n-        concat_over = set(concat_over) | {name}\n+        elif isinstance(concat_over, basestring):\n+            concat_over = set([concat_over])\n+        else:\n+            concat_over = set(concat_over) | set([name])\n          ds = xray.Dataset.concat(datasets, dimension, indexers,\n                                       concat_over=concat_over)\n          return ds[name]"
-        }
-      ]
-    },
-    {
-      "case_id": "matplotlib__matplotlib-128",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "97f713098a71c70d70c46602794c2a0fd126b614",
-      "title": "hexbin_demo.py crashes with gtk backend",
-      "statement": "the demo:\nhttp://matplotlib.sourceforge.net/examples/pylab_examples/hexbin_demo.html\ncrashes in matplotlib 1.0.1 when using the gtk backend:\n\n```\n$ python hexbin.py -dgtk\nThe program 'hexbin.py' received an X Window System error.\nThis probably reflects a bug in the program.\nThe error was 'BadMatch (invalid parameter attributes)'.\n  (Details: serial 56509 error_code 8 request_code 73 minor_code 0)\n  (Note to programmers: normally, X errors are reported asynchronously;\n   that is, you will receive the error a while after causing it.\n   To debug your program, run it with the --sync command line\n   option to change this behavior. You can then get a meaningful\n   backtrace from your debugger if you break on the gdk_x_error() function.)\n```\n\nother backends including gtkagg work fine.\ndownstream bug, verified with 1.0.1ubuntu1:\nhttps://bugs.launchpad.net/ubuntu/+source/matplotlib/+bug/782812\n",
-      "primary_type": "F.4 Check",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.4 Check",
-          "file": "lib/matplotlib/backends/backend_gdk.py",
-          "start_line": 228,
-          "end_line": 236,
-          "focus_line": 228,
-          "focus_end": 231,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `efiring` questioned why the boundary check added in the first commit to `_draw_rotated_text` was not also added to the `draw_text` function, suggesting an inconsistency or potential omission",
-          "in_scope": true,
-          "review_snippet": "lib/matplotlib/backends/backend_gdk.py\n@@ -228,6 +228,9 @@ def _draw_rotated_text(self, gc, x, y, s, prop, angle):\n         if x < 0 or y < 0: # window has shrunk and text is off the edge\n             return\n \n+        if x + w > self.width or y + h > self.height:\n+            return\n+\n         key = (x,y,s,angle,hash(prop))\n         imageVert = self.rotated.get(key)\n         if imageVert != None:"
-        }
-      ]
-    },
-    {
-      "case_id": "pytest-dev__pytest-7872",
-      "repo": "pytest-dev/pytest",
-      "base_commit": "95917f8833bc71229c3ac4fb73cbf5ca5818201b",
-      "title": "Document that Parser.addini() can take, and defaults to, 'string'",
-      "statement": "- [X] Include documentation when adding new features.\r\n- [x] Include new tests or update existing tests when applicable.\r\n- [X] Allow maintainers to push and squash when merging my commits. Please uncheck this if you prefer to squash the commits yourself.\r\n\r\nIf this change fixes an issue, please:\r\n\r\n- [x] Add text like ``closes #XYZW`` to the PR description and/or commits (where ``XYZW`` is the issue number). See the [github docs](https://help.github.com/en/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) for more information.\r\n\r\nUnless your change is trivial or a small documentation fix (e.g., a typo or reword of a small section) please:\r\n\r\n- [x] Create a new changelog file in the `changelog` folder, with a name like `<ISSUE NUMBER>.<TYPE>.rst`. See [changelog/README.rst](https://github.com/pytest-dev/pytest/blob/master/changelog/README.rst) for details.\r\n\r\n  Write sentences in the **past or present tense**, examples:\r\n\r\n  * *Improved verbose diff output with sequences.*\r\n  * *Terminal summary statistics now use multiple colors.*\r\n\r\n  Also make sure to end the sentence with a `.`.\r\n\r\n- [x] Add yourself to `AUTHORS` in alphabetical order.\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "scikit-learn__scikit-learn-11756",
-      "repo": "scikit-learn/scikit-learn",
-      "base_commit": "477c921c0f4a9182c2a7f2afe2c740b5bab0a15f",
-      "title": "[MRG] FIX IndexError due to imprecision in KMeans++",
-      "statement": "I'm not sure how to test this.\r\n\r\nAs noted in https://github.com/scikit-learn/scikit-learn/issues/8583#issuecomment-410568283 we could instead switch to using `random_state.choice` but will probably lose backwards compatibility.",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "pylint-dev__pylint-6367",
-      "repo": "pylint-dev/pylint",
-      "base_commit": "5ee5cf77cd1c6f9bf83cfcc696f42dad204e9735",
-      "title": "Fix a crash in the ``unsupported-membership-test`` checker involving tuple unpacking",
-      "statement": "## Type of Changes\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :bug: Bug fix          |\r\n\r\n## Description\r\nAn assumption of direct parentage between `AssignName` and `Assign` was violated by tuple unpacking.\r\n\r\nCloses #6366\r\n",
-      "primary_type": "F.4 Check",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.4 Check",
-          "file": "pylint/checkers/utils.py",
-          "start_line": 1066,
-          "end_line": 1080,
-          "focus_line": 1073,
-          "focus_end": 1075,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`Pierre-Sassoulas`) questioned the `assert this_assign_parent is not None` introduced in the first commit, suggesting it might be possible for the variable to be `None` and that this cas",
-          "in_scope": true,
-          "review_snippet": "pylint/checkers/utils.py\n@@ -1066,8 +1066,15 @@ def _supports_protocol_method(value: nodes.NodeNG, attr: str) -> bool:\n         return False\n \n     first = attributes[0]\n+\n+    # Return False if a constant is assigned\n     if isinstance(first, nodes.AssignName):\n-        if isinstance(first.parent.value, nodes.Const):\n+        this_assign_parent = get_node_first_ancestor_of_type(first, nodes.Assign)\n+        assert this_assign_parent is not None\n+        if isinstance(this_assign_parent.value, nodes.BaseContainer):\n+            if all(isinstance(n, nodes.Const) for n in this_assign_parent.value.elts):\n+                return False\n+        if isinstance(this_assign_parent.value, nodes.Const):\n             return False\n     return True"
-        }
-      ]
-    },
-    {
-      "case_id": "pylint-dev__pylint-6575",
-      "repo": "pylint-dev/pylint",
-      "base_commit": "c6022aaea149395dee574a2b147bb6cb12e051e0",
-      "title": "Better assert message for documentation tests",
-      "statement": "## Type of Changes\r\n\r\n<!-- Leave the corresponding lines for the applicable type of change: -->\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :scroll: Docs          |\r\n\r\n## Description\r\n\r\nOriginally included in #6574 but it's going to make the whole test suite be launched for every change.\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sympy__sympy-22140",
-      "repo": "sympy/sympy",
-      "base_commit": "c4bcd7537439eb708f9f21e48c70606abb08c934",
-      "title": "improve Expr.coeff for noncommutative sums",
-      "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\n\r\nFixes #16752\r\ncloses #21986 as alternative\r\n\r\nTODO\r\n- [x] check that `(x*n + x*n*m).coeff(x*n)` works as expected\r\n\r\n#### Brief description of what is fixed or changed\r\n\r\nSums of non-commutative terms are now handled correctly when extracting a coefficient.\r\n\r\n#### Other comments\r\n\r\nThe commutative coefficient is only included as a right-coefficient of a non-commutative term when multiple terms have different commutative factors. If the commutative factors are the same then they will only be extracted as a left-coefficient so\r\n```python\r\n(x*n + x*n*m).coeff(n, right=1) -> 1 + m\r\n(x*n + x*n*m).coeff(n) -> x\r\nfactor_nc(x*n + x*n*m) -> x*n*(1 + m)\r\n\r\n(y*n + x*n*m).coeff(n, right=1) -> y + x*m\r\n(y*n + x*n*m).coeff(n) -> 1\r\nfactor_nc(y*n + x*n*m) -> n*(y + x*m)\r\n```\r\n\r\nIf #22138 were fixed then the simplest fix for this issue would be\r\n```python\r\nif self.is_Add and not self_c and not x_c:\r\n            xargs = Mul.make_args(x)\r\n            d = Add(*[i for i in Add.make_args(self.as_independent(x)[1]) if all(xi in Mul.make_args(i) for xi in xargs)])\r\n            f = factor_nc(d)\r\n            if f.is_Add:\r\n                return S.Zero\r\n            return f.coeff(x, right=right)\r\n```\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below between the BEGIN and END\r\nstatements. The basic format is a bulleted list with the name of the subpackage\r\nand the release note for this PR. For example:\r\n\r\n* solvers\r\n  * Added a new solver for logarithmic equations.\r\n\r\n* functions\r\n  * Fixed a bug with log of integers.\r\n\r\nor if no release n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "django__django-494",
-      "repo": "django/django",
-      "base_commit": "aee9c7b094cbd36c898ea465269935f156412ab9",
-      "title": "model_split: Fixed #19236 - fixed error for abstract models with a split method",
-      "statement": "Link to ticket:\n\nhttps://code.djangoproject.com/ticket/19236\n",
-      "primary_type": "F.5 Support",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.5 Support",
-          "file": "django/db/models/fields/related.py",
-          "start_line": 54,
-          "end_line": 69,
-          "focus_line": 58,
-          "focus_end": 58,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `alex` pointed out that `basestring` is incompatible with Python 3 and suggested using `six.string_types` from Django's compatibility utilities. The reviewer's subsequent comment (\"Besides th",
-          "in_scope": true,
-          "review_snippet": "diff --git a/django/db/models/fields/related.py b/django/db/models/fields/related.py\nindex 9c48b39..785e1f2 100644\n--- a/django/db/models/fields/related.py\n+++ b/django/db/models/fields/related.py\n@@ -54,14 +54,16 @@ class MyModel(Model):\n \n     else:\n         # Look for an \"app.Model\" relation\n-        try:\n-            app_label, model_name = relation.split(\".\")\n-        except ValueError:\n-            # If we can't split, assume a model in current app\n-            app_label = cls._meta.app_label\n-            model_name = relation\n-        except AttributeError:\n-            # If it doesn't have a split it's actually a model class\n+\n+        if isinstance(relation, basestring):\n+            try:\n+                app_label, model_name = relation.split(\".\")\n+            except ValueError:\n+                # If we can't split, assume a model in current app\n+                app_label = cls._meta.app_label\n+                model_name = relation\n+        else:\n+            # it's actually a model class\n             app_label = relation._meta.app_label\n             model_name = relation._meta.object_name\n "
-        }
-      ]
-    },
-    {
-      "case_id": "sympy__sympy-25105",
-      "repo": "sympy/sympy",
-      "base_commit": "ecb47ac7cc84b398240026095c7d29132dbd2ca7",
-      "title": "Implemented `TorqueActuator` in `sympy.physics.mechanics`",
-      "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\nForms part of the CZI biomechanics work program described in https://github.com/sympy/sympy/issues/24240.\r\n\r\nExtends specifically #24966 (but is also related to #24914 and #25068).\r\n\r\n#### Brief description of what is fixed or changed\r\nThis PR implements a new actuator class, `TorqueActuator`, which is the second concrete class of `ActuatorBase`. It represents an actuator that can applied torque to a pair of reference frames, with a (equal and opposite) reaction torque being applied to the second of the pair. \r\n\r\nI have not added any documentation beyond docstrings, nor have I added the docstrings to the online documentation yet. For the reasoning above this would likely need significant rewriting after any API changes. Documentation will be contributed in a future PR when the module is moved to `sympy/physics/mechanics/actuator.py`.\r\n\r\n#### Other comments\r\nI have specifically left the release notes entry empty. These will be added in the PR that moves the module to `sympy/physics/mechanics/actuator.py`.\r\n\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below between the BEGIN and END\r\nstatements. The basic format is a bulleted list with the name of the subpackage\r\nand the release note for this PR. For example:\r\n\r\n* solvers\r\n  * Added a new solver for logarithmic equations.\r\n\r\n* functions\r\n  * Fixed a bug with log of integers. Formerly, `log(-x)` incorrectly gave `-log(x)`.\r\n\r\n* physics.units\r\n  * Corrected a semantical error in the conversion between volt and statvolt which\r\n    reported the volt as being larger than t",
-      "primary_type": "F.1 Interface",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.1 Interface",
-          "file": "sympy/physics/mechanics/_actuator.py",
-          "start_line": 408,
-          "end_line": 419,
-          "focus_line": 416,
-          "focus_end": 419,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`tjstienstra`) pointed out that the `at_pin_joint` factory method incorrectly used the `parent` and `child` attributes of the `PinJoint` directly. This approach would fail or behave inco",
-          "in_scope": true,
-          "review_snippet": "# sympy/physics/mechanics/_actuator.py\n@@ -408,8 +408,8 @@ def at_pin_joint(\n             )\n             raise TypeError(msg)\n         axis = pin_joint.joint_axis\n-        body_1 = pin_joint.parent\n-        body_2 = pin_joint.child\n-        return cls(torque, axis, body_1, body_2)\n+        # The following lines incorrectly assume parent/child bodies can always be used directly.\n+        body_1 = pin_joint.parent # Incorrectly uses parent body directly\n+        body_2 = pin_joint.child   # Incorrectly uses child body directly\n+        return cls(torque, axis, body_1, body_2) # Passes bodies instead of correct frames\n \n      @property\n      def torque(self) -> ExprType:"
-        }
-      ]
-    },
-    {
-      "case_id": "mwaskom__seaborn-2347",
-      "repo": "mwaskom/seaborn",
-      "base_commit": "29f5807efdf0544b16c088beac7c1c5eda174084",
-      "title": "better checks for `sharey` and `sharex` in `axesgrid.py`",
-      "statement": "better checks for `sharey` and `sharex` in `axesgrid.py`\r\n\r\ncloses #2346 ",
-      "primary_type": "F.2 Logic",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.2 Logic",
-          "file": "seaborn/axisgrid.py",
-          "start_line": 461,
-          "end_line": 473,
-          "focus_line": 464,
-          "focus_end": 470,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`mwaskom`) pointed out that the new logic `sharex != 'row'` would incorrectly evaluate to true when `sharex` is explicitly set to `False`, leading to undesired hiding of x-axis labels. T",
-          "in_scope": true,
-          "review_snippet": "seaborn/axisgrid.py\n@@ -461,13 +461,13 @@ def __init__(\n           if despine:\n               self.despine()\n   \n-        if sharex:\n+        if sharex != 'row':\n               for ax in self._not_bottom_axes:\n                   for label in ax.get_xticklabels():\n                       label.set_visible(False)\n                   ax.xaxis.offsetText.set_visible(False)\n   \n-        if sharey:\n+        if sharey != 'col':\n               for ax in self._not_left_axes:\n                   for label in ax.get_yticklabels():\n                       label.set_visible(False)"
-        }
-      ]
-    },
-    {
-      "case_id": "pallets__flask-2529",
-      "repo": "pallets/flask",
-      "base_commit": "d24bb9ee32357ac9cd122932ede32ca486431f0e",
-      "title": "Enable threads by default for the dev server",
-      "statement": "It's way too easy currently to deadlock the server with background resource\nfetching.  We really should have threads enabled by default now in my mind.",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "django__django-10104",
-      "repo": "django/django",
-      "base_commit": "8c4b94d32d229109c17e050cab1f894d56e755da",
-      "title": "Fixed #29514 -- Fixed get_default_timezone()/utc equality.",
-      "statement": "https://code.djangoproject.com/ticket/29514",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "scikit-learn__scikit-learn-24948",
-      "repo": "scikit-learn/scikit-learn",
-      "base_commit": "c4d221ddcb9171f5bb05f7fe0dd0b96f7d532331",
-      "title": "DOC Fix FutureWarning in ensemble/plot_gradient_boosting_oob.py",
-      "statement": "<!--\r\nThanks for contributing a pull request! Please ensure you have taken a look at\r\nthe contribution guidelines: https://github.com/scikit-learn/scikit-learn/blob/main/CONTRIBUTING.md\r\n-->\r\n\r\n#### Reference Issues/PRs\r\n<!--\r\nExample: Fixes #1234. See also #3456.\r\nPlease use keywords (e.g., Fixes) to create link to the issues or pull requests\r\nyou resolved, so that they will automatically be closed when your pull request\r\nis merged. See https://github.com/blog/1506-closing-issues-via-pull-requests\r\n-->\r\n\r\nRelated to #24876\r\n\r\n#### What does this implement/fix? Explain your changes.\r\n\r\nFix FutureWarnings in ensemble/plot_gradient_boosting_oob.py\r\n\r\n```\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n```\r\n\r\n#### Any other comments?\r\n\r\n\r\n<!--\r\nPlease be aware that we are a loose team of volunteers so patience is\r\nnecessary; assistance handling other issues is very welcome. We value\r\nall user contributions, no matter how minor they are. If we are slow to\r\nreview, either the pull request needs some benchmarking, tinkering,\r\nconvincing, etc. or more likely the reviewers are simply busy. In either\r\ncase, we ask for your understanding during the review process.\r\nFor more information, see our FAQ on this topic:\r\nhttp://scikit-learn.org/dev/faq.html#why-is-my-pull-request-not-getting-any-attention.\r\n\r\nThanks for contributing!\r\n-->\r\n",
-      "primary_type": "F.1 Interface",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.1 Interface",
-          "file": "examples/ensemble/plot_gradient_boosting_oob.py",
-          "start_line": 30,
-          "end_line": 36,
-          "focus_line": 33,
-          "focus_end": 33,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`glemaitre`) identified that the initial commit incorrectly used `log_loss` (which expects probabilities) with the raw output of `staged_decision_function`. The reviewer explained the mi",
-          "in_scope": true,
-          "review_snippet": "--- a/examples/ensemble/plot_gradient_boosting_oob.py\n+++ b/examples/ensemble/plot_gradient_boosting_oob.py\n@@ -30,6 +30,7 @@\n import matplotlib.pyplot as plt\n \n from sklearn import ensemble\n+from sklearn.metrics import log_loss\n from sklearn.model_selection import KFold\n from sklearn.model_selection import train_test_split\n \n@@ -73,7 +74,7 @@ def heldout_score(clf, X_test, y_test):\n     \"\"\"compute deviance scores on ``X_test`` and ``y_test``.\"\"\"\n     score = np.zeros((n_estimators,), dtype=np.float64)\n     for i, y_pred in enumerate(clf.staged_decision_function(X_test)):\n-        score[i] = clf.loss_(y_test, y_pred)\n+        score[i] = log_loss(y_test, y_pred)\n     return score\n \n"
-        }
-      ]
-    },
-    {
-      "case_id": "pytest-dev__pytest-5668",
-      "repo": "pytest-dev/pytest",
-      "base_commit": "fd2fb36eacabf283f11ac3a7f09322074c58a57f",
-      "title": "Fix the confusing different names of `fulltrace`",
-      "statement": "Fix the confusing different names of `fulltrace` showed in `pytest --help` (#5647)\r\n\r\nSince this is a small fix, and I don't think this needs to create a changelog, please let me know if needed.",
-      "primary_type": "F.1 Interface",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.1 Interface",
-          "file": "src/_pytest/terminal.py",
-          "start_line": 114,
-          "end_line": 120,
-          "focus_line": 117,
-          "focus_end": 117,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer RonnyPfannschmidt identified that removing the `\"--full-trace\"` alias in commit 6c2f673 was a breaking change. Reviewer nicoddemus later confirmed this direction was incorrect, stating the fi",
-          "in_scope": true,
-          "review_snippet": "diff --git a/src/_pytest/terminal.py b/src/_pytest/terminal.py\nindex 0ff564d01..46923f81c 100644\n--- a/src/_pytest/terminal.py\n+++ b/src/_pytest/terminal.py\n@@ -114,7 +114,7 @@ def pytest_addoption(parser):\n     )\n     group._addoption(\n         \"--fulltrace\",\n-        \"--full-trace\",\n+        \"--fulltrace\",\n         action=\"store_true\",\n         default=False,\n         help=\"don't cut any tracebacks (default is to cut).\","
-        }
-      ]
-    },
-    {
-      "case_id": "pytest-dev__pytest-1854",
-      "repo": "pytest-dev/pytest",
-      "base_commit": "847067fb02804f967e07746085d574dff7495f18",
-      "title": "Pkg resources bugfix",
-      "statement": "Related to #1853. \n",
-      "primary_type": "F.2 Logic",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.2 Logic",
-          "file": "_pytest/config.py",
-          "start_line": 941,
-          "end_line": 947,
-          "focus_line": 944,
-          "focus_end": 944,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer RonnyPfannschmidt initially questioned the effectiveness of the change. Reviewer nicoddemus then pointed out that the `import pkg_resources` introduced in commit `2f11a856` was placed incorre",
-          "in_scope": true,
-          "review_snippet": "_pytest/config.py\n@@ -942,6 +941,7 @@ def _consider_importhook(self, args, entrypoint_name):\n        and find all the installed plugins to mark them for re-writing\n        by the importhook.\n        \"\"\"\n+        import pkg_resources\n        ns, unknown_args = self._parser.parse_known_and_unknown_args(args)\n        mode = ns.assertmode\n        if mode == 'rewrite':"
-        }
-      ]
-    },
-    {
-      "case_id": "pydata__xarray-3576",
-      "repo": "pydata/xarray",
-      "base_commit": "7dfdfcaa481fe6b42302f231cb02c35601c628db",
-      "title": "Examples for quantile",
-      "statement": "Following up to #3527, this adds examples for `DataArray.quantile`, `Dataset.quantile` and `GroupBy.quantile` (which is inherited by both `DatasetGroupBy` and `DataArrayGroupBy`).\r\n\r\n - [x] Passes `black . && mypy . && flake8`\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sphinx-doc__sphinx-2711",
-      "repo": "sphinx-doc/sphinx",
-      "base_commit": "4be597bb349e3bd61feaf23ee13d703e43316f52",
-      "title": "latex, allow image dimensions using px unit (96px=1in)",
-      "statement": "New key `'pixelsize'` in `latex_elements` dictionary. This works with same interface in all engines (pdflatex, lualatex, xelatex and hopefully platex which I can't test ;-) )\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "mwaskom__seaborn-3447",
-      "repo": "mwaskom/seaborn",
-      "base_commit": "b3e6b8d62194577deabebaa595520a13d55cf269",
-      "title": "Squash a large number of warnings in the tests",
-      "statement": "Various small edits to:\r\n\r\n- Maintain forward compatibility with upcoming changes in dependencies\r\n- Avoid triggering some numpy warnings around missing data and discrete mapping logic\r\n- Silence a couple of innocuous warnings there's no clear way to work around\r\n\r\nAll that remains here are https://github.com/matplotlib/matplotlib/pull/26300, https://github.com/matplotlib/matplotlib/issues/26596 and ~https://github.com/pytest-dev/pytest-xdist/issues/840~ (decided to ignore the latter in the test config, since there's no apparent movement towards dealing with it upstream despite lots of reports).",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "pydata__xarray-905",
-      "repo": "pydata/xarray",
-      "base_commit": "725009f1f1713fa3b75083530283b56529bd9b82",
-      "title": "Fix incorrect test for dask version",
-      "statement": "Fixes #891\n",
-      "primary_type": "F.3 Resource",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.3 Resource",
-          "file": "xarray/backends/api.py",
-          "start_line": 162,
-          "end_line": 168,
-          "focus_line": 162,
-          "focus_end": 168,
-          "span_kind": "range",
-          "focus_source": "introduce",
-          "title": "Reviewer `jhamman` pointed out that `StrictVersion` was used in `xarray/backends/api.py` without being imported. The author `shoyer` confirmed this was necessary (\"Why yes, we do need that!\"), acknowl",
-          "in_scope": true,
-          "review_snippet": "# File: xarray/backends/api.py\n@@ -162,7 +162,7 @@ def maybe_decode_store(store, lock=False):\n                 from dask.base import tokenize\n             except ImportError:\n                 import dask  # raise the usual error if dask is entirely missing\n-                if dask.__version__ < '0.6':\n+                if StrictVersion(dask.__version__) < StrictVersion('0.6'):\n                     raise ImportError('xarray requires dask version 0.6 or newer')\n                 else:\n                     raise"
-        }
-      ]
-    },
-    {
-      "case_id": "django__django-16040",
-      "repo": "django/django",
-      "base_commit": "0c3981eb5094419fe200eb46c71b5376a2266166",
-      "title": "Refs #28333 -- Explicitly ordered outer qualify query on window filtering.",
-      "statement": "While most backends will propagate derived table ordering as long as the outer query doesn't perform additional processing the SQL specs doesn't explicitly state the ordering must be maintained.",
-      "primary_type": "F.3 Resource",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.3 Resource",
-          "file": "django/db/models/sql/compiler.py",
-          "start_line": 674,
-          "end_line": 691,
-          "focus_line": 686,
-          "focus_end": 686,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `felixxm` pointed out that the parameters generated for the `ORDER BY` clause (`ordering_params`) were being incorrectly handled (extended with themselves) and not added to the main query par",
-          "in_scope": true,
-          "review_snippet": "django/db/models/sql/compiler.py:\n@@ -657,7 +674,18 @@ def get_qualify_sql(self):\n                 \")\",\n                 self.connection.ops.quote_name(\"qualify_mask\"),\n             ]\n-        return result, list(inner_params) + qualify_params\n+        params = list(inner_params) + qualify_params\n+        # As the SQL spec is unclear on whether or not derived tables\n+        # ordering must propagate it has to be explicitly repeated on the\n+        # outer-most query to ensure it's preserved.\n+        if order_by:\n+            ordering_sqls = []\n+            for ordering in order_by:\n+                ordering_sql, ordering_params = self.compile(ordering)\n+                ordering_sqls.append(ordering_sql)\n+                ordering_params.extend(ordering_params) # <- Introduced defect\n            result.extend([\"ORDER BY\", \", \".join(ordering_sqls)])\n        return result, params"
-        }
-      ]
-    },
-    {
-      "case_id": "scikit-learn__scikit-learn-31106",
-      "repo": "scikit-learn/scikit-learn",
-      "base_commit": "677869070fb1f2f7a6489fa2eedde03acf58c4e2",
-      "title": "MNT Clean-up deprecations for 1.7: Xt in inverse_transform",
-      "statement": "Removed deprecated `Xt` parameter of `inverse_transform` method of several estimators.",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "matplotlib__matplotlib-28677",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "3d37d7a0cb32298680828a29b5d98e59c753ef92",
-      "title": "Doc: add axes titles to axhspan/axvspan",
-      "statement": "Because there are multiple axes here, titling the axes w. the function it's demoing helps highlight what's going on. Basically, would have found titles helpful for the discussion in https://github.com/matplotlib/matplotlib/issues/28152#issuecomment-2274589927 \r\n\r\n## PR checklist\r\n<!-- Please mark any checkboxes that do not apply to this PR as [N/A].-->\r\n\r\n- [ ] \"closes #0000\" is in the body of the PR description to [link the related issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)\r\n- [ ] new and changed code is [tested](https://matplotlib.org/devdocs/devel/testing.html)\r\n- [ ] *Plotting related* features are demonstrated in an [example](https://matplotlib.org/devdocs/devel/document.html#write-examples-and-tutorials)\r\n- [ ] *New Features* and *API Changes* are noted with a [directive and release note](https://matplotlib.org/devdocs/devel/api_changes.html#announce-changes-deprecations-and-new-features)\r\n- [x] Documentation complies with [general](https://matplotlib.org/devdocs/devel/document.html#write-rest-pages) and [docstring](https://matplotlib.org/devdocs/devel/document.html#write-docstrings) guidelines\r\n\r\n<!--We understand that PRs can sometimes be overwhelming, especially as the\r\nreviews start coming in.  Please let us know if the reviews are unclear or\r\nthe recommended next step seems overly demanding, if you would like help in\r\naddressing a reviewer's comments, or if you have been waiting too long to hear\r\nback on your PR.-->\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "matplotlib__matplotlib-10413",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "ca0195c3936d88b797b62a7e8b30830aa231886a",
-      "title": "DOC: Fix typos in section names.",
-      "statement": "## PR Summary\r\n\r\nJust a couple things that numpydoc warns about, but seems to ignore otherwise.\r\n\r\n## PR Checklist\r\n\r\n- [ ] Has Pytest style unit tests\r\n- [ ] Code is PEP 8 compliant\r\n- [ ] New features are documented, with examples if plot related\r\n- [ ] Documentation is sphinx and numpydoc compliant\r\n- [ ] Added an entry to doc/users/next_whats_new/ if major new feature (follow instructions in README.rst there)\r\n- [ ] Documented in doc/api/api_changes.rst if API changed in a backward-incompatible way\r\n\r\n<!--\r\nThank you so much for your PR!  To help us review your contribution, please\r\nconsider the following points:\r\n\r\n- A development guide is available at https://matplotlib.org/devdocs/devel/index.html.\r\n\r\n- Help with git and github is available at\r\n  https://matplotlib.org/devel/gitwash/development_workflow.html.\r\n\r\n- Do not create the PR out of master, but out of a separate branch.\r\n\r\n- The PR title should summarize the changes, for example \"Raise ValueError on\r\n  non-numeric input to set_xlim\".  Avoid non-descriptive titles such as\r\n  \"Addresses issue #8576\".\r\n\r\n- The summary should provide at least 1-2 sentences describing the pull request\r\n  in detail (Why is this change required?  What problem does it solve?) and\r\n  link to any relevant issues.\r\n\r\n- If you are contributing fixes to docstrings, please pay attention to\r\n  http://matplotlib.org/devel/documenting_mpl.html#formatting.  In particular,\r\n  note the difference between using single backquotes, double backquotes, and\r\n  asterisks in the markup.\r\n\r\nWe understand that PRs can sometimes be overwhelming, especially as the\r\nreviews start coming in.  Please let us know if the reviews are unclear or\r\nthe recommended next step seems overly demanding, if you would like help in\r\naddressing a reviewer's comments, or if you have been waiting too long to hear\r\nback on your PR.\r\n-->\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "mwaskom__seaborn-931",
-      "repo": "mwaskom/seaborn",
-      "base_commit": "dfdd1126626f7ed0fe3737528edecb71346e9eb0",
-      "title": "Fix #929: FacetGrid with unused categories",
-      "statement": "Calculates correct number of subplots to draw when unused categories are present\n\nThe test confirms the fix solves the ValueError.\n\nIt also asserts that the number of axes drawn by FacetGrid should be equal to the number of categories in `.cat.categories`, not the number of unique values that are present in the series.\n",
-      "primary_type": "F.5 Support",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.5 Support",
-          "file": "seaborn/tests/test_axisgrid.py",
-          "start_line": 713,
-          "end_line": 727,
-          "focus_line": 713,
-          "focus_end": 727,
-          "span_kind": "range",
-          "focus_source": "introduce",
-          "title": "The reviewer (`mwaskom`) pointed out that the newly added test `test_categorical_column_missing_categories` used pandas categorical features and would likely fail on older pandas versions lacking this",
-          "in_scope": true,
-          "review_snippet": "seaborn/tests/test_axisgrid.py\n@@ -713,6 +713,15 @@ def test_unicode_content_no_columns(self):\n          g = ag.FacetGrid(df, row=\"b\")\n          g = g.map(plt.plot, \"x\")\n  \n+    def test_categorical_column_missing_categories(self):\n+\n+        df = self.df.copy()\n+        df['a'] = df['a'].astype('category')\n+\n+        g = ag.FacetGrid(df.query(\"a != 'a'\"), col=\"a\", col_wrap=1)\n+\n+        nt.assert_equal(g.axes.shape, (len(df['a'].cat.categories),))\n+\n  \n  class TestPairGrid(PlotTestCase):\n  "
-        }
-      ]
-    },
-    {
-      "case_id": "matplotlib__matplotlib-12835",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "ed0ae165ec176f6b9ed45d99a958fd5f697abbd1",
-      "title": "Don't fail tests if cairo dependency is not installed.",
-      "statement": "## PR Summary\r\n\r\nNecessary for the test introduced by #12774.\r\n\r\n## PR Checklist\r\n\r\n- [ ] Has Pytest style unit tests\r\n- [ ] Code is [Flake 8](http://flake8.pycqa.org/en/latest/) compliant\r\n- [ ] New features are documented, with examples if plot related\r\n- [ ] Documentation is sphinx and numpydoc compliant\r\n- [ ] Added an entry to doc/users/next_whats_new/ if major new feature (follow instructions in README.rst there)\r\n- [ ] Documented in doc/api/api_changes.rst if API changed in a backward-incompatible way\r\n\r\n<!--\r\nThank you so much for your PR!  To help us review your contribution, please\r\nconsider the following points:\r\n\r\n- A development guide is available at https://matplotlib.org/devdocs/devel/index.html.\r\n\r\n- Help with git and github is available at\r\n  https://matplotlib.org/devel/gitwash/development_workflow.html.\r\n\r\n- Do not create the PR out of master, but out of a separate branch.\r\n\r\n- The PR title should summarize the changes, for example \"Raise ValueError on\r\n  non-numeric input to set_xlim\".  Avoid non-descriptive titles such as\r\n  \"Addresses issue #8576\".\r\n\r\n- The summary should provide at least 1-2 sentences describing the pull request\r\n  in detail (Why is this change required?  What problem does it solve?) and\r\n  link to any relevant issues.\r\n\r\n- If you are contributing fixes to docstrings, please pay attention to\r\n  http://matplotlib.org/devel/documenting_mpl.html#formatting.  In particular,\r\n  note the difference between using single backquotes, double backquotes, and\r\n  asterisks in the markup.\r\n\r\nWe understand that PRs can sometimes be overwhelming, especially as the\r\nreviews start coming in.  Please let us know if the reviews are unclear or\r\nthe recommended next step seems overly demanding, if you would like help in\r\naddressing a reviewer's comments, or if you have been waiting too long to hear\r\nback on your PR.\r\n-->\r\n",
-      "primary_type": "F.4 Check",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.4 Check",
-          "file": "lib/matplotlib/testing/conftest.py",
-          "start_line": 43,
-          "end_line": 55,
-          "focus_line": 51,
-          "focus_end": 52,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "Reviewer `timhoffm` pointed out that catching `ImportError` broadly might hide import issues unrelated to the cairo backend. The author `anntzer` agreed and suggested checking the `backend` variable n",
-          "in_scope": true,
-          "review_snippet": "lib/matplotlib/testing/conftest.py\n@@ -43,7 +43,13 @@ def mpl_test_settings(request):\n             # This import must come after setup() so it doesn't load the\n             # default backend prematurely.\n             import matplotlib.pyplot as plt\n-            plt.switch_backend(backend)\n+            try:\n+                plt.switch_backend(backend)\n+            except ImportError as exc:\n+                # Should only occur for the cairo backend tests, if neither\n+                # pycairo nor cairocffi are installed.\n+                pytest.skip(\"Failed to switch to backend {} ({}).\"\n+                            .format(backend, exc))\n         with warnings.catch_warnings():\n             warnings.simplefilter(\"ignore\", MatplotlibDeprecationWarning)\n             matplotlib.style.use(style)"
-        }
-      ]
-    },
-    {
-      "case_id": "pydata__xarray-10006",
-      "repo": "pydata/xarray",
-      "base_commit": "f91306a7150ab0fd0450d6d5b2e92b2e8493ab85",
-      "title": "remove outdated type-ignores",
-      "statement": "<!-- Feel free to remove check-list items aren't relevant to your change -->\r\n\r\n- [ ] Closes #xxxx\r\n- [ ] Tests added\r\n- [ ] User visible changes (including notable bug fixes) are documented in `whats-new.rst`\r\n- [ ] New functions/methods are listed in `api.rst`\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "django__django-9635",
-      "repo": "django/django",
-      "base_commit": "46b3e3ffdc25b5a42762df20e536401fc512c5f3",
-      "title": "Fixed #29090 -- Updated Hungarian time formats to use ':' instead of '.'.",
-      "statement": "It's about time notation in Hungary, we use officially ':' instead of '.' among hour, minute and second. Also added the leading zeroes to hour. This one is not official, just some standardization. \r\nI can't provide tests yet, but probably some expert eyes are enough to check.",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sphinx-doc__sphinx-5596",
-      "repo": "sphinx-doc/sphinx",
-      "base_commit": "16f47cded956bfba55380034ff30988d2ab5ee7c",
-      "title": "Simplify XRefRole constructor",
-      "statement": "Subject: Simplify XRefRole constructor\r\n\r\n### Feature or Bugfix\r\n<!-- please choose -->\r\n- Feature\r\n\r\n### Purpose\r\n- Original code setting `nodeclass` and `innernodeclass` is unclear, because default values and custom values assignment statements are separated. So, restructuring and simplifying of constructor is needed.\r\n\r\n### Detail\r\n- (Edited) ~Put default values on appropriate place.~\r\n- Setting `nodeclass` and `innernodeclass` property by single statement respectively.\r\n- More concrete type annotation to represent which custom classes are to be passed.\r\n\r\n### Relates\r\nN/A\r\n\r\n",
-      "primary_type": "F.1 Interface",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.1 Interface",
-          "file": "sphinx/roles.py",
-          "start_line": 68,
-          "end_line": 81,
-          "focus_line": 77,
-          "focus_end": 78,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (tk0miya) pointed out that removing the class attributes `nodeclass` and `innernodeclass` and handling their defaults solely within `__init__` constituted a breaking change. This change p",
-          "in_scope": true,
-          "review_snippet": "sphinx/roles.py\n@@ -68,19 +68,14 @@ class XRefRole:\n     * Subclassing and overwriting `process_link()` and/or `result_nodes()`.\n     \"\"\"\n \n-    nodeclass = addnodes.pending_xref  # type: Type[nodes.Node]\n-    innernodeclass = nodes.literal\n-\n   def __init__(self, fix_parens=False, lowercase=False,\n                nodeclass=None, innernodeclass=None, warn_dangling=False):\n-        # type: (bool, bool, Type[nodes.Node], Type[nodes.Node], bool) -> None\n+        # type: (bool, bool, Type[nodes.reference], Type[nodes.TextElement], bool) -> None\n       self.fix_parens = fix_parens\n       self.lowercase = lowercase\n       self.warn_dangling = warn_dangling\n-        if nodeclass is not None:\n-            self.nodeclass = nodeclass\n-        if innernodeclass is not None:\n-            self.innernodeclass = innernodeclass\n+        self.nodeclass = nodeclass or addnodes.pending_xref\n+        self.innernodeclass = innernodeclass or nodes.literal\n \n   def _fix_parens(self, env, has_explicit_title, title, target):\n       # type: (BuildEnvironment, bool, unicode, unicode) -> Tuple[unicode, unicode]"
-        }
-      ]
-    },
-    {
-      "case_id": "matplotlib__matplotlib-12629",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "cfc01ce02f4183cebe33ef5898fb9e424ba1cb93",
-      "title": "Fix issue with PyPy on macOS",
-      "statement": "This PR fixes the issue with `PyOS_InputHook` variable that is not defined in PyPy implementation:\r\n\r\n```\r\nsrc/_macosx.m:280:5: error: use of undeclared identifier 'PyOS_InputHook'\r\nPyOS_InputHook = wait_for_stdin;\r\n^\r\n```\r\n\r\np.s.\r\nThe corresponding issue in PyPy bug tracking is https://bitbucket.org/pypy/pypy/issues/2327",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sphinx-doc__sphinx-9447",
-      "repo": "sphinx-doc/sphinx",
-      "base_commit": "5559e5af1ff6f5fc2dc70679bdd6dc089cfff388",
-      "title": "HTML Templates: Expose full sphinx version tuple",
-      "statement": "Subject: <short purpose of this pull request>\r\n\r\n### Feature or Bugfix\r\n- Feature\r\n\r\n### Purpose\r\nPreviously, there was only a string which is problematic\r\nwhen you want to programmatically compare versions\r\nfor compatibility reasons.\r\n\r\n\r\n### Detail\r\n- <feature1 or bug1>\r\n- <feature2 or bug2>\r\n\r\n### Relates\r\n- <URL or Ticket>\r\n\r\n",
-      "primary_type": "F.3 Resource",
-      "is_defective": true,
-      "findings": [
-        {
-          "type": "F.3 Resource",
-          "file": "sphinx/builders/html/__init__.py",
-          "start_line": 509,
-          "end_line": 516,
-          "focus_line": 512,
-          "focus_end": 512,
-          "span_kind": "range",
-          "focus_source": "resolve",
-          "title": "The reviewer (`astrojuanlu`) questioned why the existing `sphinx_version` context variable was changed from the display string (`__display_version__`) to the version tuple (`sphinx_version`), suggesti",
-          "in_scope": true,
-          "review_snippet": "sphinx/builders/html/__init__.py\n@@ -508,7 +509,8 @@ def prepare_writing(self, docnames: Set[str]) -> None:\n               'script_files': self.script_files,\n               'language': self.config.language,\n               'css_files': self.css_files,\n-            'sphinx_version': __display_version__,\n+            'sphinx_version': sphinx_version,\n+            'sphinx_version_tuple': sphinx_version,\n               'style': self._get_style_filename(),\n               'rellinks': rellinks,\n               'builder': self.name,"
-        }
-      ]
-    },
-    {
-      "case_id": "pytest-dev__pytest-1108",
-      "repo": "pytest-dev/pytest",
-      "base_commit": "5171d167ce8e3bb5fe69544a204ac0edeeee58a7",
-      "title": "plugins_index was still generating \".txt\" files, so it was effectively being ignored",
-      "statement": "Fix #1105\nFix #1101\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "astropy__astropy-17278",
-      "repo": "astropy/astropy",
-      "base_commit": "27694782493b9bbc60a0a24ef5e85574a6f8df53",
-      "title": "DOC: Remove iraf.net from API doc, fix broken What's New links",
-      "statement": "<!-- These comments are hidden when you submit the pull request,\r\nso you do not need to remove them! -->\r\n\r\n<!-- Please be sure to check out our contributing guidelines,\r\nhttps://github.com/astropy/astropy/blob/main/CONTRIBUTING.md .\r\nPlease be sure to check out our code of conduct,\r\nhttps://github.com/astropy/astropy/blob/main/CODE_OF_CONDUCT.md . -->\r\n\r\n<!-- If you are new or need to be re-acquainted with Astropy\r\ncontributing workflow, please see\r\nhttps://docs.astropy.org/en/latest/development/quickstart.html .\r\nThere is even a practical example at\r\nhttps://docs.astropy.org/en/latest/development/git_edit_workflow_examples.html . -->\r\n\r\n<!-- Please just have a quick search on GitHub to see if a similar\r\npull request has already been posted.\r\nWe have old closed pull requests that might provide useful code or ideas\r\nthat directly tie in with your pull request. -->\r\n\r\n<!-- We have several automatic features that run when a pull request is open.\r\nThey can appear daunting but do not worry because maintainers will help\r\nyou navigate them, if necessary. -->\r\n\r\n### Description\r\n<!-- Provide a general description of what your pull request does.\r\nComplete the following sentence and add relevant details as you see fit. -->\r\n\r\n<!-- In addition please ensure that the pull request title is descriptive\r\nand allows maintainers to infer the applicable subpackage(s). -->\r\n\r\n<!-- READ THIS FOR MANUAL BACKPORT FROM A MAINTAINER:\r\nApply \"skip-basebranch-check\" label **before** you open the PR! -->\r\n\r\nThis pull request is to remove dead link from API doc.\r\n\r\nAlso, maybe linkcheck does not have to suffer until v7.0 is released.\r\n\r\n<!-- If the pull request closes any open issues you can add this.\r\nIf you replace <Issue Number> with a number, GitHub will automatically link it.\r\nIf this pull request is unrelated to any issues, please remove\r\nthe following line. -->\r\n\r\nFixes #17258 \r\n\r\n<!-- Optional opt-out -->\r\n\r\n- [ ] By checking this box, the PR author has requested that maintainers do *",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "pylint-dev__pylint-9195",
-      "repo": "pylint-dev/pylint",
-      "base_commit": "3de196c91bcf67e92e5413dea09eb65c4d15c37e",
-      "title": "Fix `undefined-variable` etc for Python 3.12 generic type syntax",
-      "statement": "## Type of Changes\r\n\r\n<!-- Leave the corresponding lines for the applicable type of change: -->\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :bug: Bug fix          |\r\n\r\n\r\n## Description\r\nCloses #9193\r\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "matplotlib__matplotlib-4422",
-      "repo": "matplotlib/matplotlib",
-      "base_commit": "e0c53793b2030938981d92e88114a64720a34896",
-      "title": "FIX : turn path snapping off on 'o' marker path",
-      "statement": "Set the _snap_threshold for 'o' markers to `np.inf` which\neffectively turns it off.\n\nThis makes 'o' markers look more circular at all sizes at all dpi.\n\nThis change subtly changed several tests.\n\nCloses #4421\n",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
-    },
-    {
-      "case_id": "sympy__sympy-18835",
-      "repo": "sympy/sympy",
-      "base_commit": "516fa83e69caf1e68306cfc912a13f36c434d51c",
-      "title": "raise error if seq change is detected in uniq",
-      "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\n\r\nfixes #18832 \r\n\r\n#### Brief description of what is fixed or changed\r\n\r\nWhen easily detectable, [Python raises an error](https://stackoverflow.com/a/50167042/1089161) when an item being iterated over is changed and would thus cause the iteration to fail.\r\n\r\nWhen iterating over the unique elements of an iterable as detected by `uniq`, changing the iterable during iteration will cause a failure in `uniq` to detect the unique elements. It is not clear that `uniq` will do this so an error is now raised in the cases when this is easy to detect and a note is added to the docstring.\r\n\r\n#### Other comments\r\n\r\n\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below. See\r\nhttps://github.com/sympy/sympy/wiki/Writing-Release-Notes for more information\r\non how to write release notes. The bot will check your release notes\r\nautomatically to see if they are formatted correctly. -->\r\n\r\n<!-- BEGIN RELEASE NOTES -->\r\n* utilities\r\n    * iterables - `uniq` will now raise a RuntimeError if a size change of the sequence is detected\r\n<!-- END RELEASE NOTES -->",
-      "primary_type": null,
-      "is_defective": false,
-      "findings": []
+     "type": "F.1 Interface",
+     "file": "xray/variable.py",
+     "start_line": 675,
+     "end_line": 681,
+     "focus_line": 678,
+     "focus_end": 678,
+     "span_kind": "range",
+     "focus_source": "adjudicated",
+     "title": "as_index dropped the safe_cast_to_index branch and now assumes _data_cached() is always a PandasIndexAdapter",
+     "in_scope": true,
+     "required": false,
+     "provenance": "Adjudicated by hand after reading the detector's report against the shown code; not a reviewer comment. Marked not required so it can never add to recall -- it only stops a correct report counting as a false alarm.",
+     "review_snippet": ""
     }
-  ]
+   ]
+  },
+  {
+   "case_id": "sympy__sympy-10853",
+   "repo": "sympy/sympy",
+   "base_commit": "dfbc29b8cf3026694929171286db3631ccff9efe",
+   "title": "Define __signature__ on Function",
+   "statement": "This lets Python 3's inspect.signature give a useful signature for Function subclasses.\n\nFor example,\n\n**BEFORE**\n\n``` py\nIn [1]: import inspect\n\nIn [2]: inspect.signature(LambertW)\nOut[2]: <Signature (*args, **options)>\n```\n\n**AFTER**\n\n``` py\nIn [1]: import inspect\n\nIn [2]: inspect.signature(LambertW)\nOut[2]: <Signature (x, k=None)>\n```\n\nI was hoping this would also improve the IPython `?` help, but that is contingent\non https://github.com/ipython/ipython/issues/3678.\n",
+   "primary_type": "F.5 Support",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.5 Support",
+     "file": "sympy/core/function.py",
+     "start_line": 137,
+     "end_line": 155,
+     "focus_line": 146,
+     "focus_end": 148,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (minrk) pointed out that the assumption `# Python 3 only` was incorrect because backports like IPython's exist for Python 2, which could lead to an `ImportError`. The reviewer suggested a",
+     "in_scope": true,
+     "review_snippet": "sympy/core/function.py\n@@ -137,6 +137,19 @@ def __init__(cls, *args, **kwargs):\n             nargs = (as_int(nargs),)\n         cls._nargs = nargs\n \n+      @property\n+      def __signature__(self):\n+          \"\"\"\n+          Allow Python 3's inspect.signature to give a useful signature for\n+          Function subclasses.\n+          \"\"\"\n+          # Python 3 only, but this method is also only ever called in Python\n+          # 3.\n+          from inspect import signature\n+  \n+          # TODO: Look at nargs\n+          return signature(self.eval)\n+  \n       @property\n       def nargs(self):\n           \"\"\"Return a set of the allowed number of arguments for the function."
+    }
+   ]
+  },
+  {
+   "case_id": "matplotlib__matplotlib-1874",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "86055794415a0fb908697ca4aba64648028c6c7a",
+   "title": "Building Matplotlib on Ubuntu",
+   "statement": "Hi,\nI experienced a problem when compiling matplotlib on Ubuntu 13.04. The setup determined that the freetype2 headers are not installed (although they are). The reason for this is a function in setupext.py script that searches for \"ft2build.h\" in the freetype2 include directories (\"/usr/include/freetype2\" and below), whereas the file resides in \"/usr/include/ft2build.h\". As a quick workaround, I linked /usr/include/ft2build.h to /usr/include/freetype2/ft2build.h and matplotlib compiled just fine.\n\nI don't know it this has been caused by a change in the ubuntu package or by a modification in setupext.py though..\n",
+   "primary_type": "F.3 Resource",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.3 Resource",
+     "file": "setupext.py",
+     "start_line": 77,
+     "end_line": 83,
+     "focus_line": 80,
+     "focus_end": 80,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `pelson` pointed out that splitting the `basedirlist` string from `setup.cfg` by comma might leave leading/trailing whitespace if users format the list with spaces (e.g., `/usr, /usr/local`),",
+     "in_scope": true,
+     "review_snippet": "setupext.py\n@@ -77,7 +77,7 @@ def check_output(*popenargs, **kwargs):\n         pass\n \n     try:\n-        options['basedirlist'] = config.get(\"directories\", \"basedirlist\")\n+        options['basedirlist'] = config.get(\"directories\", \"basedirlist\").split(',')\n     except:\n         pass\n else:"
+    }
+   ]
+  },
+  {
+   "case_id": "pallets__flask-2748",
+   "repo": "pallets/flask",
+   "base_commit": "3fd7abec3c8c4a32da9579d0824b10d5ba0add83",
+   "title": "Fix blueprint route for \"\"",
+   "statement": "1. url_prefix = '/posts'\r\n2. rule = ''\r\n\r\nExpected result `/posts`, instead got `/posts/`.",
+   "primary_type": "F.2 Logic",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.2 Logic",
+     "file": "flask/blueprints.py",
+     "start_line": 66,
+     "end_line": 75,
+     "focus_line": 70,
+     "focus_end": 70,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `davidism` identified that the logic introduced in commit `f7a3bdc` to handle empty rules (`''`) would likely produce incorrect URLs for other combinations, such as a rule of `'/'` combined w",
+     "in_scope": true,
+     "review_snippet": "```diff\n--- a/flask/blueprints.py\n+++ b/flask/blueprints.py\n@@ -66,7 +66,10 @@ def add_url_rule(self, rule, endpoint=None, view_func=None, **options):\n           blueprint's name.\n           \"\"\"\n           if self.url_prefix is not None:\n-            rule = '/'.join((self.url_prefix, rule.lstrip('/')))\n+            if rule:\n+                rule = '/'.join((self.url_prefix, rule.lstrip('/')))\n+            else:\n+                rule = self.url_prefix\n           options.setdefault('subdomain', self.subdomain)\n           if endpoint is None:\n               endpoint = _endpoint_from_view_func(view_func)\n\n```"
+    }
+   ]
+  },
+  {
+   "case_id": "matplotlib__matplotlib-5233",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "b3290d44404a0dc72b88473dd836d2e5dbed6555",
+   "title": "Skip over broken TTF font when creating cache",
+   "statement": "Fixes #5232.\n",
+   "primary_type": "F.5 Support",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.5 Support",
+     "file": "lib/matplotlib/font_manager.py",
+     "start_line": 587,
+     "end_line": 593,
+     "focus_line": 590,
+     "focus_end": 590,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `tacaswell` pointed out that the syntax used for catching multiple exceptions (`except KeyError, RuntimeError:`) was valid in Python 2 but would cause a `SyntaxError` in Python 3, which requi",
+     "in_scope": true,
+     "review_snippet": "lib/matplotlib/font_manager.py\n@@ -587,7 +587,7 @@ def createFontList(fontfiles, fontext='ttf'):\n                 continue\n             try:\n                 prop = ttfFontProperty(font)\n-            except KeyError:\n+            except KeyError, RuntimeError:\n                 continue\n \n         fontlist.append(prop)"
+    }
+   ]
+  },
+  {
+   "case_id": "pylint-dev__pylint-6782",
+   "repo": "pylint-dev/pylint",
+   "base_commit": "bd33f79b69bef522fd8d0790d215213954a82707",
+   "title": "Fix ``.git`` in package links in the primer",
+   "statement": "- [x] Add yourself to CONTRIBUTORS if you are a new contributor.\r\n- [x] Write a good description on what the PR does.\r\n\r\n## Type of Changes\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :hammer: Refactoring   |\r\n\r\n## Description",
+   "primary_type": "F.4 Check",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.4 Check",
+     "file": "tests/primer/primer_tool.py",
+     "start_line": 240,
+     "end_line": 246,
+     "focus_line": 240,
+     "focus_end": 246,
+     "span_kind": "range",
+     "focus_source": "introduce",
+     "title": "The reviewer (Pierre-Sassoulas) suggested adding an `assert` statement to ensure that the `package_data.url` does not end with `.git`, reinforcing the change made earlier in the PR where `.git` suffix",
+     "in_scope": true,
+     "review_snippet": "tests/primer/primer_tool.py\n@@ -240,8 +240,7 @@ def _create_comment(\n                 filepath = str(message[\"path\"]).replace(\n                     str(package_data.clone_directory), \"\"\n                 )\n-                without_suffix = package_data.url.rsplit(\".git\")[0]\n-                comment += f\"{without_suffix}/blob/{package_data.branch}{filepath}#L{message['line']}\\n\"\n+                comment += f\"{package_data.url}/blob/{package_data.branch}{filepath}#L{message['line']}\\n\"\n                 count += 1\n                 print(message)\n             if missing_messages:"
+    }
+   ]
+  },
+  {
+   "case_id": "pydata__xarray-6939",
+   "repo": "pydata/xarray",
+   "base_commit": "c4e40d991c28be51de9ac560ce895ac7f9b14924",
+   "title": "Improve quantile method docstring + error",
+   "statement": "<!-- Feel free to remove check-list items aren't relevant to your change -->\r\n\r\n- [x] Closes #6875\r\n- [x] ~~Tests added~~\r\n- [ ] User visible changes (including notable bug fixes) are documented in `whats-new.rst`\r\n- [x] ~~New functions/methods are listed in `api.rst`~~\r\n",
+   "primary_type": "F.2 Logic",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.2 Logic",
+     "file": "xarray/core/variable.py",
+     "start_line": 2143,
+     "end_line": 2149,
+     "focus_line": 2146,
+     "focus_end": 2146,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `mathause` pointed out via a direct code suggestion that the error message string was missing the `f` prefix required for f-string formatting in Python. This meant the `{method}` placeholder ",
+     "in_scope": true,
+     "review_snippet": "xarray/core/variable.py\n@@ -2143,7 +2143,7 @@ def _wrapper(npa, **kwargs):\n         else:\n             if method not in (\"linear\", \"lower\", \"higher\", \"midpoint\", \"nearest\"):\n                 raise ValueError(\n-                    \"Interpolation method '{method}' requires numpy >= 1.22 or is not supported.\"\n+                    \"Interpolation method '{method}' requires numpy >= 1.22 or is not supported.\"\n                 )\n             kwargs = {\"q\": q, \"axis\": axis, \"interpolation\": method}"
+    }
+   ]
+  },
+  {
+   "case_id": "mwaskom__seaborn-2417",
+   "repo": "mwaskom/seaborn",
+   "base_commit": "aad96f8d2e36ceceb82a42b69aa3a8f47ef7210d",
+   "title": "Improve NA robustness in VectorPlotter.comp_data",
+   "statement": "This PR avoids passing `nan` through the matplotlib converters used to obtain a numeric/computable representation of the data (i.e. `VectorPlotter.comp_data`).\r\n\r\nIt also\r\n- codifies that the converted columns in `comp_data` have a float dtype\r\n- converts `inf` to `nan`, in line with what matplotlib does\r\n\r\nFixes #2295 \r\n\r\nAdditionally this will implicitly address #1971 once the regression plots are refactored to use `comp_data` internally. (@mojones, funny that you opened both issues).",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": [
+    {
+     "type": "F.2 Logic",
+     "file": "seaborn/tests/test_core.py",
+     "start_line": 1212,
+     "end_line": 1252,
+     "focus_line": 1229,
+     "focus_end": 1229,
+     "span_kind": "range",
+     "focus_source": "adjudicated",
+     "title": "the None parameter is deliberate but `if NA is None: skip` drops it every run; @parametrize also carries no argvalues",
+     "in_scope": true,
+     "required": false,
+     "provenance": "Adjudicated by hand after reading the detector's report against the shown code; not a reviewer comment. Marked not required so it can never add to recall -- it only stops a correct report counting as a false alarm.",
+     "review_snippet": ""
+    }
+   ]
+  },
+  {
+   "case_id": "astropy__astropy-5494",
+   "repo": "astropy/astropy",
+   "base_commit": "435c82275be420c51d8d0f8bd663ae0c63ae5ad3",
+   "title": "Make footprint_to_file more useful",
+   "statement": "I discovered `WCS.footprint_to_file` recently while looking for a similar method, but found a few issues that I attempt to fix here:\r\n\r\n- The default coordinate system was 'linear', which was not working with aplpy/pyregion. Instead I changed to use by default the one from `wcs.radesys` (typically ICRS or FK5) and added a new parameter to allow to overwrite this coordinate system. See the [supported coordinate systems](http://ds9.si.edu/doc/ref/region.html#RegionFileFormat), is it useful to add a check that the value is correct ?\r\n\r\n- When using the method multiple times, the new string were appended to the old ones,  with the global parameters written multiple times. So I changed to overwrite the file ('w' instead of 'a'). I thought about adding a parameter for this, but ideally in append mode this would need to detect if the global parameters are already there to not write them again.\r\n\r\ncc @nden ",
+   "primary_type": "F.4 Check",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.4 Check",
+     "file": "astropy/wcs/wcs.py",
+     "start_line": 2645,
+     "end_line": 2670,
+     "focus_line": 2655,
+     "focus_end": 2664,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`nden`) pointed out that using `wcs.radesys` directly might lead to issues if it's an empty string or an invalid value for the region file format, suggesting adding a check (warning or e",
+     "in_scope": true,
+     "review_snippet": "astropy/wcs/wcs.py:\n@@ -2644,21 +2645,26 @@ def footprint_to_file(self, filename=None, color='green', width=2):\n+                          coordsys=None):\n          \"\"\"\n          Writes out a `ds9`_ style regions file. It can be loaded\n          directly by `ds9`_.\n@@ -2652,16 +2652,23 @@ def footprint_to_file(self, filename=None, color='green', width=2):\n+\n+        coordsys : str, optional\n+            Coordinate system. If not specified (default), the ``radesys``\n+            value is used. For all possible values, see\n+            http://ds9.si.edu/doc/ref/region.html#RegionFileFormat\n+\n          \"\"\"\n-        if not filename:\n-            filename = 'footprint.reg'\n-        comments = '# Region file format: DS9 version 4.0 \\n'\n-        comments += ('# global color=green font=\"helvetica 12 bold ' +\n-                     'select=1 highlite=1 edit=1 move=1 delete=1 ' +\n-                     'include=1 fixed=0 source\\n')\n-\n-        f = open(filename, 'a')\n-        f.write(comments)\n-        f.write('linear\\n')\n-        f.write('polygon(')\n-        self.calc_footprint().tofile(f, sep=',')\n-        f.write(') # color={0}, width={1:d} \\n'.format(color, width))\n-        f.close()\n+        comments = ('# Region file format: DS9 version 4.0 \\n'\n+                    '# global color=green font=\"helvetica 12 bold '\n+                    'select=1 highlite=1 edit=1 move=1 delete=1 '\n+                    'include=1 fixed=0 source\\n')\n+\n+        with open(filename, mode='w') as f:\n+            f.write(comments)\n+            f.write('{}\n'.format(self.wcs.radesys)) # <-- Uses wcs.radesys directly\n+            f.write('polygon(')\n+            self.calc_footprint().tofile(f, sep=',')\n+            f.write(') # color={0}, width={1:d} \\n'.format(color, width))"
+    }
+   ]
+  },
+  {
+   "case_id": "sympy__sympy-22957",
+   "repo": "sympy/sympy",
+   "base_commit": "640eb2cc87c924ab70b50b7a90e87404754dc4d9",
+   "title": "maint: check all AUTHORS are in .mailmap",
+   "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\n\r\n\r\n#### Brief description of what is fixed or changed\r\n\r\n\r\n#### Other comments\r\n\r\n\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below between the BEGIN and END\r\nstatements. The basic format is a bulleted list with the name of the subpackage\r\nand the release note for this PR. For example:\r\n\r\n* solvers\r\n  * Added a new solver for logarithmic equations.\r\n\r\n* functions\r\n  * Fixed a bug with log of integers.\r\n\r\nor if no release note(s) should be included use:\r\n\r\nNO ENTRY\r\n\r\nSee https://github.com/sympy/sympy/wiki/Writing-Release-Notes for more\r\ninformation on how to write release notes. The bot will check your release\r\nnotes automatically to see if they are formatted correctly. -->\r\n\r\n<!-- BEGIN RELEASE NOTES -->\r\nNO ENTRY\r\n<!-- END RELEASE NOTES -->\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "sphinx-doc__sphinx-3527",
+   "repo": "sphinx-doc/sphinx",
+   "base_commit": "38b38d8affe9110968a5dc0cf91f4e566c1739a2",
+   "title": "Protect TeX double quotes ligatures in inline literals (refs #3507)",
+   "statement": "Subject: fix #3507\r\n\r\n### Feature or Bugfix\r\n- Bugfix\r\n\r\n\r\n### Purpose\r\n- Make sure inline literals in LaTeX allow TeX ligatures for ```` `` ```` and `''`. This is done by modifying LaTeX's writer call to smartypants ``educate_quotes_latex`` to insert macros rather than explicit TeX input ```` `` ```` and `''`. \r\n- This needs review because my knowledge of Docutils is not enough to verify when exactly is ``visit_Text()`` executed. It does not seem to interfere with literal blocks and their Pygmentization.\r\n\r\nMemo : Sphinx has a dissymmetry between inline literals and literal blocks in handling of `\"`. In the former the `\"` may have been transformed into a pair of directional quotes, with the TeX input form ```` `` ```` and `''` (up to this PR.) The latter pygmentizes `\"` with no directionality, one needs to have directional quotes in the reST source to start with.\r\n\r\nSide remark: spacing before and after the ``productionlist`` environment does not appear to be ideal.\r\n\r\n### Test file\r\n\r\n```\r\n\r\n“entry”\r\n\r\n.. productionlist::\r\n   entry: \"entry\" `block`\r\n\r\n.. productionlist::\r\n   entry: “entry” `block`\r\n\r\n::\r\n\r\n   \"entry\" ``entry'' “entry”\r\n\r\n```\r\n\r\n### Relates\r\n- #3507, #2627.\r\n\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "astropy__astropy-14782",
+   "repo": "astropy/astropy",
+   "base_commit": "dd0317de9fff2b5d3b12f6d488ae3ebdf58c3596",
+   "title": "remove deprecated import path",
+   "statement": "Importing FLRW from core has been deprecated since v5.0. Now it's removed. \r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "astropy__astropy-2775",
+   "repo": "astropy/astropy",
+   "base_commit": "00f691fc42043048eca2422aa656224cd014ab5e",
+   "title": "Use astropy_helpers for setup_helpers in wcs test_api_extension",
+   "statement": "This just removes an internal dependency on the deprecated internal copy of setup_helpers.\n",
+   "primary_type": "F.3 Resource",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.3 Resource",
+     "file": "astropy/wcs/tests/extension/setup.py",
+     "start_line": 11,
+     "end_line": 17,
+     "focus_line": 14,
+     "focus_end": 14,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `astrofrog` identified that the change introduced in commit `e95589ab` (switching to `astropy_helpers`) would cause the test setup script to fail when run via the standard `astropy.test()` co",
+     "in_scope": true,
+     "review_snippet": "```diff\nastropy/wcs/tests/extension/setup.py\n@@ -11,7 +11,7 @@\n     sys.path.insert(0, astropy_path)\n \n     from astropy import wcs\n-    from astropy import setup_helpers\n+    from astropy_helpers import setup_helpers\n     from distutils.core import setup, Extension\n \n     if sys.platform == 'win32':\n```"
+    }
+   ]
+  },
+  {
+   "case_id": "sympy__sympy-2078",
+   "repo": "sympy/sympy",
+   "base_commit": "56b0a014a384c66fa34674a57d6e24cf50062d93",
+   "title": "theano printing handles Function",
+   "statement": "theano printing handles user defined functions applied to symbols as TensorVariables.\n\nThis handles the same problem as https://github.com/sympy/sympy/pull/1920 does in `lambdify`\n\n@gilbertgede Does this look reasonable to you?\n",
+   "primary_type": "F.1 Interface",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.1 Interface",
+     "file": "sympy/printing/tests/test_theanocode.py",
+     "start_line": 214,
+     "end_line": 223,
+     "focus_line": 218,
+     "focus_end": 222,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`gilbertgede`) questioned whether the test should be calling `theano_code` on the applied function `f(t)` rather than the function definition `f`. The author (`mrocklin`) acknowledged th",
+     "in_scope": true,
+     "review_snippet": "sympy/printing/tests/test_theanocode.py\n@@ -214,3 +214,10 @@ def test_DenseMatrix():\n         tX = theano_code(X)\n         assert isinstance(tX, tt.TensorVariable)\n         assert tX.owner.op == tt.join\n+\n+def test_Function():\n+    t = sy.Symbol('t')\n+    f = sy.Function('f')\n+    ft = theano_code(f)\n+    assert isinstance(ft, tt.TheanoVariable)\n+    assert ft.name == 'f_t'"
+    }
+   ]
+  },
+  {
+   "case_id": "scikit-learn__scikit-learn-11509",
+   "repo": "scikit-learn/scikit-learn",
+   "base_commit": "baa18eea47ae013c1b34fdea08e3806f0b71d9ea",
+   "title": "[MRG] Fix collections.abc deprecations with Python 3.7 (0.19.X backport)",
+   "statement": "Backport of https://github.com/scikit-learn/scikit-learn/pull/11431 to 0.19.X that removes the deprecation warning about ABC being moved from collections to collections.abc when importing scikit-learn in Python 3.7.\r\n\r\n~~**Do not merge** while the parent PR is not merged.~~ Done as part of https://github.com/scikit-learn/scikit-learn/pull/11422",
+   "primary_type": "F.5 Support",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.5 Support",
+     "file": "sklearn/tests/test_init.py",
+     "start_line": 1,
+     "end_line": 18,
+     "focus_line": 7,
+     "focus_end": 10,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `amueller` pointed out that the newly added test relied on `pytest`, which was not a dependency in the target 0.19.X branch. The author `rth` confirmed this (\"Yes, working on it..\").",
+     "in_scope": true,
+     "review_snippet": "sklearn/tests/test_init.py\n@@ -1,11 +1,18 @@\n # Basic unittests to test functioning of module's top-level\n \n-__author__ = 'Yaroslav Halchenko'\n-__license__ = 'BSD'\n+import subprocess\n \n+import pkgutil\n \n+import pytest\n+\n import sklearn\n-from sklearn.utils.testing import assert_equal\n+from sklearn.utils.testing import assert_equal\n \n+__author__ = 'Yaroslav Halchenko'\n+__license__ = 'BSD'\n+\n+\n try:\n     from sklearn import *  # noqa\n     _top_import_error = None\n@@ -18,3 +25,35 @@ def test_import_skl():\n     # \"import *\" is discouraged outside of the module level, hence we\n     # rely on setting up the variable above\n     assert_equal(_top_import_error, None)\n+\n+\n+def test_import_sklearn_no_warnings():\n+    # Test that importing scikit-learn main modules doesn't raise any warnings.\n+\n+    try:\n+        pkgs = pkgutil.iter_modules(path=sklearn.__path__, prefix='sklearn.')\n+        import_modules = '; '.join(['import ' + modname\n+                                    for _, modname, _ in pkgs\n+                                    if not modname.startswith('_')])\n+\n+        message = subprocess.check_output(['python', '-Wdefault',\n+                                           '-c', import_modules],\n+                                          stderr=subprocess.STDOUT)\n+        message = message.decode(\"utf-8\")\n+        message = '\\n'.join([line for line in message.splitlines()\n+                             if not (  # ignore ImportWarning\n+                                     \"ImportWarning\" in line or\n+                                     # ignore DeprecationWarning due to pytest\n+                                     \"pytest\" in line or\n+                                     # ignore DeprecationWarnings due to\n+                                     # numpy.oldnumeric\n+                                     \"oldnumeric\" in line or\n+                                     # ignore FutureWarnings\n+                                     \"FutureWarning\" in line\n+                                     )])\n+        assert 'Warning' not in message\n+        assert 'Error' not in message\n+\n+    except Exception as e:\n+        pytest.skip('soft-failed test_import_sklearn_no_warnings.\\n'\n+                    ' %s' % e)\n"
+    }
+   ]
+  },
+  {
+   "case_id": "pydata__xarray-177",
+   "repo": "pydata/xarray",
+   "base_commit": "7e0e7b1f2b3663c9fddb7b9f1767e4e7f744d19c",
+   "title": "Add python2.6 compatibility",
+   "statement": "This change mainly involves an alternative import of OrderedDict, modified dict and set comprehensions, and using unittest2 for testing. \n",
+   "primary_type": "F.2 Logic",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.2 Logic",
+     "file": "xray/data_array.py",
+     "start_line": 702,
+     "end_line": 711,
+     "focus_line": 707,
+     "focus_end": 708,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`shoyer`) pointed out that the logic introduced in commit `d4c2ad1f...` was flawed. Specifically, the operation `set(concat_over) | set([name])` (which adds the current DataArray's name ",
+     "in_scope": true,
+     "review_snippet": "--- a/xray/data_array.py\n+++ b/xray/data_array.py\n@@ -702,7 +702,10 @@ def concat(cls, arrays, dimension='concat_dimension', indexers=None,\n              datasets.append(arr.dataset)\n          if concat_over is None:\n              concat_over = set()\n-        concat_over = set(concat_over) | {name}\n+        elif isinstance(concat_over, basestring):\n+            concat_over = set([concat_over])\n+        else:\n+            concat_over = set(concat_over) | set([name])\n          ds = xray.Dataset.concat(datasets, dimension, indexers,\n                                       concat_over=concat_over)\n          return ds[name]"
+    },
+    {
+     "type": "F.2 Logic",
+     "file": "xray/dataset.py",
+     "start_line": 623,
+     "end_line": 633,
+     "focus_line": 631,
+     "focus_end": 631,
+     "span_kind": "range",
+     "focus_source": "adjudicated",
+     "title": "var_indexers became a generator and is then unpacked with **, which raises TypeError",
+     "in_scope": true,
+     "required": false,
+     "provenance": "Adjudicated by hand after reading the detector's report against the shown code; not a reviewer comment. Marked not required so it can never add to recall -- it only stops a correct report counting as a false alarm.",
+     "review_snippet": ""
+    },
+    {
+     "type": "F.2 Logic",
+     "file": "xray/dataset.py",
+     "start_line": 925,
+     "end_line": 932,
+     "focus_line": 928,
+     "focus_end": 928,
+     "span_kind": "range",
+     "focus_source": "adjudicated",
+     "title": "potential_conflicts became a generator where _expand_variables consumes a mapping",
+     "in_scope": true,
+     "required": false,
+     "provenance": "Adjudicated by hand after reading the detector's report against the shown code; not a reviewer comment. Marked not required so it can never add to recall -- it only stops a correct report counting as a false alarm.",
+     "review_snippet": ""
+    }
+   ]
+  },
+  {
+   "case_id": "matplotlib__matplotlib-128",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "97f713098a71c70d70c46602794c2a0fd126b614",
+   "title": "hexbin_demo.py crashes with gtk backend",
+   "statement": "the demo:\nhttp://matplotlib.sourceforge.net/examples/pylab_examples/hexbin_demo.html\ncrashes in matplotlib 1.0.1 when using the gtk backend:\n\n```\n$ python hexbin.py -dgtk\nThe program 'hexbin.py' received an X Window System error.\nThis probably reflects a bug in the program.\nThe error was 'BadMatch (invalid parameter attributes)'.\n  (Details: serial 56509 error_code 8 request_code 73 minor_code 0)\n  (Note to programmers: normally, X errors are reported asynchronously;\n   that is, you will receive the error a while after causing it.\n   To debug your program, run it with the --sync command line\n   option to change this behavior. You can then get a meaningful\n   backtrace from your debugger if you break on the gdk_x_error() function.)\n```\n\nother backends including gtkagg work fine.\ndownstream bug, verified with 1.0.1ubuntu1:\nhttps://bugs.launchpad.net/ubuntu/+source/matplotlib/+bug/782812\n",
+   "primary_type": "F.4 Check",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.4 Check",
+     "file": "lib/matplotlib/backends/backend_gdk.py",
+     "start_line": 228,
+     "end_line": 236,
+     "focus_line": 228,
+     "focus_end": 231,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `efiring` questioned why the boundary check added in the first commit to `_draw_rotated_text` was not also added to the `draw_text` function, suggesting an inconsistency or potential omission",
+     "in_scope": true,
+     "review_snippet": "lib/matplotlib/backends/backend_gdk.py\n@@ -228,6 +228,9 @@ def _draw_rotated_text(self, gc, x, y, s, prop, angle):\n         if x < 0 or y < 0: # window has shrunk and text is off the edge\n             return\n \n+        if x + w > self.width or y + h > self.height:\n+            return\n+\n         key = (x,y,s,angle,hash(prop))\n         imageVert = self.rotated.get(key)\n         if imageVert != None:"
+    }
+   ]
+  },
+  {
+   "case_id": "pytest-dev__pytest-7872",
+   "repo": "pytest-dev/pytest",
+   "base_commit": "95917f8833bc71229c3ac4fb73cbf5ca5818201b",
+   "title": "Document that Parser.addini() can take, and defaults to, 'string'",
+   "statement": "- [X] Include documentation when adding new features.\r\n- [x] Include new tests or update existing tests when applicable.\r\n- [X] Allow maintainers to push and squash when merging my commits. Please uncheck this if you prefer to squash the commits yourself.\r\n\r\nIf this change fixes an issue, please:\r\n\r\n- [x] Add text like ``closes #XYZW`` to the PR description and/or commits (where ``XYZW`` is the issue number). See the [github docs](https://help.github.com/en/github/managing-your-work-on-github/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) for more information.\r\n\r\nUnless your change is trivial or a small documentation fix (e.g., a typo or reword of a small section) please:\r\n\r\n- [x] Create a new changelog file in the `changelog` folder, with a name like `<ISSUE NUMBER>.<TYPE>.rst`. See [changelog/README.rst](https://github.com/pytest-dev/pytest/blob/master/changelog/README.rst) for details.\r\n\r\n  Write sentences in the **past or present tense**, examples:\r\n\r\n  * *Improved verbose diff output with sequences.*\r\n  * *Terminal summary statistics now use multiple colors.*\r\n\r\n  Also make sure to end the sentence with a `.`.\r\n\r\n- [x] Add yourself to `AUTHORS` in alphabetical order.\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "scikit-learn__scikit-learn-11756",
+   "repo": "scikit-learn/scikit-learn",
+   "base_commit": "477c921c0f4a9182c2a7f2afe2c740b5bab0a15f",
+   "title": "[MRG] FIX IndexError due to imprecision in KMeans++",
+   "statement": "I'm not sure how to test this.\r\n\r\nAs noted in https://github.com/scikit-learn/scikit-learn/issues/8583#issuecomment-410568283 we could instead switch to using `random_state.choice` but will probably lose backwards compatibility.",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "pylint-dev__pylint-6367",
+   "repo": "pylint-dev/pylint",
+   "base_commit": "5ee5cf77cd1c6f9bf83cfcc696f42dad204e9735",
+   "title": "Fix a crash in the ``unsupported-membership-test`` checker involving tuple unpacking",
+   "statement": "## Type of Changes\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :bug: Bug fix          |\r\n\r\n## Description\r\nAn assumption of direct parentage between `AssignName` and `Assign` was violated by tuple unpacking.\r\n\r\nCloses #6366\r\n",
+   "primary_type": "F.4 Check",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.4 Check",
+     "file": "pylint/checkers/utils.py",
+     "start_line": 1066,
+     "end_line": 1080,
+     "focus_line": 1073,
+     "focus_end": 1075,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`Pierre-Sassoulas`) questioned the `assert this_assign_parent is not None` introduced in the first commit, suggesting it might be possible for the variable to be `None` and that this cas",
+     "in_scope": true,
+     "review_snippet": "pylint/checkers/utils.py\n@@ -1066,8 +1066,15 @@ def _supports_protocol_method(value: nodes.NodeNG, attr: str) -> bool:\n         return False\n \n     first = attributes[0]\n+\n+    # Return False if a constant is assigned\n     if isinstance(first, nodes.AssignName):\n-        if isinstance(first.parent.value, nodes.Const):\n+        this_assign_parent = get_node_first_ancestor_of_type(first, nodes.Assign)\n+        assert this_assign_parent is not None\n+        if isinstance(this_assign_parent.value, nodes.BaseContainer):\n+            if all(isinstance(n, nodes.Const) for n in this_assign_parent.value.elts):\n+                return False\n+        if isinstance(this_assign_parent.value, nodes.Const):\n             return False\n     return True"
+    }
+   ]
+  },
+  {
+   "case_id": "pylint-dev__pylint-6575",
+   "repo": "pylint-dev/pylint",
+   "base_commit": "c6022aaea149395dee574a2b147bb6cb12e051e0",
+   "title": "Better assert message for documentation tests",
+   "statement": "## Type of Changes\r\n\r\n<!-- Leave the corresponding lines for the applicable type of change: -->\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :scroll: Docs          |\r\n\r\n## Description\r\n\r\nOriginally included in #6574 but it's going to make the whole test suite be launched for every change.\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "sympy__sympy-22140",
+   "repo": "sympy/sympy",
+   "base_commit": "c4bcd7537439eb708f9f21e48c70606abb08c934",
+   "title": "improve Expr.coeff for noncommutative sums",
+   "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\n\r\nFixes #16752\r\ncloses #21986 as alternative\r\n\r\nTODO\r\n- [x] check that `(x*n + x*n*m).coeff(x*n)` works as expected\r\n\r\n#### Brief description of what is fixed or changed\r\n\r\nSums of non-commutative terms are now handled correctly when extracting a coefficient.\r\n\r\n#### Other comments\r\n\r\nThe commutative coefficient is only included as a right-coefficient of a non-commutative term when multiple terms have different commutative factors. If the commutative factors are the same then they will only be extracted as a left-coefficient so\r\n```python\r\n(x*n + x*n*m).coeff(n, right=1) -> 1 + m\r\n(x*n + x*n*m).coeff(n) -> x\r\nfactor_nc(x*n + x*n*m) -> x*n*(1 + m)\r\n\r\n(y*n + x*n*m).coeff(n, right=1) -> y + x*m\r\n(y*n + x*n*m).coeff(n) -> 1\r\nfactor_nc(y*n + x*n*m) -> n*(y + x*m)\r\n```\r\n\r\nIf #22138 were fixed then the simplest fix for this issue would be\r\n```python\r\nif self.is_Add and not self_c and not x_c:\r\n            xargs = Mul.make_args(x)\r\n            d = Add(*[i for i in Add.make_args(self.as_independent(x)[1]) if all(xi in Mul.make_args(i) for xi in xargs)])\r\n            f = factor_nc(d)\r\n            if f.is_Add:\r\n                return S.Zero\r\n            return f.coeff(x, right=right)\r\n```\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below between the BEGIN and END\r\nstatements. The basic format is a bulleted list with the name of the subpackage\r\nand the release note for this PR. For example:\r\n\r\n* solvers\r\n  * Added a new solver for logarithmic equations.\r\n\r\n* functions\r\n  * Fixed a bug with log of integers.\r\n\r\nor if no release n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "django__django-494",
+   "repo": "django/django",
+   "base_commit": "aee9c7b094cbd36c898ea465269935f156412ab9",
+   "title": "model_split: Fixed #19236 - fixed error for abstract models with a split method",
+   "statement": "Link to ticket:\n\nhttps://code.djangoproject.com/ticket/19236\n",
+   "primary_type": "F.5 Support",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.5 Support",
+     "file": "django/db/models/fields/related.py",
+     "start_line": 54,
+     "end_line": 69,
+     "focus_line": 58,
+     "focus_end": 58,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `alex` pointed out that `basestring` is incompatible with Python 3 and suggested using `six.string_types` from Django's compatibility utilities. The reviewer's subsequent comment (\"Besides th",
+     "in_scope": true,
+     "review_snippet": "diff --git a/django/db/models/fields/related.py b/django/db/models/fields/related.py\nindex 9c48b39..785e1f2 100644\n--- a/django/db/models/fields/related.py\n+++ b/django/db/models/fields/related.py\n@@ -54,14 +54,16 @@ class MyModel(Model):\n \n     else:\n         # Look for an \"app.Model\" relation\n-        try:\n-            app_label, model_name = relation.split(\".\")\n-        except ValueError:\n-            # If we can't split, assume a model in current app\n-            app_label = cls._meta.app_label\n-            model_name = relation\n-        except AttributeError:\n-            # If it doesn't have a split it's actually a model class\n+\n+        if isinstance(relation, basestring):\n+            try:\n+                app_label, model_name = relation.split(\".\")\n+            except ValueError:\n+                # If we can't split, assume a model in current app\n+                app_label = cls._meta.app_label\n+                model_name = relation\n+        else:\n+            # it's actually a model class\n             app_label = relation._meta.app_label\n             model_name = relation._meta.object_name\n "
+    }
+   ]
+  },
+  {
+   "case_id": "sympy__sympy-25105",
+   "repo": "sympy/sympy",
+   "base_commit": "ecb47ac7cc84b398240026095c7d29132dbd2ca7",
+   "title": "Implemented `TorqueActuator` in `sympy.physics.mechanics`",
+   "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\nForms part of the CZI biomechanics work program described in https://github.com/sympy/sympy/issues/24240.\r\n\r\nExtends specifically #24966 (but is also related to #24914 and #25068).\r\n\r\n#### Brief description of what is fixed or changed\r\nThis PR implements a new actuator class, `TorqueActuator`, which is the second concrete class of `ActuatorBase`. It represents an actuator that can applied torque to a pair of reference frames, with a (equal and opposite) reaction torque being applied to the second of the pair. \r\n\r\nI have not added any documentation beyond docstrings, nor have I added the docstrings to the online documentation yet. For the reasoning above this would likely need significant rewriting after any API changes. Documentation will be contributed in a future PR when the module is moved to `sympy/physics/mechanics/actuator.py`.\r\n\r\n#### Other comments\r\nI have specifically left the release notes entry empty. These will be added in the PR that moves the module to `sympy/physics/mechanics/actuator.py`.\r\n\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below between the BEGIN and END\r\nstatements. The basic format is a bulleted list with the name of the subpackage\r\nand the release note for this PR. For example:\r\n\r\n* solvers\r\n  * Added a new solver for logarithmic equations.\r\n\r\n* functions\r\n  * Fixed a bug with log of integers. Formerly, `log(-x)` incorrectly gave `-log(x)`.\r\n\r\n* physics.units\r\n  * Corrected a semantical error in the conversion between volt and statvolt which\r\n    reported the volt as being larger than t",
+   "primary_type": "F.1 Interface",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.1 Interface",
+     "file": "sympy/physics/mechanics/_actuator.py",
+     "start_line": 408,
+     "end_line": 419,
+     "focus_line": 416,
+     "focus_end": 419,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`tjstienstra`) pointed out that the `at_pin_joint` factory method incorrectly used the `parent` and `child` attributes of the `PinJoint` directly. This approach would fail or behave inco",
+     "in_scope": true,
+     "review_snippet": "# sympy/physics/mechanics/_actuator.py\n@@ -408,8 +408,8 @@ def at_pin_joint(\n             )\n             raise TypeError(msg)\n         axis = pin_joint.joint_axis\n-        body_1 = pin_joint.parent\n-        body_2 = pin_joint.child\n-        return cls(torque, axis, body_1, body_2)\n+        # The following lines incorrectly assume parent/child bodies can always be used directly.\n+        body_1 = pin_joint.parent # Incorrectly uses parent body directly\n+        body_2 = pin_joint.child   # Incorrectly uses child body directly\n+        return cls(torque, axis, body_1, body_2) # Passes bodies instead of correct frames\n \n      @property\n      def torque(self) -> ExprType:"
+    }
+   ]
+  },
+  {
+   "case_id": "mwaskom__seaborn-2347",
+   "repo": "mwaskom/seaborn",
+   "base_commit": "29f5807efdf0544b16c088beac7c1c5eda174084",
+   "title": "better checks for `sharey` and `sharex` in `axesgrid.py`",
+   "statement": "better checks for `sharey` and `sharex` in `axesgrid.py`\r\n\r\ncloses #2346 ",
+   "primary_type": "F.2 Logic",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.2 Logic",
+     "file": "seaborn/axisgrid.py",
+     "start_line": 461,
+     "end_line": 473,
+     "focus_line": 464,
+     "focus_end": 470,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`mwaskom`) pointed out that the new logic `sharex != 'row'` would incorrectly evaluate to true when `sharex` is explicitly set to `False`, leading to undesired hiding of x-axis labels. T",
+     "in_scope": true,
+     "review_snippet": "seaborn/axisgrid.py\n@@ -461,13 +461,13 @@ def __init__(\n           if despine:\n               self.despine()\n   \n-        if sharex:\n+        if sharex != 'row':\n               for ax in self._not_bottom_axes:\n                   for label in ax.get_xticklabels():\n                       label.set_visible(False)\n                   ax.xaxis.offsetText.set_visible(False)\n   \n-        if sharey:\n+        if sharey != 'col':\n               for ax in self._not_left_axes:\n                   for label in ax.get_yticklabels():\n                       label.set_visible(False)"
+    }
+   ]
+  },
+  {
+   "case_id": "pallets__flask-2529",
+   "repo": "pallets/flask",
+   "base_commit": "d24bb9ee32357ac9cd122932ede32ca486431f0e",
+   "title": "Enable threads by default for the dev server",
+   "statement": "It's way too easy currently to deadlock the server with background resource\nfetching.  We really should have threads enabled by default now in my mind.",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "django__django-10104",
+   "repo": "django/django",
+   "base_commit": "8c4b94d32d229109c17e050cab1f894d56e755da",
+   "title": "Fixed #29514 -- Fixed get_default_timezone()/utc equality.",
+   "statement": "https://code.djangoproject.com/ticket/29514",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "scikit-learn__scikit-learn-24948",
+   "repo": "scikit-learn/scikit-learn",
+   "base_commit": "c4d221ddcb9171f5bb05f7fe0dd0b96f7d532331",
+   "title": "DOC Fix FutureWarning in ensemble/plot_gradient_boosting_oob.py",
+   "statement": "<!--\r\nThanks for contributing a pull request! Please ensure you have taken a look at\r\nthe contribution guidelines: https://github.com/scikit-learn/scikit-learn/blob/main/CONTRIBUTING.md\r\n-->\r\n\r\n#### Reference Issues/PRs\r\n<!--\r\nExample: Fixes #1234. See also #3456.\r\nPlease use keywords (e.g., Fixes) to create link to the issues or pull requests\r\nyou resolved, so that they will automatically be closed when your pull request\r\nis merged. See https://github.com/blog/1506-closing-issues-via-pull-requests\r\n-->\r\n\r\nRelated to #24876\r\n\r\n#### What does this implement/fix? Explain your changes.\r\n\r\nFix FutureWarnings in ensemble/plot_gradient_boosting_oob.py\r\n\r\n```\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n\r\n/home/runner/work/scikit-learn/scikit-learn/sklearn/utils/deprecation.py:101: FutureWarning:\r\n\r\nAttribute `loss_` was deprecated in version 1.1 and will be removed in 1.3.\r\n```\r\n\r\n#### Any other comments?\r\n\r\n\r\n<!--\r\nPlease be aware that we are a loose team of volunteers so patience is\r\nnecessary; assistance handling other issues is very welcome. We value\r\nall user contributions, no matter how minor they are. If we are slow to\r\nreview, either the pull request needs some benchmarking, tinkering,\r\nconvincing, etc. or more likely the reviewers are simply busy. In either\r\ncase, we ask for your understanding during the review process.\r\nFor more information, see our FAQ on this topic:\r\nhttp://scikit-learn.org/dev/faq.html#why-is-my-pull-request-not-getting-any-attention.\r\n\r\nThanks for contributing!\r\n-->\r\n",
+   "primary_type": "F.1 Interface",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.1 Interface",
+     "file": "examples/ensemble/plot_gradient_boosting_oob.py",
+     "start_line": 30,
+     "end_line": 36,
+     "focus_line": 33,
+     "focus_end": 33,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`glemaitre`) identified that the initial commit incorrectly used `log_loss` (which expects probabilities) with the raw output of `staged_decision_function`. The reviewer explained the mi",
+     "in_scope": true,
+     "review_snippet": "--- a/examples/ensemble/plot_gradient_boosting_oob.py\n+++ b/examples/ensemble/plot_gradient_boosting_oob.py\n@@ -30,6 +30,7 @@\n import matplotlib.pyplot as plt\n \n from sklearn import ensemble\n+from sklearn.metrics import log_loss\n from sklearn.model_selection import KFold\n from sklearn.model_selection import train_test_split\n \n@@ -73,7 +74,7 @@ def heldout_score(clf, X_test, y_test):\n     \"\"\"compute deviance scores on ``X_test`` and ``y_test``.\"\"\"\n     score = np.zeros((n_estimators,), dtype=np.float64)\n     for i, y_pred in enumerate(clf.staged_decision_function(X_test)):\n-        score[i] = clf.loss_(y_test, y_pred)\n+        score[i] = log_loss(y_test, y_pred)\n     return score\n \n",
+     "equivalent_locations": [
+      {
+       "file": "examples/ensemble/plot_gradient_boosting_oob.py",
+       "start_line": 74,
+       "end_line": 78,
+       "note": "heldout_score() makes the same log_loss call the review is about."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "case_id": "pytest-dev__pytest-5668",
+   "repo": "pytest-dev/pytest",
+   "base_commit": "fd2fb36eacabf283f11ac3a7f09322074c58a57f",
+   "title": "Fix the confusing different names of `fulltrace`",
+   "statement": "Fix the confusing different names of `fulltrace` showed in `pytest --help` (#5647)\r\n\r\nSince this is a small fix, and I don't think this needs to create a changelog, please let me know if needed.",
+   "primary_type": "F.1 Interface",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.1 Interface",
+     "file": "src/_pytest/terminal.py",
+     "start_line": 114,
+     "end_line": 120,
+     "focus_line": 117,
+     "focus_end": 117,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer RonnyPfannschmidt identified that removing the `\"--full-trace\"` alias in commit 6c2f673 was a breaking change. Reviewer nicoddemus later confirmed this direction was incorrect, stating the fi",
+     "in_scope": true,
+     "review_snippet": "diff --git a/src/_pytest/terminal.py b/src/_pytest/terminal.py\nindex 0ff564d01..46923f81c 100644\n--- a/src/_pytest/terminal.py\n+++ b/src/_pytest/terminal.py\n@@ -114,7 +114,7 @@ def pytest_addoption(parser):\n     )\n     group._addoption(\n         \"--fulltrace\",\n-        \"--full-trace\",\n+        \"--fulltrace\",\n         action=\"store_true\",\n         default=False,\n         help=\"don't cut any tracebacks (default is to cut).\","
+    }
+   ]
+  },
+  {
+   "case_id": "pytest-dev__pytest-1854",
+   "repo": "pytest-dev/pytest",
+   "base_commit": "847067fb02804f967e07746085d574dff7495f18",
+   "title": "Pkg resources bugfix",
+   "statement": "Related to #1853. \n",
+   "primary_type": "F.2 Logic",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.2 Logic",
+     "file": "_pytest/config.py",
+     "start_line": 941,
+     "end_line": 947,
+     "focus_line": 944,
+     "focus_end": 944,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer RonnyPfannschmidt initially questioned the effectiveness of the change. Reviewer nicoddemus then pointed out that the `import pkg_resources` introduced in commit `2f11a856` was placed incorre",
+     "in_scope": true,
+     "review_snippet": "_pytest/config.py\n@@ -942,6 +941,7 @@ def _consider_importhook(self, args, entrypoint_name):\n        and find all the installed plugins to mark them for re-writing\n        by the importhook.\n        \"\"\"\n+        import pkg_resources\n        ns, unknown_args = self._parser.parse_known_and_unknown_args(args)\n        mode = ns.assertmode\n        if mode == 'rewrite':"
+    }
+   ]
+  },
+  {
+   "case_id": "pydata__xarray-3576",
+   "repo": "pydata/xarray",
+   "base_commit": "7dfdfcaa481fe6b42302f231cb02c35601c628db",
+   "title": "Examples for quantile",
+   "statement": "Following up to #3527, this adds examples for `DataArray.quantile`, `Dataset.quantile` and `GroupBy.quantile` (which is inherited by both `DatasetGroupBy` and `DataArrayGroupBy`).\r\n\r\n - [x] Passes `black . && mypy . && flake8`\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "sphinx-doc__sphinx-2711",
+   "repo": "sphinx-doc/sphinx",
+   "base_commit": "4be597bb349e3bd61feaf23ee13d703e43316f52",
+   "title": "latex, allow image dimensions using px unit (96px=1in)",
+   "statement": "New key `'pixelsize'` in `latex_elements` dictionary. This works with same interface in all engines (pdflatex, lualatex, xelatex and hopefully platex which I can't test ;-) )\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "mwaskom__seaborn-3447",
+   "repo": "mwaskom/seaborn",
+   "base_commit": "b3e6b8d62194577deabebaa595520a13d55cf269",
+   "title": "Squash a large number of warnings in the tests",
+   "statement": "Various small edits to:\r\n\r\n- Maintain forward compatibility with upcoming changes in dependencies\r\n- Avoid triggering some numpy warnings around missing data and discrete mapping logic\r\n- Silence a couple of innocuous warnings there's no clear way to work around\r\n\r\nAll that remains here are https://github.com/matplotlib/matplotlib/pull/26300, https://github.com/matplotlib/matplotlib/issues/26596 and ~https://github.com/pytest-dev/pytest-xdist/issues/840~ (decided to ignore the latter in the test config, since there's no apparent movement towards dealing with it upstream despite lots of reports).",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "pydata__xarray-905",
+   "repo": "pydata/xarray",
+   "base_commit": "725009f1f1713fa3b75083530283b56529bd9b82",
+   "title": "Fix incorrect test for dask version",
+   "statement": "Fixes #891\n",
+   "primary_type": "F.3 Resource",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.3 Resource",
+     "file": "xarray/backends/api.py",
+     "start_line": 162,
+     "end_line": 168,
+     "focus_line": 162,
+     "focus_end": 168,
+     "span_kind": "range",
+     "focus_source": "introduce",
+     "title": "Reviewer `jhamman` pointed out that `StrictVersion` was used in `xarray/backends/api.py` without being imported. The author `shoyer` confirmed this was necessary (\"Why yes, we do need that!\"), acknowl",
+     "in_scope": true,
+     "review_snippet": "# File: xarray/backends/api.py\n@@ -162,7 +162,7 @@ def maybe_decode_store(store, lock=False):\n                 from dask.base import tokenize\n             except ImportError:\n                 import dask  # raise the usual error if dask is entirely missing\n-                if dask.__version__ < '0.6':\n+                if StrictVersion(dask.__version__) < StrictVersion('0.6'):\n                     raise ImportError('xarray requires dask version 0.6 or newer')\n                 else:\n                     raise"
+    }
+   ]
+  },
+  {
+   "case_id": "django__django-16040",
+   "repo": "django/django",
+   "base_commit": "0c3981eb5094419fe200eb46c71b5376a2266166",
+   "title": "Refs #28333 -- Explicitly ordered outer qualify query on window filtering.",
+   "statement": "While most backends will propagate derived table ordering as long as the outer query doesn't perform additional processing the SQL specs doesn't explicitly state the ordering must be maintained.",
+   "primary_type": "F.3 Resource",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.3 Resource",
+     "file": "django/db/models/sql/compiler.py",
+     "start_line": 674,
+     "end_line": 691,
+     "focus_line": 686,
+     "focus_end": 686,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `felixxm` pointed out that the parameters generated for the `ORDER BY` clause (`ordering_params`) were being incorrectly handled (extended with themselves) and not added to the main query par",
+     "in_scope": true,
+     "review_snippet": "django/db/models/sql/compiler.py:\n@@ -657,7 +674,18 @@ def get_qualify_sql(self):\n                 \")\",\n                 self.connection.ops.quote_name(\"qualify_mask\"),\n             ]\n-        return result, list(inner_params) + qualify_params\n+        params = list(inner_params) + qualify_params\n+        # As the SQL spec is unclear on whether or not derived tables\n+        # ordering must propagate it has to be explicitly repeated on the\n+        # outer-most query to ensure it's preserved.\n+        if order_by:\n+            ordering_sqls = []\n+            for ordering in order_by:\n+                ordering_sql, ordering_params = self.compile(ordering)\n+                ordering_sqls.append(ordering_sql)\n+                ordering_params.extend(ordering_params) # <- Introduced defect\n            result.extend([\"ORDER BY\", \", \".join(ordering_sqls)])\n        return result, params"
+    }
+   ]
+  },
+  {
+   "case_id": "scikit-learn__scikit-learn-31106",
+   "repo": "scikit-learn/scikit-learn",
+   "base_commit": "677869070fb1f2f7a6489fa2eedde03acf58c4e2",
+   "title": "MNT Clean-up deprecations for 1.7: Xt in inverse_transform",
+   "statement": "Removed deprecated `Xt` parameter of `inverse_transform` method of several estimators.",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "matplotlib__matplotlib-28677",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "3d37d7a0cb32298680828a29b5d98e59c753ef92",
+   "title": "Doc: add axes titles to axhspan/axvspan",
+   "statement": "Because there are multiple axes here, titling the axes w. the function it's demoing helps highlight what's going on. Basically, would have found titles helpful for the discussion in https://github.com/matplotlib/matplotlib/issues/28152#issuecomment-2274589927 \r\n\r\n## PR checklist\r\n<!-- Please mark any checkboxes that do not apply to this PR as [N/A].-->\r\n\r\n- [ ] \"closes #0000\" is in the body of the PR description to [link the related issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)\r\n- [ ] new and changed code is [tested](https://matplotlib.org/devdocs/devel/testing.html)\r\n- [ ] *Plotting related* features are demonstrated in an [example](https://matplotlib.org/devdocs/devel/document.html#write-examples-and-tutorials)\r\n- [ ] *New Features* and *API Changes* are noted with a [directive and release note](https://matplotlib.org/devdocs/devel/api_changes.html#announce-changes-deprecations-and-new-features)\r\n- [x] Documentation complies with [general](https://matplotlib.org/devdocs/devel/document.html#write-rest-pages) and [docstring](https://matplotlib.org/devdocs/devel/document.html#write-docstrings) guidelines\r\n\r\n<!--We understand that PRs can sometimes be overwhelming, especially as the\r\nreviews start coming in.  Please let us know if the reviews are unclear or\r\nthe recommended next step seems overly demanding, if you would like help in\r\naddressing a reviewer's comments, or if you have been waiting too long to hear\r\nback on your PR.-->\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "matplotlib__matplotlib-10413",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "ca0195c3936d88b797b62a7e8b30830aa231886a",
+   "title": "DOC: Fix typos in section names.",
+   "statement": "## PR Summary\r\n\r\nJust a couple things that numpydoc warns about, but seems to ignore otherwise.\r\n\r\n## PR Checklist\r\n\r\n- [ ] Has Pytest style unit tests\r\n- [ ] Code is PEP 8 compliant\r\n- [ ] New features are documented, with examples if plot related\r\n- [ ] Documentation is sphinx and numpydoc compliant\r\n- [ ] Added an entry to doc/users/next_whats_new/ if major new feature (follow instructions in README.rst there)\r\n- [ ] Documented in doc/api/api_changes.rst if API changed in a backward-incompatible way\r\n\r\n<!--\r\nThank you so much for your PR!  To help us review your contribution, please\r\nconsider the following points:\r\n\r\n- A development guide is available at https://matplotlib.org/devdocs/devel/index.html.\r\n\r\n- Help with git and github is available at\r\n  https://matplotlib.org/devel/gitwash/development_workflow.html.\r\n\r\n- Do not create the PR out of master, but out of a separate branch.\r\n\r\n- The PR title should summarize the changes, for example \"Raise ValueError on\r\n  non-numeric input to set_xlim\".  Avoid non-descriptive titles such as\r\n  \"Addresses issue #8576\".\r\n\r\n- The summary should provide at least 1-2 sentences describing the pull request\r\n  in detail (Why is this change required?  What problem does it solve?) and\r\n  link to any relevant issues.\r\n\r\n- If you are contributing fixes to docstrings, please pay attention to\r\n  http://matplotlib.org/devel/documenting_mpl.html#formatting.  In particular,\r\n  note the difference between using single backquotes, double backquotes, and\r\n  asterisks in the markup.\r\n\r\nWe understand that PRs can sometimes be overwhelming, especially as the\r\nreviews start coming in.  Please let us know if the reviews are unclear or\r\nthe recommended next step seems overly demanding, if you would like help in\r\naddressing a reviewer's comments, or if you have been waiting too long to hear\r\nback on your PR.\r\n-->\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "mwaskom__seaborn-931",
+   "repo": "mwaskom/seaborn",
+   "base_commit": "dfdd1126626f7ed0fe3737528edecb71346e9eb0",
+   "title": "Fix #929: FacetGrid with unused categories",
+   "statement": "Calculates correct number of subplots to draw when unused categories are present\n\nThe test confirms the fix solves the ValueError.\n\nIt also asserts that the number of axes drawn by FacetGrid should be equal to the number of categories in `.cat.categories`, not the number of unique values that are present in the series.\n",
+   "primary_type": "F.5 Support",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.5 Support",
+     "file": "seaborn/tests/test_axisgrid.py",
+     "start_line": 713,
+     "end_line": 727,
+     "focus_line": 713,
+     "focus_end": 727,
+     "span_kind": "range",
+     "focus_source": "introduce",
+     "title": "The reviewer (`mwaskom`) pointed out that the newly added test `test_categorical_column_missing_categories` used pandas categorical features and would likely fail on older pandas versions lacking this",
+     "in_scope": true,
+     "review_snippet": "seaborn/tests/test_axisgrid.py\n@@ -713,6 +713,15 @@ def test_unicode_content_no_columns(self):\n          g = ag.FacetGrid(df, row=\"b\")\n          g = g.map(plt.plot, \"x\")\n  \n+    def test_categorical_column_missing_categories(self):\n+\n+        df = self.df.copy()\n+        df['a'] = df['a'].astype('category')\n+\n+        g = ag.FacetGrid(df.query(\"a != 'a'\"), col=\"a\", col_wrap=1)\n+\n+        nt.assert_equal(g.axes.shape, (len(df['a'].cat.categories),))\n+\n  \n  class TestPairGrid(PlotTestCase):\n  "
+    }
+   ]
+  },
+  {
+   "case_id": "matplotlib__matplotlib-12835",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "ed0ae165ec176f6b9ed45d99a958fd5f697abbd1",
+   "title": "Don't fail tests if cairo dependency is not installed.",
+   "statement": "## PR Summary\r\n\r\nNecessary for the test introduced by #12774.\r\n\r\n## PR Checklist\r\n\r\n- [ ] Has Pytest style unit tests\r\n- [ ] Code is [Flake 8](http://flake8.pycqa.org/en/latest/) compliant\r\n- [ ] New features are documented, with examples if plot related\r\n- [ ] Documentation is sphinx and numpydoc compliant\r\n- [ ] Added an entry to doc/users/next_whats_new/ if major new feature (follow instructions in README.rst there)\r\n- [ ] Documented in doc/api/api_changes.rst if API changed in a backward-incompatible way\r\n\r\n<!--\r\nThank you so much for your PR!  To help us review your contribution, please\r\nconsider the following points:\r\n\r\n- A development guide is available at https://matplotlib.org/devdocs/devel/index.html.\r\n\r\n- Help with git and github is available at\r\n  https://matplotlib.org/devel/gitwash/development_workflow.html.\r\n\r\n- Do not create the PR out of master, but out of a separate branch.\r\n\r\n- The PR title should summarize the changes, for example \"Raise ValueError on\r\n  non-numeric input to set_xlim\".  Avoid non-descriptive titles such as\r\n  \"Addresses issue #8576\".\r\n\r\n- The summary should provide at least 1-2 sentences describing the pull request\r\n  in detail (Why is this change required?  What problem does it solve?) and\r\n  link to any relevant issues.\r\n\r\n- If you are contributing fixes to docstrings, please pay attention to\r\n  http://matplotlib.org/devel/documenting_mpl.html#formatting.  In particular,\r\n  note the difference between using single backquotes, double backquotes, and\r\n  asterisks in the markup.\r\n\r\nWe understand that PRs can sometimes be overwhelming, especially as the\r\nreviews start coming in.  Please let us know if the reviews are unclear or\r\nthe recommended next step seems overly demanding, if you would like help in\r\naddressing a reviewer's comments, or if you have been waiting too long to hear\r\nback on your PR.\r\n-->\r\n",
+   "primary_type": "F.4 Check",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.4 Check",
+     "file": "lib/matplotlib/testing/conftest.py",
+     "start_line": 43,
+     "end_line": 55,
+     "focus_line": 51,
+     "focus_end": 52,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "Reviewer `timhoffm` pointed out that catching `ImportError` broadly might hide import issues unrelated to the cairo backend. The author `anntzer` agreed and suggested checking the `backend` variable n",
+     "in_scope": true,
+     "review_snippet": "lib/matplotlib/testing/conftest.py\n@@ -43,7 +43,13 @@ def mpl_test_settings(request):\n             # This import must come after setup() so it doesn't load the\n             # default backend prematurely.\n             import matplotlib.pyplot as plt\n-            plt.switch_backend(backend)\n+            try:\n+                plt.switch_backend(backend)\n+            except ImportError as exc:\n+                # Should only occur for the cairo backend tests, if neither\n+                # pycairo nor cairocffi are installed.\n+                pytest.skip(\"Failed to switch to backend {} ({}).\"\n+                            .format(backend, exc))\n         with warnings.catch_warnings():\n             warnings.simplefilter(\"ignore\", MatplotlibDeprecationWarning)\n             matplotlib.style.use(style)"
+    }
+   ]
+  },
+  {
+   "case_id": "pydata__xarray-10006",
+   "repo": "pydata/xarray",
+   "base_commit": "f91306a7150ab0fd0450d6d5b2e92b2e8493ab85",
+   "title": "remove outdated type-ignores",
+   "statement": "<!-- Feel free to remove check-list items aren't relevant to your change -->\r\n\r\n- [ ] Closes #xxxx\r\n- [ ] Tests added\r\n- [ ] User visible changes (including notable bug fixes) are documented in `whats-new.rst`\r\n- [ ] New functions/methods are listed in `api.rst`\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "django__django-9635",
+   "repo": "django/django",
+   "base_commit": "46b3e3ffdc25b5a42762df20e536401fc512c5f3",
+   "title": "Fixed #29090 -- Updated Hungarian time formats to use ':' instead of '.'.",
+   "statement": "It's about time notation in Hungary, we use officially ':' instead of '.' among hour, minute and second. Also added the leading zeroes to hour. This one is not official, just some standardization. \r\nI can't provide tests yet, but probably some expert eyes are enough to check.",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "sphinx-doc__sphinx-5596",
+   "repo": "sphinx-doc/sphinx",
+   "base_commit": "16f47cded956bfba55380034ff30988d2ab5ee7c",
+   "title": "Simplify XRefRole constructor",
+   "statement": "Subject: Simplify XRefRole constructor\r\n\r\n### Feature or Bugfix\r\n<!-- please choose -->\r\n- Feature\r\n\r\n### Purpose\r\n- Original code setting `nodeclass` and `innernodeclass` is unclear, because default values and custom values assignment statements are separated. So, restructuring and simplifying of constructor is needed.\r\n\r\n### Detail\r\n- (Edited) ~Put default values on appropriate place.~\r\n- Setting `nodeclass` and `innernodeclass` property by single statement respectively.\r\n- More concrete type annotation to represent which custom classes are to be passed.\r\n\r\n### Relates\r\nN/A\r\n\r\n",
+   "primary_type": "F.1 Interface",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.1 Interface",
+     "file": "sphinx/roles.py",
+     "start_line": 68,
+     "end_line": 81,
+     "focus_line": 77,
+     "focus_end": 78,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (tk0miya) pointed out that removing the class attributes `nodeclass` and `innernodeclass` and handling their defaults solely within `__init__` constituted a breaking change. This change p",
+     "in_scope": true,
+     "review_snippet": "sphinx/roles.py\n@@ -68,19 +68,14 @@ class XRefRole:\n     * Subclassing and overwriting `process_link()` and/or `result_nodes()`.\n     \"\"\"\n \n-    nodeclass = addnodes.pending_xref  # type: Type[nodes.Node]\n-    innernodeclass = nodes.literal\n-\n   def __init__(self, fix_parens=False, lowercase=False,\n                nodeclass=None, innernodeclass=None, warn_dangling=False):\n-        # type: (bool, bool, Type[nodes.Node], Type[nodes.Node], bool) -> None\n+        # type: (bool, bool, Type[nodes.reference], Type[nodes.TextElement], bool) -> None\n       self.fix_parens = fix_parens\n       self.lowercase = lowercase\n       self.warn_dangling = warn_dangling\n-        if nodeclass is not None:\n-            self.nodeclass = nodeclass\n-        if innernodeclass is not None:\n-            self.innernodeclass = innernodeclass\n+        self.nodeclass = nodeclass or addnodes.pending_xref\n+        self.innernodeclass = innernodeclass or nodes.literal\n \n   def _fix_parens(self, env, has_explicit_title, title, target):\n       # type: (BuildEnvironment, bool, unicode, unicode) -> Tuple[unicode, unicode]"
+    }
+   ]
+  },
+  {
+   "case_id": "matplotlib__matplotlib-12629",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "cfc01ce02f4183cebe33ef5898fb9e424ba1cb93",
+   "title": "Fix issue with PyPy on macOS",
+   "statement": "This PR fixes the issue with `PyOS_InputHook` variable that is not defined in PyPy implementation:\r\n\r\n```\r\nsrc/_macosx.m:280:5: error: use of undeclared identifier 'PyOS_InputHook'\r\nPyOS_InputHook = wait_for_stdin;\r\n^\r\n```\r\n\r\np.s.\r\nThe corresponding issue in PyPy bug tracking is https://bitbucket.org/pypy/pypy/issues/2327",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "sphinx-doc__sphinx-9447",
+   "repo": "sphinx-doc/sphinx",
+   "base_commit": "5559e5af1ff6f5fc2dc70679bdd6dc089cfff388",
+   "title": "HTML Templates: Expose full sphinx version tuple",
+   "statement": "Subject: <short purpose of this pull request>\r\n\r\n### Feature or Bugfix\r\n- Feature\r\n\r\n### Purpose\r\nPreviously, there was only a string which is problematic\r\nwhen you want to programmatically compare versions\r\nfor compatibility reasons.\r\n\r\n\r\n### Detail\r\n- <feature1 or bug1>\r\n- <feature2 or bug2>\r\n\r\n### Relates\r\n- <URL or Ticket>\r\n\r\n",
+   "primary_type": "F.3 Resource",
+   "is_defective": true,
+   "findings": [
+    {
+     "type": "F.3 Resource",
+     "file": "sphinx/builders/html/__init__.py",
+     "start_line": 509,
+     "end_line": 516,
+     "focus_line": 512,
+     "focus_end": 512,
+     "span_kind": "range",
+     "focus_source": "resolve",
+     "title": "The reviewer (`astrojuanlu`) questioned why the existing `sphinx_version` context variable was changed from the display string (`__display_version__`) to the version tuple (`sphinx_version`), suggesti",
+     "in_scope": true,
+     "review_snippet": "sphinx/builders/html/__init__.py\n@@ -508,7 +509,8 @@ def prepare_writing(self, docnames: Set[str]) -> None:\n               'script_files': self.script_files,\n               'language': self.config.language,\n               'css_files': self.css_files,\n-            'sphinx_version': __display_version__,\n+            'sphinx_version': sphinx_version,\n+            'sphinx_version_tuple': sphinx_version,\n               'style': self._get_style_filename(),\n               'rellinks': rellinks,\n               'builder': self.name,"
+    }
+   ]
+  },
+  {
+   "case_id": "pytest-dev__pytest-1108",
+   "repo": "pytest-dev/pytest",
+   "base_commit": "5171d167ce8e3bb5fe69544a204ac0edeeee58a7",
+   "title": "plugins_index was still generating \".txt\" files, so it was effectively being ignored",
+   "statement": "Fix #1105\nFix #1101\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "astropy__astropy-17278",
+   "repo": "astropy/astropy",
+   "base_commit": "27694782493b9bbc60a0a24ef5e85574a6f8df53",
+   "title": "DOC: Remove iraf.net from API doc, fix broken What's New links",
+   "statement": "<!-- These comments are hidden when you submit the pull request,\r\nso you do not need to remove them! -->\r\n\r\n<!-- Please be sure to check out our contributing guidelines,\r\nhttps://github.com/astropy/astropy/blob/main/CONTRIBUTING.md .\r\nPlease be sure to check out our code of conduct,\r\nhttps://github.com/astropy/astropy/blob/main/CODE_OF_CONDUCT.md . -->\r\n\r\n<!-- If you are new or need to be re-acquainted with Astropy\r\ncontributing workflow, please see\r\nhttps://docs.astropy.org/en/latest/development/quickstart.html .\r\nThere is even a practical example at\r\nhttps://docs.astropy.org/en/latest/development/git_edit_workflow_examples.html . -->\r\n\r\n<!-- Please just have a quick search on GitHub to see if a similar\r\npull request has already been posted.\r\nWe have old closed pull requests that might provide useful code or ideas\r\nthat directly tie in with your pull request. -->\r\n\r\n<!-- We have several automatic features that run when a pull request is open.\r\nThey can appear daunting but do not worry because maintainers will help\r\nyou navigate them, if necessary. -->\r\n\r\n### Description\r\n<!-- Provide a general description of what your pull request does.\r\nComplete the following sentence and add relevant details as you see fit. -->\r\n\r\n<!-- In addition please ensure that the pull request title is descriptive\r\nand allows maintainers to infer the applicable subpackage(s). -->\r\n\r\n<!-- READ THIS FOR MANUAL BACKPORT FROM A MAINTAINER:\r\nApply \"skip-basebranch-check\" label **before** you open the PR! -->\r\n\r\nThis pull request is to remove dead link from API doc.\r\n\r\nAlso, maybe linkcheck does not have to suffer until v7.0 is released.\r\n\r\n<!-- If the pull request closes any open issues you can add this.\r\nIf you replace <Issue Number> with a number, GitHub will automatically link it.\r\nIf this pull request is unrelated to any issues, please remove\r\nthe following line. -->\r\n\r\nFixes #17258 \r\n\r\n<!-- Optional opt-out -->\r\n\r\n- [ ] By checking this box, the PR author has requested that maintainers do *",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "pylint-dev__pylint-9195",
+   "repo": "pylint-dev/pylint",
+   "base_commit": "3de196c91bcf67e92e5413dea09eb65c4d15c37e",
+   "title": "Fix `undefined-variable` etc for Python 3.12 generic type syntax",
+   "statement": "## Type of Changes\r\n\r\n<!-- Leave the corresponding lines for the applicable type of change: -->\r\n\r\n|     | Type                   |\r\n| --- | ---------------------- |\r\n| ✓   | :bug: Bug fix          |\r\n\r\n\r\n## Description\r\nCloses #9193\r\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "matplotlib__matplotlib-4422",
+   "repo": "matplotlib/matplotlib",
+   "base_commit": "e0c53793b2030938981d92e88114a64720a34896",
+   "title": "FIX : turn path snapping off on 'o' marker path",
+   "statement": "Set the _snap_threshold for 'o' markers to `np.inf` which\neffectively turns it off.\n\nThis makes 'o' markers look more circular at all sizes at all dpi.\n\nThis change subtly changed several tests.\n\nCloses #4421\n",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": []
+  },
+  {
+   "case_id": "sympy__sympy-18835",
+   "repo": "sympy/sympy",
+   "base_commit": "516fa83e69caf1e68306cfc912a13f36c434d51c",
+   "title": "raise error if seq change is detected in uniq",
+   "statement": "<!-- Your title above should be a short description of what\r\nwas changed. Do not include the issue number in the title. -->\r\n\r\n#### References to other Issues or PRs\r\n<!-- If this pull request fixes an issue, write \"Fixes #NNNN\" in that exact\r\nformat, e.g. \"Fixes #1234\" (see\r\nhttps://tinyurl.com/auto-closing for more information). Also, please\r\nwrite a comment on that issue linking back to this pull request once it is\r\nopen. -->\r\n\r\nfixes #18832 \r\n\r\n#### Brief description of what is fixed or changed\r\n\r\nWhen easily detectable, [Python raises an error](https://stackoverflow.com/a/50167042/1089161) when an item being iterated over is changed and would thus cause the iteration to fail.\r\n\r\nWhen iterating over the unique elements of an iterable as detected by `uniq`, changing the iterable during iteration will cause a failure in `uniq` to detect the unique elements. It is not clear that `uniq` will do this so an error is now raised in the cases when this is easy to detect and a note is added to the docstring.\r\n\r\n#### Other comments\r\n\r\n\r\n#### Release Notes\r\n\r\n<!-- Write the release notes for this release below. See\r\nhttps://github.com/sympy/sympy/wiki/Writing-Release-Notes for more information\r\non how to write release notes. The bot will check your release notes\r\nautomatically to see if they are formatted correctly. -->\r\n\r\n<!-- BEGIN RELEASE NOTES -->\r\n* utilities\r\n    * iterables - `uniq` will now raise a RuntimeError if a size change of the sequence is detected\r\n<!-- END RELEASE NOTES -->",
+   "primary_type": null,
+   "is_defective": false,
+   "findings": [
+    {
+     "type": "F.4 Check",
+     "file": "sympy/utilities/iterables.py",
+     "start_line": 2110,
+     "end_line": 2136,
+     "focus_line": 2129,
+     "focus_end": 2129,
+     "span_kind": "range",
+     "focus_source": "adjudicated",
+     "title": "check() runs only on the yield path, so a size change right after a duplicate goes undetected",
+     "in_scope": true,
+     "required": false,
+     "provenance": "Adjudicated by hand after reading the detector's report against the shown code; not a reviewer comment. Marked not required so it can never add to recall -- it only stops a correct report counting as a false alarm.",
+     "review_snippet": ""
+    }
+   ]
+  }
+ ]
 }

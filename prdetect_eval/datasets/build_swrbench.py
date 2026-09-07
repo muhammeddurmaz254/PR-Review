@@ -113,7 +113,11 @@ def build(labels_path: Path, source_path: Path, out_path: Path) -> int:
                 "finding_id": f"{case['case_id']}-f{index}",
                 "type": finding["type"],
                 "in_scope": bool(finding["in_scope"]),
-                "required": bool(finding["in_scope"]),
+                # A finding may be in scope and still not required: the ones
+                # adjudicated by hand after a run are real defects no reviewer
+                # commented on, and counting them as recall would score the
+                # detector against answers its own output produced.
+                "required": bool(finding["in_scope"]) and finding.get("required", True),
                 "role": "primary",
                 "file": name,
                 "start_line": finding["start_line"],
@@ -126,7 +130,7 @@ def build(labels_path: Path, source_path: Path, out_path: Path) -> int:
                 "in_diff": True,
                 "cross_file": False,
                 "pure_deletion": False,
-                "equivalent_locations": [],
+                "equivalent_locations": finding.get("equivalent_locations", []),
                 "severity": "", "cwe": "",
                 "rationale": finding.get("title", ""),
             })

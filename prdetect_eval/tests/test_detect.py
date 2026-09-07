@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from adapters import load_cases
 from detect import client as client_module
-from detect import contract, pack, prompt
+from detect import challenge, contract, pack, prompt
 
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
@@ -384,3 +384,52 @@ def test_client_survives_an_unreachable_server():
     response = client.complete("s", "u", contract.response_schema(["authz"]))
     assert response.error and response.text == ""
     assert contract.parse(response.text)[1], "an unreachable server must be recorded, not silent"
+
+
+CHALLENGE_ROWS = [
+    "  115 + |         np.clip(candidate_ids, None, len(closest_dist_sq) - 1,",
+    "  116 + |                 out=candidate_ids)",
+]
+
+
+def test_an_unreadable_verdict_leaves_the_claim_standing():
+    """A stage that drops findings when the server hiccups reports a precision
+    gain it did not earn."""
+    for payload in ("", "not json", "[]", '{"verdict": "maybe"}'):
+        assert challenge.parse(payload)[0] == "stands"
+
+
+def test_refuting_requires_quoting_the_excerpt():
+    """Otherwise the stage can refute anything by asserting a contradiction that
+    is not there -- the same failure it exists to catch."""
+    assert challenge.honours("out=candidate_ids", CHALLENGE_ROWS)
+    assert not challenge.honours("the code is clearly fine", CHALLENGE_ROWS)
+    assert not challenge.honours("", CHALLENGE_ROWS)
+
+
+def test_the_quote_check_ignores_gutters_and_escaping():
+    """Both mismatches were measured, and both rejected a correct refutation."""
+    assert challenge.honours("  116 + |                 out=candidate_ids)", CHALLENGE_ROWS)
+    assert challenge.honours('dquotes=("\\sphinxquotedblleft{}",',
+                             ['  2213 + |     dquotes=("\\\\sphinxquotedblleft{}",'])
+
+
+def test_the_challenge_prompt_defaults_to_keeping_the_finding():
+    text = challenge.SYSTEM
+    assert '"stands" is the answer' in text
+    assert "Quote the exact text" in text
+
+
+def test_the_excerpt_carries_the_detector_line_numbers(dataset):
+    """The claim names a line; an excerpt renumbered against it proves nothing."""
+    cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+    checked = 0
+    for case in cases:
+        for label in case.labels:
+            rows = challenge.excerpt(case, label.span.file, label.span.start_line)
+            numbers = [int(row[:5]) for row in rows if row[:5].strip()]
+            if not numbers:
+                continue
+            checked += 1
+            assert min(numbers) <= label.span.start_line <= max(numbers), case.case_id
+    assert checked

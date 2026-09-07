@@ -129,9 +129,15 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
 
     ``in_scope`` restricts positives to cases carrying a required in-scope label
     and only counts reports of in-scope types; that is the primary metric.
-    Defective cases whose only labels are out of scope are excluded from it
-    rather than counted as negatives. ``all`` uses every defective case and
-    every report.
+    ``all`` uses every defective case and every report.
+
+    Two kinds of case are excluded from ``in_scope`` rather than counted as
+    negatives, because for both of them a flag is neither right nor wrong:
+    a defective case whose only labels are out of scope, and any case carrying
+    an in-scope finding the corpus does not require. The second is what a
+    real-world corpus makes necessary -- SWRBench calls a pull request clean
+    when no reviewer objected to it, not when the code is correct, so a
+    hand-confirmed defect nobody commented on must not be scored either way.
     """
     card = DetectionCard()
     scored_types = in_scope_types(cases)
@@ -139,7 +145,7 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
         result = results[case.case_id]
         if scope == "in_scope":
             positive = bool(case.scored_labels)
-            if not positive and case.is_defective:
+            if not positive and (case.is_defective or case.in_scope_labels):
                 continue
             reported = (*(match.prediction for match in result.matches), *result.unmatched_predictions)
             flagged = any(prediction.type in scored_types for prediction in reported)
@@ -338,7 +344,12 @@ def per_finding(cases: Sequence[Case], results: dict[str, MatchResult]) -> list[
                 "confidence": prediction.confidence if prediction else None,
                 "type_correct": bool(prediction and prediction.type == label.type),
                 "file_correct": bool(prediction and prediction.span.file == label.span.file),
-                "inside_region": bool(prediction and prediction.span.distance(label.span) == 0),
+                # Against every span the label accepts, not only its anchor: a
+                # finding with an equivalent location is satisfied by either, and
+                # measuring only the anchor reports a match as a miss.
+                "inside_region": bool(prediction and any(
+                    prediction.span.distance(span) == 0 for span in label.spans
+                )),
                 "iou_region": round(prediction.span.iou(label.span), 4) if prediction else 0.0,
                 "iou_focus": (
                     round(prediction.span.iou(label.focus), 4)

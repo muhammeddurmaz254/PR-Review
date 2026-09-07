@@ -235,3 +235,32 @@ def test_the_step_file_leads_with_the_pull_request_verdict():
     text = steps.render("t", {"cases": len(cases)}, result)
     assert text.index("PR seviyesi") < text.index("Bulgu seviyesi")
     assert "0.50 = girdiyi yok saymak" in text
+
+
+def test_a_neutral_finding_is_neither_recall_nor_a_false_alarm():
+    """SWRBench calls a pull request clean when no reviewer objected, not when
+    the code is right. A defect confirmed by hand afterwards must not be scored
+    either way -- counting it as recall would score the detector against answers
+    its own output produced."""
+    swrbench = load_cases(Path(__file__).resolve().parents[1] / "datasets" / "swrbench.eval.jsonl")
+    neutral = [(case, label) for case in swrbench
+               for label in case.labels if label.in_scope and not label.required]
+    assert neutral, "the adjudicated findings are gone from the corpus"
+    for case, label in neutral:
+        assert label not in case.scored_labels
+
+    case, label = neutral[0]
+    reported = [Prediction(case_id=case.case_id, span=label.span, type=label.type,
+                           confidence=1.0, detector="t", stage="detect", message="")]
+    card = metrics.score([case], match_all([case], reported, PRIMARY))
+    assert card.neutral_optional == 1
+    assert card.false_alarm == 0 and card.true_positive == 0
+
+
+def test_a_clean_case_with_a_neutral_finding_is_not_a_pr_level_negative():
+    swrbench = load_cases(Path(__file__).resolve().parents[1] / "datasets" / "swrbench.eval.jsonl")
+    excluded = [case for case in swrbench
+                if not case.scored_labels and case.in_scope_labels]
+    assert excluded
+    card = metrics.pr_level(swrbench, match_all(swrbench, [], PRIMARY))
+    assert card.total == len(swrbench) - len(excluded)
