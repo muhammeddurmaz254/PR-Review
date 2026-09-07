@@ -13,7 +13,7 @@ neither helps nor hurts. The recall denominator is the required in-scope labels.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from statistics import mean
 from typing import Sequence
 
@@ -284,6 +284,13 @@ def per_finding(cases: Sequence[Case], results: dict[str, MatchResult]) -> list[
     This is the artefact a person reads when a number looks wrong. Aggregates
     say a detector scored 60%; only these rows say which six of ten, and whether
     the misses share a shape.
+
+    ``results`` must come from a *type-agnostic* match. Pointing at the right
+    code and naming the right kind are different abilities and they fail
+    separately: on SWRBench the detector finds the defect in the right file more
+    than twice as often as it names the reviewer's category for it. Pairing on
+    type would score both of those as one miss and hide which one to work on, so
+    the pairing is done on location and ``type_correct`` is reported beside it.
     """
     rows = []
     for case in cases:
@@ -329,9 +336,17 @@ def per_finding(cases: Sequence[Case], results: dict[str, MatchResult]) -> list[
 def localization(rows: Sequence[dict]) -> dict:
     """Accuracy per dimension, plus IoU over the findings that were located.
 
+    Three numbers, deliberately not collapsed into one:
+
+    ``region_accuracy``  did the report point at the code? Type-agnostic.
+    ``type_accuracy``    of the findings it pointed at, how many did it name
+                         correctly? A detector that finds a defect and calls it
+                         the wrong kind is worth more than one that misses it.
+    ``strict_accuracy``  both. This is the product and the honest headline when
+                         a single number is wanted.
+
     IoU is averaged over located findings only. Averaging it over misses too
-    would fold detection failure into a localization number and make the two
-    impossible to tell apart.
+    would fold detection failure into a localization number.
     """
     total = len(rows)
     located = [row for row in rows if row["inside_region"]]
@@ -340,9 +355,13 @@ def localization(rows: Sequence[dict]) -> dict:
     ranged = [row for row in rows if row["expected_region"][1] > row["expected_region"][0]]
     return {
         "findings": total,
-        "type_accuracy": round(_ratio(sum(r["type_correct"] for r in rows), total), 4),
         "file_accuracy": round(_ratio(sum(r["file_correct"] for r in rows), total), 4),
         "region_accuracy": round(_ratio(len(located), total), 4),
+        "type_accuracy": round(_ratio(sum(r["type_correct"] for r in located), len(located)), 4),
+        "type_accuracy_overall": round(_ratio(sum(r["type_correct"] for r in rows), total), 4),
+        "strict_accuracy": round(
+            _ratio(sum(r["inside_region"] and r["type_correct"] for r in rows), total), 4
+        ),
         "located": len(located),
         "mean_iou_region": round(sum(region_ious) / len(region_ious), 4) if region_ious else 0.0,
         "mean_iou_focus": round(sum(focus_ious) / len(focus_ious), 4) if focus_ious else 0.0,
@@ -387,11 +406,14 @@ def evaluate(
 ) -> dict:
     """The full metric set for one prediction source."""
     results = match_all(cases, predictions, config, threshold)
-    rows = per_finding(cases, results)
+    # Localization is judged without the type constraint, so a report that
+    # points at the defect and misnames it is a naming error rather than a miss.
+    located = match_all(cases, predictions, replace(config, type_mode="none"), threshold)
+    rows = per_finding(cases, located)
     return {
         "per_finding": rows,
         "localization": localization(rows),
-        "false_alarm_rows": false_alarm_rows(cases, results),
+        "false_alarm_rows": false_alarm_rows(cases, located),
         "primary": {
             "tolerance": config.tolerance, "type_mode": config.type_mode, "threshold": threshold,
             **score(cases, results).as_dict(),

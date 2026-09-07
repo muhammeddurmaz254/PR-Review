@@ -60,13 +60,23 @@ def render(run_id: str, manifest: dict, result: dict, notes: Sequence[str] = ())
     if notes:
         lines += [f"> {note}" for note in notes] + [""]
 
-    lines += ["## Özet", "", "Doğruluk, her boyut için ayrı ayrı.", ""]
+    lines += [
+        "## Özet",
+        "",
+        "Yer bulmak ile tür adlandırmak ayrı yetenekler ve ayrı ayrı bozuluyorlar, "
+        "bu yüzden ayrı ölçülüyor. Tür doğruluğu **yeri bulunan** bulgular üzerinden.",
+        "",
+    ]
+    located = [r for r in rows if r["inside_region"]]
     lines += _table(
         ["boyut", "doğru", "toplam", "oran"],
         [
-            ["Tür", sum(r["type_correct"] for r in rows), loc["findings"], _pct(loc["type_accuracy"])],
             ["Dosya", sum(r["file_correct"] for r in rows), loc["findings"], _pct(loc["file_accuracy"])],
             ["Satır (bölge içinde)", loc["located"], loc["findings"], _pct(loc["region_accuracy"])],
+            ["Tür (bulunanlar içinde)", sum(r["type_correct"] for r in located),
+             loc["located"], _pct(loc["type_accuracy"])],
+            ["**Her ikisi birden**", sum(r["inside_region"] and r["type_correct"] for r in rows),
+             loc["findings"], _pct(loc["strict_accuracy"])],
         ],
     )
     lines += [
@@ -113,6 +123,21 @@ def render(run_id: str, manifest: dict, result: dict, notes: Sequence[str] = ())
             "-" if row["iou_focus"] is None else f"{row['iou_focus']:.2f}",
         ] for row in rows],
     )
+
+    mislabelled = [row for row in located if not row["type_correct"]]
+    if mislabelled:
+        lines += [
+            "### Yeri doğru, türü yanlış",
+            "",
+            "Bunlar kaçırılmış bulgular değil: kusur bulundu, kategorisi yanlış adlandırıldı.",
+            "",
+        ]
+        lines += _table(
+            ["vaka", "beklenen tür", "dediği tür", "yer", "başlık"],
+            [[row["case_id"][:26], row["expected_type"], row["predicted_type"] or "-",
+              f"{row['expected_file']}:{_span(row['predicted_lines'])}", row["predicted_title"][:48]]
+             for row in mislabelled],
+        )
 
     lines += ["### Kaçırılan bulgular", ""]
     missed = [row for row in rows if not row["inside_region"]]
