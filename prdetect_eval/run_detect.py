@@ -151,7 +151,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     failures = 0
     if detector is not None:
         with (run_dir / "responses.jsonl").open("w", encoding="utf-8", newline="\n") as handle:
-            for item in packs:
+            for index, item in enumerate(packs, start=1):
                 response = detector.complete(item.system, item.user, schema)
                 responses.append(response)
                 failures += bool(response.error)
@@ -167,6 +167,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "completion_tokens": response.completion_tokens,
                     "duration_ms": response.duration_ms,
                 }, ensure_ascii=False) + "\n")
+                # Flushed per call: a corpus run against a rented card takes long
+                # enough that the artefact has to be readable while it runs.
+                handle.flush()
+                if not args.quiet:
+                    print(f"[{index}/{len(packs)}] {item.case_id}: "
+                          f"{len(reports)} finding(s), {response.duration_ms} ms"
+                          + (f"  ERROR {response.error}" if response.error else ""),
+                          file=sys.stderr, flush=True)
 
     write_predictions(run_dir / "predictions.jsonl", predictions)
     (run_dir / "rejects.jsonl").write_text(

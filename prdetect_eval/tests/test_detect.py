@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sys
 import threading
+from statistics import median
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -43,6 +44,24 @@ def test_every_case_is_asked(dataset, packs):
 def test_prompt_prefix_is_byte_identical(packs):
     """Prefix caching is the load-bearing optimization; drift here is silent."""
     assert len({p.system for p in packs}) == 1
+
+
+def test_the_demo_repo_prompt_is_unchanged():
+    """Its numbers were measured under this text; a silent edit invalidates them
+    without anything failing."""
+    import hashlib
+    digest = hashlib.sha256(prompt.system("demo_repo").encode("utf-8")).hexdigest()
+    assert digest.startswith("4b1de85b72188b80"), "demo_repo prompt changed; re-measure or revert"
+
+
+def test_each_prompt_describes_its_own_print_format(dataset):
+    """Explaining the wrong rendering is worse than explaining none."""
+    text = prompt.system(dataset)
+    if dataset == "swrbench":
+        assert "`-` and no number" in text and "# FILE" in text
+        assert "the code it changed with real line numbers" not in text
+    else:
+        assert "Lines marked `+`" in text and "`-` and no number" not in text
 
 
 def test_prompt_lists_exactly_the_dataset_types(dataset):
@@ -90,6 +109,106 @@ def test_changed_lines_are_marked(dataset):
             assert (mark == "+") == (int(number) in current)
             marked += mark == "+"
     assert marked > 0
+
+
+SAMPLE_DIFF = """\
+# commit 6c2f673daf8d Have same name for fulltrace
+src/_pytest/terminal.py
+@@ -114,7 +114,7 @@ def pytest_addoption(parser):
+     )
+     group._addoption(
+-        "--full-trace",
++        "--fulltrace",
+         action="store_true",
+
+# commit 958374ad0000 Remove name from author
+AUTHORS
+@@ -20,3 +20,2 @@
+ Anthony Sottile
+-Someone Else
+ Zac Hatfield-Dodds
+"""
+
+
+def test_parse_diff_renumbers_onto_the_file():
+    first, second = pack.parse_diff(SAMPLE_DIFF)
+    assert (first.filename, first.start, first.end) == ("src/_pytest/terminal.py", 114, 117)
+    assert first.commit.startswith("6c2f673")
+    assert first.heading == "def pytest_addoption(parser):"
+    assert second.filename == "AUTHORS"
+
+
+def test_parse_diff_gives_a_removed_line_no_number():
+    """A deleted line is not in the new file, but a defect can be the deletion."""
+    removed = [row for row in pack.parse_diff(SAMPLE_DIFF)[0].lines if row[5:8] == " - "]
+    assert len(removed) == 1
+    assert removed[0].startswith("      - | ") and "--full-trace" in removed[0]
+
+
+def test_swrbench_line_numbers_follow_the_hunk_header(dataset):
+    """The label is a file line, so a hunk that renumbers is a guaranteed miss."""
+    if dataset != "swrbench":
+        pytest.skip("demo_repo prints whole files")
+    for case in load_cases(DATASETS / "swrbench.eval.jsonl"):
+        for hunk in pack.parse_diff(case.diff):
+            expected = hunk.start
+            for row in hunk.lines:
+                head = row[:5].strip()
+                if not head:
+                    continue
+                assert int(head) == expected, f"{case.case_id} {hunk.filename}"
+                expected += 1
+
+
+def test_swrbench_marks_exactly_the_added_lines(dataset):
+    if dataset != "swrbench":
+        pytest.skip("demo_repo prints whole files")
+    for case in load_cases(DATASETS / "swrbench.eval.jsonl"):
+        marked: dict[str, set[int]] = {}
+        for hunk in pack.parse_diff(case.diff):
+            for row in hunk.lines:
+                if row[5:8] == " + ":
+                    marked.setdefault(hunk.filename, set()).add(int(row[:5]))
+        assert marked == {name: set(lines) for name, lines in case.added_lines.items()}, case.case_id
+
+
+def test_every_pack_shows_some_code(dataset, packs):
+    """All twenty-five clean SWRBench cases once had an empty diff and an empty
+    file list, so their zero false alarms measured an empty prompt rather than a
+    model. Nothing here may be asked about code it was not shown."""
+    for item in packs:
+        assert item.shown_lines > 0, item.case_id
+
+
+def test_clean_and_defective_packs_are_the_same_size(dataset, packs):
+    """Length must not be a shortcut to the verdict."""
+    cases = {case.case_id: case for case in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
+    defective = sorted(p.shown_lines for p in packs if cases[p.case_id].is_defective)
+    clean = sorted(p.shown_lines for p in packs if not cases[p.case_id].is_defective)
+    if not clean or not defective:
+        pytest.skip("one-sided dataset")
+    ratio = median(defective) / median(clean)
+    assert 0.5 < ratio < 2.0, f"{dataset}: {median(defective)} vs {median(clean)} lines"
+
+
+def test_every_label_is_printed_in_its_pack(dataset, packs):
+    """A finding the pack never shows is unreachable, not hard."""
+    by_id = {item.case_id: item for item in packs}
+    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+        text = by_id[case.case_id].user
+        current = ""
+        for label in case.labels:
+            found = False
+            for row in text.split("\n"):
+                if row.startswith("# FILE "):
+                    current = row[len("# FILE "):].split("   (commit")[0].strip()
+                    continue
+                head = row[:5].strip()
+                if current == label.span.file and head.isdigit():
+                    if label.span.start_line <= int(head) <= label.span.end_line:
+                        found = True
+                        break
+            assert found, f"{case.case_id}: {label.span.file}:{label.span.start_line} not shown"
 
 
 def test_cross_file_cases_show_every_changed_file():

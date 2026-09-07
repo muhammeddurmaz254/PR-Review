@@ -18,13 +18,17 @@ from __future__ import annotations
 
 PROMPT_VERSION = "review/v1"
 
+# A second axis alongside the taxonomy: the two corpora are printed differently,
+# and describing the wrong shape is worse than describing none. demo_repo shows
+# whole files, SWRBench shows renumbered hunks. Keeping this per dataset also
+# keeps demo_repo's system prompt byte-identical to the one its numbers were
+# measured under.
+
 INSTRUCTIONS = """\
 You are reviewing one pull request. Find the defects it introduces and name the \
 kind of each one.
 
-You are given the pull request title, and the code it changed with real line \
-numbers. Lines marked `+` are the ones this pull request added or rewrote.
-
+{format}
 ## How to look
 
 Read the change against what the title says it does. A defect is a place where \
@@ -71,6 +75,31 @@ explanation, no suggested fix.
 Report each defect once.
 """
 
+WHOLE_FILE_FORMAT = """\
+You are given the pull request title, and the code it changed with real line \
+numbers. Lines marked `+` are the ones this pull request added or rewrote.
+"""
+
+HUNK_FORMAT = """\
+You are given the pull request title and the parts of each file it changed. The \
+rest of every file is not available, so judge what you can see.
+
+Each excerpt is printed under a `# FILE` header naming the path, and the commit \
+the excerpt comes from. A row reads `<line> <mark> | <code>`:
+
+- a number and no mark is a line the pull request left alone;
+- a number and `+` is a line it added or rewrote;
+- `-` and no number is a line it **deleted**. That line is gone from the new \
+file, which is why it has no number -- and a deletion is often the defect \
+itself, so read those rows as carefully as the added ones.
+
+Numbers are the file's own. When one file appears under two commits its \
+numbering restarts from that commit's view, so answer with the numbers printed \
+in the excerpt you are pointing at.
+"""
+
+FORMATS = {"demo_repo": WHOLE_FILE_FORMAT, "swrbench": HUNK_FORMAT}
+
 DEMO_REPO_TYPES = {
     "authz": "An ownership or permission check is missing or too weak, so a caller "
              "reaches data or an endpoint that should not be theirs.",
@@ -116,9 +145,10 @@ def system(dataset: str) -> str:
     """The full system prompt: the shared instructions plus this dataset's kinds."""
     taxonomy = TAXONOMIES[dataset]
     catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomy.items())
+    head, tail = INSTRUCTIONS.split("## How to look")
     return (
-        f"{INSTRUCTIONS.split('## How to look')[0]}"
+        f"{head.format(format=FORMATS[dataset])}"
         f"## The kinds of defect you report\n\nReport only these, and nothing else:\n\n"
         f"{catalogue}\n\n"
-        f"## How to look{INSTRUCTIONS.split('## How to look')[1]}"
+        f"## How to look{tail}"
     )

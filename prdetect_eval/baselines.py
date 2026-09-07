@@ -29,11 +29,17 @@ def _first_touched(case: Case, filename: str) -> int | None:
 
 
 def _changed_with_lines(case: Case) -> list[tuple[str, int]]:
-    """Changed files that still exist at head, with their touched line count."""
+    """Changed files the detector was shown, with their touched line count.
+
+    The universe is the touched files, not ``head_files``. Gating on file
+    contents silently emptied every baseline on SWRBench, whose cases carry
+    diffs and no checkout -- so the one dataset with a real-world defect
+    distribution was the one reported against no floor at all.
+    """
     return [
-        (filename, len(case.added_lines.get(filename, ())))
-        for filename in sorted(case.head_files)
-        if case.added_lines.get(filename)
+        (filename, len(lines))
+        for filename, lines in sorted(case.added_lines.items())
+        if lines
     ]
 
 
@@ -115,7 +121,7 @@ def first_changed_line(cases: Sequence[Case]) -> list[Prediction]:
     for case in cases:
         candidates = [
             (filename, min(lines)) for filename, lines in sorted(case.added_lines.items())
-            if lines and filename in case.head_files
+            if lines
         ]
         if candidates:
             filename, line = candidates[0]
@@ -148,8 +154,6 @@ def every_added_line(cases: Sequence[Case]) -> list[Prediction]:
     predictions = []
     for case in cases:
         for filename, lines in sorted(case.added_lines.items()):
-            if filename not in case.head_files:
-                continue
             for line in sorted(lines):
                 for defect_type in sorted(in_scope_types(cases)):
                     predictions.append(_point(case, filename, line, defect_type, "every_added_line"))
