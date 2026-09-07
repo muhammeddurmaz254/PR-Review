@@ -13,7 +13,14 @@ from typing import Iterable, Literal
 
 TypeMode = Literal["exact", "family", "none"]
 
-IN_SCOPE_TYPES = frozenset({"authz", "sql_injection", "race_condition", "dead_code", "duplicate_code"})
+def in_scope_types(cases: Iterable["Case"]) -> frozenset[str]:
+    """Which defect types the loaded corpus actually scores.
+
+    Read from the data rather than fixed in code: the taxonomy is a property of
+    the dataset, and two of them are in use with nothing in common -- one names
+    vulnerability classes, the other names change categories.
+    """
+    return frozenset(label.type for case in cases for label in case.labels if label.in_scope)
 
 FAMILY_BY_TYPE = {
     "authz": "authorization", "authn_bypass": "authorization", "mass_assignment": "authorization",
@@ -26,6 +33,16 @@ FAMILY_BY_TYPE = {
     "mutable_default_arg": "correctness",
     "n_plus_one": "data_layer", "bulk_bypass": "data_layer", "migration_risk": "data_layer",
     "dead_code": "maintainability", "duplicate_code": "maintainability", "api_contract_break": "maintainability",
+    # demo_repo. Both sides of a match resolve family through this table, so a
+    # type missing from it silently makes the family rung unreachable.
+    "business_logic": "business_logic",
+    "data_exposure": "data_exposure", "secrets": "data_exposure",
+    "error_handling": "correctness", "idempotency": "concurrency",
+    # SWRBench keeps its own taxonomy: these name kinds of change, not kinds of
+    # vulnerability, and collapsing them into the security families above would
+    # invent a correspondence that does not exist.
+    "F.1 Interface": "interface", "F.2 Logic": "logic", "F.3 Resource": "resource",
+    "F.4 Check": "check", "F.5 Support": "support",
 }
 
 
@@ -55,6 +72,22 @@ class Span:
             return None
         return max(0, other.start_line - self.end_line, self.start_line - other.end_line)
 
+    def iou(self, other: "Span") -> float:
+        """Overlap of two line ranges, 0.0 when they are in different files.
+
+        Localization is judged by whether a report lands inside the region at
+        all, so this is reported beside that verdict rather than instead of it:
+        a one-line report inside a twenty-line function is correct localization
+        and a low IoU, and both facts are worth seeing.
+        """
+        if self.file != other.file:
+            return 0.0
+        overlap = min(self.end_line, other.end_line) - max(self.start_line, other.start_line) + 1
+        if overlap <= 0:
+            return 0.0
+        union = max(self.end_line, other.end_line) - min(self.start_line, other.start_line) + 1
+        return overlap / union
+
 
 @dataclass(frozen=True)
 class Label:
@@ -78,6 +111,13 @@ class Label:
     in_diff: bool = True
     severity: str = ""
     cwe: str = ""
+    # The region a report must land in to count as localized. ``focus`` is the
+    # narrower statement of where the defect actually is -- the exact line, or
+    # the lines the fix removed -- and only drives the strict IoU column.
+    focus: Span | None = None
+    title: str = ""
+    cross_file: bool = False
+    pure_deletion: bool = False
 
     @property
     def span(self) -> Span:
@@ -217,13 +257,17 @@ CASCADE: tuple[MatchConfig, ...] = (
     MatchConfig(tolerance=None, type_mode="none", name="file"),
     MatchConfig(tolerance=None, type_mode="family", name="file+family"),
     MatchConfig(tolerance=None, type_mode="exact", name="file+type"),
-    MatchConfig(tolerance=10, type_mode="exact", name="line+/-10"),
-    MatchConfig(tolerance=5, type_mode="exact", name="line+/-5"),
-    MatchConfig(tolerance=3, type_mode="exact", name="line+/-3"),
-    MatchConfig(tolerance=0, type_mode="exact", name="line+/-0"),
+    MatchConfig(tolerance=10, type_mode="exact", name="region+/-10"),
+    MatchConfig(tolerance=5, type_mode="exact", name="region+/-5"),
+    MatchConfig(tolerance=3, type_mode="exact", name="region+/-3"),
+    MatchConfig(tolerance=0, type_mode="exact", name="inside region"),
 )
 
-PRIMARY = MatchConfig(tolerance=3, type_mode="exact", name="line+/-3")
+# A label's span is the region that contains the defect -- normally the whole
+# enclosing function. A report anywhere inside it has localized the defect, and
+# ``Span.distance`` is 0 for overlapping ranges, so tolerance 0 states exactly
+# that. The looser rungs above measure how far a miss landed from the region.
+PRIMARY = MatchConfig(tolerance=0, type_mode="exact", name="inside region")
 
 
 def with_tolerance(config: MatchConfig, tolerance: int | None) -> MatchConfig:

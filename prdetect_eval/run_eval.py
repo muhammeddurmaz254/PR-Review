@@ -20,6 +20,7 @@ from typing import Sequence
 import baselines as baseline_module
 import metrics
 import report as report_module
+import steps as steps_module
 from adapters import DEFAULT_EVAL, load_cases, load_predictions, write_predictions
 from matching import match_all
 from schema import Case, MatchConfig, Prediction
@@ -68,7 +69,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--eval", type=Path, default=DEFAULT_EVAL, help="corpus JSON Lines file")
     parser.add_argument("--predictions", type=Path, help="prediction JSON Lines file to score")
     parser.add_argument("--baseline", help="score a trivial baseline instead of a prediction file")
-    parser.add_argument("--tolerance", type=int, default=3, help="primary line tolerance k")
+    parser.add_argument("--tolerance", type=int, default=0,
+                        help="line slack around the label region; 0 means the report must land inside it")
     parser.add_argument("--type-mode", default="exact", choices=("exact", "family", "none"))
     parser.add_argument("--threshold", type=float, default=0.0, help="minimum confidence")
     parser.add_argument("--run-id", help="defaults to a UTC timestamp plus the source name")
@@ -132,6 +134,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     markdown = report_module.render(run_id, manifest, result, trivial, notes=args.note)
     (run_dir / "report.md").write_text(markdown, encoding="utf-8", newline="\n")
+    (run_dir / "step.md").write_text(
+        steps_module.render(run_id, manifest, result, notes=args.note), encoding="utf-8", newline="\n"
+    )
 
     if not args.quiet:
         print(report_module.console(result, trivial))

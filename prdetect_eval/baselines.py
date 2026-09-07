@@ -15,7 +15,7 @@ from collections import Counter
 from typing import Callable, Sequence
 
 import pyunits
-from schema import IN_SCOPE_TYPES, Case, Prediction, Span
+from schema import Case, Prediction, Span, in_scope_types
 
 
 def _modal_type(cases: Sequence[Case]) -> str:
@@ -66,7 +66,7 @@ def spray_all_types(cases: Sequence[Case]) -> list[Prediction]:
             continue
         filename = files[0][0]
         line = _first_touched(case, filename)
-        for defect_type in sorted(IN_SCOPE_TYPES):
+        for defect_type in sorted(in_scope_types(cases)):
             predictions.append(_point(case, filename, line, defect_type, "spray_all_types"))
     return predictions
 
@@ -151,7 +151,7 @@ def every_added_line(cases: Sequence[Case]) -> list[Prediction]:
             if filename not in case.head_files:
                 continue
             for line in sorted(lines):
-                for defect_type in sorted(IN_SCOPE_TYPES):
+                for defect_type in sorted(in_scope_types(cases)):
                     predictions.append(_point(case, filename, line, defect_type, "every_added_line"))
     return predictions
 

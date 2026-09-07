@@ -14,7 +14,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import baselines
-import candidates as candidate_module
 import metrics
 from adapters import load_cases
 from matching import admissible, match_all, match_one
@@ -45,10 +44,19 @@ def test_span_distance_is_symmetric_and_zero_on_overlap():
 
 def test_tolerance_boundary_is_inclusive():
     label_span = Span("a.py", 10, 10)
+    loose = MatchConfig(tolerance=3, type_mode="exact")
     for offset, expected in ((3, True), (4, False)):
         prediction = Prediction("c", Span("a.py", 10 + offset, 10 + offset), "authz")
-        label = _label(label_span)
-        assert (admissible(prediction, label, PRIMARY) is not None) is expected
+        assert (admissible(prediction, _label(label_span), loose) is not None) is expected
+
+
+def test_primary_requires_landing_inside_the_region():
+    """The primary rung asks whether the report points at the code, not near it."""
+    region = _label(Span("a.py", 10, 20))
+    inside = Prediction("c", Span("a.py", 15, 15), "authz")
+    outside = Prediction("c", Span("a.py", 22, 22), "authz")
+    assert admissible(inside, region, PRIMARY) == 0
+    assert admissible(outside, region, PRIMARY) is None
 
 
 def _label(span: Span, defect_type: str = "authz", required: bool = True, in_scope: bool = True):
@@ -158,11 +166,26 @@ def test_out_of_scope_matches_are_neutral(cases):
     assert card.true_positive == 0
 
 
-def test_every_scored_label_sits_on_a_touched_line(cases):
-    """Bitbucket can only annotate changed lines, so an unreachable label is a corpus bug."""
+def test_every_scored_label_is_reachable(cases):
+    """A label must sit on changed code, unless the change was a deletion.
+
+    A control removed by the pull request leaves no line behind to annotate, and
+    that shape is a third of what makes real review hard, so it is labelled
+    rather than excluded. Everything else has to be inside the diff.
+    """
     for case in cases:
         for label in case.scored_labels:
-            assert case.touches(label.span), f"{label.finding_id} is outside the diff"
+            assert case.touches(label.span) or label.pure_deletion, \
+                f"{label.finding_id} is outside the diff and not marked pure_deletion"
+
+
+def test_labels_carry_a_focus_and_a_title(cases):
+    """The step file reports both, and a missing one silently reads as a zero."""
+    for case in cases:
+        for label in case.scored_labels:
+            assert label.focus is not None, label.finding_id
+            assert label.focus.file == label.span.file, label.finding_id
+            assert label.title.strip(), label.finding_id
 
 
 def test_no_baseline_beats_the_corpus(cases):
@@ -181,17 +204,4 @@ def test_every_baseline_stays_silent_on_no_clean_twin(cases):
         assert metrics.pairwise_accuracy(cases, results)["accuracy"] == 0.0, name
 
 
-def test_enumeration_is_deterministic(cases):
-    case = next(case for case in cases if case.case_id == "authz-001-buggy")
-    first = candidate_module.enumerate_case(case)
-    second = candidate_module.enumerate_case(case)
-    assert [(c.type, c.detector, c.focus, c.region) for c in first] == \
-           [(c.type, c.detector, c.focus, c.region) for c in second]
 
-
-def test_candidates_stay_inside_the_diff(cases):
-    """An enumerated site outside the diff cannot be annotated and must not be offered."""
-    for case in cases[:20]:
-        for candidate in candidate_module.enumerate_case(case):
-            assert case.touches(candidate.focus) or case.touches(candidate.region), \
-                f"{case.case_id}: {candidate.detector} at {candidate.focus}"

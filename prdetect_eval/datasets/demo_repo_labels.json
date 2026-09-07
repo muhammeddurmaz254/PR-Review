@@ -1,0 +1,546 @@
+{
+  "dataset": "demo_repo",
+  "repo_path": "datas/demo_repo",
+  "base_branch": "main",
+  "exclude_paths": [
+    "beklentiler.json"
+  ],
+  "localization_rule": "Etiket, kusuru iceren fonksiyonun tamamidir (dekoratorler dahil). Tahmin bu araligin icine duserse lokalizasyon dogrudur. IoU, tahmin araligi ile etiket araligi arasinda hesaplanir.",
+  "cases": [
+    {
+      "case_id": "idor-siparis-detay",
+      "branch": "pr/idor-siparis-detay",
+      "title": "Siparis detayina destek ekibi erisimi eklendi",
+      "primary_type": "authz",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "authz",
+          "file": "app/orders.py",
+          "start_line": 16,
+          "end_line": 22,
+          "focus_line": 22,
+          "title": "Sahiplik kontrolu yok: baskasinin siparisi okunabiliyor",
+          "span_kind": "range",
+          "pure_deletion": true,
+          "anchor_text": "return jsonify(_serilestir(order))",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Sahiplik kontrolu kaldirildi - herhangi bir oturumlu kullanici baskasinin siparisini okuyabilir (IDOR)."
+        }
+      ],
+      "pair_id": "idor-siparis-detay"
+    },
+    {
+      "case_id": "eksik-admin-yetkisi",
+      "branch": "pr/eksik-admin-yetkisi",
+      "title": "Toplu siparis disa aktarma uc noktasi",
+      "primary_type": "authz",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "authz",
+          "file": "app/admin.py",
+          "start_line": 16,
+          "end_line": 21,
+          "focus_line": 17,
+          "title": "Admin ucu @require_login ile korunuyor, @require_admin olmali",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "@require_login",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Yeni /admin/orders/export ucu @require_login ile korunuyor, komsu uc @require_admin kullaniyor - siradan kullanici tum siparisleri disa aktarabilir."
+        }
+      ]
+    },
+    {
+      "case_id": "iade-tutar-dogrulamasi",
+      "branch": "pr/iade-tutar-dogrulamasi",
+      "title": "Kismi iade destegi",
+      "primary_type": "business_logic",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "business_logic",
+          "file": "app/payments.py",
+          "start_line": 10,
+          "end_line": 30,
+          "focus_line": 27,
+          "title": "Iade tutari dogrulanmadan siparis toplamindan dusuluyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "\"UPDATE orders SET status = ?, total = total - ? WHERE id = ?\",",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Tutar dogrulamasi kaldirildi: negatif tutar siparis toplamini artirir, siparis tutarindan buyuk tutar fazla iade yapar. 'toplam' degiskeni de artik kullanilmiyor."
+        }
+      ],
+      "pair_id": "iade-tutar-dogrulamasi"
+    },
+    {
+      "case_id": "coklu-dosya-taint",
+      "branch": "pr/coklu-dosya-taint",
+      "title": "Siparis arama ozelligi",
+      "primary_type": "injection",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "injection",
+          "file": "app/db.py",
+          "start_line": 70,
+          "end_line": 79,
+          "focus_line": 77,
+          "title": "Kullanici girdisi ORDER BY metnine birlestiriliyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "\"ORDER BY \" + sirala_alan",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "request.args['sort'] (app/search.py) dogrudan ORDER BY metnine birlestiriliyor (app/db.py). Kaynak ve sink AYRI DOSYALARDA - tek dosya baglamiyla gorulemez."
+        }
+      ]
+    },
+    {
+      "case_id": "stok-yaris-durumu",
+      "branch": "pr/stok-yaris-durumu",
+      "title": "Stok rezervasyonuna loglama eklendi",
+      "primary_type": "race_condition",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "race_condition",
+          "file": "app/inventory.py",
+          "start_line": 13,
+          "end_line": 29,
+          "focus_line": 23,
+          "title": "Oku-kontrol-yaz yarisi: stok eksiye dusebilir",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "mevcut = rows[0][0]",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Atomik UPDATE, kontrol-sonra-guncelle desenine cevrildi. Iki es zamanli istek ayni 'mevcut' degerini okuyup ikisi de gecebilir; stok eksiye duser."
+        }
+      ],
+      "pair_id": "stok-yaris-durumu"
+    },
+    {
+      "case_id": "temiz-parametreli-sorgu",
+      "branch": "pr/temiz-parametreli-sorgu",
+      "title": "E-postaya gore kullanici arama",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": []
+    },
+    {
+      "case_id": "temiz-yeniden-duzenleme",
+      "branch": "pr/temiz-yeniden-duzenleme",
+      "title": "Siparis serilestirmesi ortak fonksiyona alindi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": []
+    },
+    {
+      "case_id": "coklu-dosya-yetki-atlama",
+      "branch": "pr/coklu-dosya-yetki-atlama",
+      "title": "Siparis ozeti uc noktasi",
+      "primary_type": "authz",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "authz",
+          "file": "app/reports.py",
+          "start_line": 5,
+          "end_line": 10,
+          "focus_line": 8,
+          "title": "user_id parametresi sorguda kullanilmiyor: tum platform ozeti donuyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "\"SELECT status, COUNT(*), SUM(total) FROM orders GROUP BY status\"",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "siparis_ozeti user_id parametresini ALIYOR ama sorguda HIC KULLANMIYOR - WHERE user_id = ? yok. Her kullanici tum platformun ciro ozetini goruyor. Cagiran taraf (app/orders.py) dogru yazilmis; hata yalniz iki dosya birlikte okununca gorulur."
+        }
+      ]
+    },
+    {
+      "case_id": "temiz-yetki-dekoratore-tasindi",
+      "branch": "pr/temiz-yetki-dekoratore-tasindi",
+      "title": "Siparis sahipligi kontrolu dekoratore alindi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": [],
+      "pair_id": "idor-siparis-detay"
+    },
+    {
+      "case_id": "uyelik-suresi-sifirlanmasi",
+      "branch": "pr/uyelik-suresi-sifirlanmasi",
+      "title": "Uyelik yenileme sadelestirildi",
+      "primary_type": "business_logic",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "business_logic",
+          "file": "app/subscriptions.py",
+          "start_line": 14,
+          "end_line": 27,
+          "focus_line": 21,
+          "title": "Yenileme bugunden basliyor, kalan sure kayboluyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "yeni_bitis = date.today() + timedelta(days=SURE_GUN)",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Yenileme artik HER ZAMAN bugunden basliyor. Uyeligi 300 gun kalan bir kullanici yeniledigi anda o 300 gunu KAYBEDIYOR; dogru davranis mevcut bitis tarihinden devam etmekti. Kod tamamen 'temiz' gorunuyor - dogru davranisin ne oldugu koda yazili degil."
+        }
+      ]
+    },
+    {
+      "case_id": "coklu-dosya-tutar-birimi",
+      "branch": "pr/coklu-dosya-tutar-birimi",
+      "title": "Odeme baslatma uc noktasi",
+      "primary_type": "business_logic",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "business_logic",
+          "file": "app/checkout.py",
+          "start_line": 11,
+          "end_line": 22,
+          "focus_line": 21,
+          "title": "TL float, kurus bekleyen odeme API'sine gonderiliyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "sonuc = odeme_gonder(order_id, toplam, \"order-%s\" % order_id)",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "toplam TL cinsinden float; odeme_gonder ise degeri saglayiciya amount_minor (KURUS) olarak yolluyor. 149.90 TL'lik siparis 149.90 kurus (~1.50 TL) olarak cekiliyor - 100 kat eksik tahsilat. Iki dosyanin hicbiri tek basina yanlis gorunmuyor."
+        }
+      ]
+    },
+    {
+      "case_id": "temiz-iade-kurali-netlestirildi",
+      "branch": "pr/temiz-iade-kurali-netlestirildi",
+      "title": "Iade tutar dogrulamasi tek kosulda toplandi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": [],
+      "pair_id": "iade-tutar-dogrulamasi"
+    },
+    {
+      "case_id": "ikinci-el-enjeksiyon",
+      "branch": "pr/ikinci-el-enjeksiyon",
+      "title": "Kayitli arama filtreleri",
+      "primary_type": "injection",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "injection",
+          "file": "app/aramalar.py",
+          "start_line": 22,
+          "end_line": 33,
+          "focus_line": 30,
+          "title": "Ikinci el enjeksiyon: DB'den okunan filtre sorguya birlesiyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "\"SELECT id, total, status FROM orders WHERE user_id = ? AND \" + filtre,",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "IKINCI EL ENJEKSIYON: kullanici girdisi kaydedilirken parametreli, ama geri OKUNUP sorgu metnine birlestiriliyor. Taint kaynagi request degil VERITABANI oldugu icin desen tabanli tarayicilar kaydetme adimini gorup temiz sayar."
+        }
+      ]
+    },
+    {
+      "case_id": "coklu-dosya-cift-harcama",
+      "branch": "pr/coklu-dosya-cift-harcama",
+      "title": "Cuzdan bakiyesinden harcama",
+      "primary_type": "race_condition",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "race_condition",
+          "file": "app/cuzdan.py",
+          "start_line": 10,
+          "end_line": 22,
+          "focus_line": 21,
+          "title": "Bakiye kontrolu ile dusme atomik degil: cift harcama",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "bakiye_dus(g.user[\"id\"], tutar)",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "KONTROL-SONRA-HARCA, iki dosyaya yayilmis: yeterlilik kontrolu app/cuzdan.py'de, dusme app/db.py'de kosulsuz bir UPDATE. Iki es zamanli istek ayni bakiyeyi okuyup ikisi de gecer; bakiye eksiye duser (cift harcama). app/db.py'deki UPDATE tek basina bakildiginda normal."
+        }
+      ]
+    },
+    {
+      "case_id": "temiz-atomik-rezervasyon-tasindi",
+      "branch": "pr/temiz-atomik-rezervasyon-tasindi",
+      "title": "Stok dusme sorgusu veri katmanina alindi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": [],
+      "pair_id": "stok-yaris-durumu"
+    },
+    {
+      "case_id": "profil-alan-sizintisi",
+      "branch": "pr/profil-alan-sizintisi",
+      "title": "Mobil istemci icin profil yaniti genisletildi",
+      "primary_type": "data_exposure",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "data_exposure",
+          "file": "app/profil.py",
+          "start_line": 14,
+          "end_line": 21,
+          "focus_line": 21,
+          "title": "Ham kullanici sozlugu donuyor: password_hash ve tckn siziyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "return jsonify(kullanici)",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Yanit artik ham kullanici sozlugu; guvenli_kullanici kapali listesi atlandi. password_hash ve tckn istemciye cikiyor. Kod 'kendi verisini donduruyor' gibi gorunuyor - hangi alanin gizli oldugu koda yazili degil, kapali listede yaziliydi."
+        }
+      ],
+      "pair_id": "profil-alan-sizintisi"
+    },
+    {
+      "case_id": "coklu-dosya-alan-sizintisi",
+      "branch": "pr/coklu-dosya-alan-sizintisi",
+      "title": "Serilestirme ortak yardimciya alindi",
+      "primary_type": "data_exposure",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "data_exposure",
+          "file": "app/serializers.py",
+          "start_line": 1,
+          "end_line": 7,
+          "focus_line": 4,
+          "title": "Acik liste yalniz password_hash ayikliyor, tckn siziyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "_GIZLI = {\"password_hash\"}",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "KAPALI LISTE ACIK LISTEYE cevrildi: taban yalnizca sayilan alanlari birakiyordu, yenisi yalnizca password_hash'i ayikliyor. tckn listede yok, yani disari cikiyor. Iki dosya da tek basina makul: app/profil.py bir serilestirici cagiriyor, app/serializers.py gizli alan ayikliyor."
+        }
+      ]
+    },
+    {
+      "case_id": "temiz-profil-alani-eklendi",
+      "branch": "pr/temiz-profil-alani-eklendi",
+      "title": "Profile son giris zamani eklendi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": [],
+      "pair_id": "profil-alan-sizintisi"
+    },
+    {
+      "case_id": "anahtar-loga-yaziliyor",
+      "branch": "pr/anahtar-loga-yaziliyor",
+      "title": "Odeme saglayicisi teshis loglari",
+      "primary_type": "secrets",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "secrets",
+          "file": "app/gateway.py",
+          "start_line": 13,
+          "end_line": 34,
+          "focus_line": 24,
+          "title": "API anahtari log satirina yaziliyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "order_id, tutar_kurus, _API_ANAHTARI,",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "API anahtari log satirina yaziliyor. Anahtar KODA GOMULU DEGIL - ortamdan dogru sekilde okunuyor - bu yuzden gitleaks/trufflehog gibi desen tarayicilari hicbir sey bulmaz. Sizinti calisma zamaninda, log toplayicisina dogru gerceklesiyor."
+        }
+      ],
+      "pair_id": "anahtar-loga-yaziliyor"
+    },
+    {
+      "case_id": "temiz-ornek-yapilandirma",
+      "branch": "pr/temiz-ornek-yapilandirma",
+      "title": "Ornek ortam dosyasi eklendi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": [],
+      "pair_id": "anahtar-loga-yaziliyor"
+    },
+    {
+      "case_id": "readme-compose-parolasi",
+      "branch": "pr/readme-compose-parolasi",
+      "title": "README'ye yerel kurulum bolumu eklendi",
+      "primary_type": "secrets",
+      "is_defective": true,
+      "out_of_scope": true,
+      "findings": [
+        {
+          "type": "secrets",
+          "file": "README.md",
+          "start_line": 4,
+          "end_line": 18,
+          "focus_line": 4,
+          "title": "Compose blogunda uretim gorunumlu parola",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "",
+          "in_scope": false,
+          "cross_file": false,
+          "rationale": "Kopyala-yapistir compose blogunda uretim gorunumlu parola ve API anahtari gomulu."
+        }
+      ]
+    },
+    {
+      "case_id": "sessiz-yutulan-hata",
+      "branch": "pr/sessiz-yutulan-hata",
+      "title": "Stok rezervasyonu gecici DB hatalarinda dusmesin",
+      "primary_type": "error_handling",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "error_handling",
+          "file": "app/inventory.py",
+          "start_line": 12,
+          "end_line": 30,
+          "focus_line": 26,
+          "title": "Hata yutulup istemciye basari donuyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "return jsonify({\"ok\": True})",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Hata yutuluyor ve istemciye BASARI donuyor: rezervasyon yapilmadigi halde {'ok': True}. Tukenmis urun satilmis gorunur. Kod savunmaci ve niyetli gorunuyor - yanlis olan sey, hata yolunda BASARI donmesi."
+        }
+      ]
+    },
+    {
+      "case_id": "coklu-dosya-yutulan-hata",
+      "branch": "pr/coklu-dosya-yutulan-hata",
+      "title": "Siparis iptali",
+      "primary_type": "error_handling",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "error_handling",
+          "file": "app/iptal.py",
+          "start_line": 10,
+          "end_line": 20,
+          "focus_line": 19,
+          "title": "execute_safe donusu kontrol edilmeden 'cancelled' raporlaniyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "execute_safe(\"UPDATE orders SET status = ? WHERE id = ?\", (\"cancelled\", order_id))",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "execute_safe basarisizlikta None doner; cagiran donus degerini HIC KONTROL ETMIYOR ve kosulsuz 'cancelled' raporluyor. Kullanici siparisi iptal ettigini sanir, siparis islemeye devam eder. Iki dosya ayri ayri makul: biri savunmaci bir yardimci, digeri temiz bir uc."
+        }
+      ]
+    },
+    {
+      "case_id": "temiz-hata-mesaji-sadelestirildi",
+      "branch": "pr/temiz-hata-mesaji-sadelestirildi",
+      "title": "Yetkilendirme hatalarinda tek tip mesaj",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": []
+    },
+    {
+      "case_id": "webhook-idempotensi-kaldirildi",
+      "branch": "pr/webhook-idempotensi-kaldirildi",
+      "title": "Webhook isleme sadelestirildi",
+      "primary_type": "idempotency",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "idempotency",
+          "file": "app/webhooks.py",
+          "start_line": 12,
+          "end_line": 24,
+          "focus_line": 19,
+          "title": "Tekrar kontrolu yok: ayni olay iki kez isleniyor",
+          "span_kind": "range",
+          "pure_deletion": true,
+          "anchor_text": "execute(",
+          "in_scope": true,
+          "cross_file": false,
+          "rationale": "Tekrar kontrolu SILINDI. Odeme saglayicilari ayni olayi yeniden gonderir (retry, ag kesintisi); ayni olay iki kez islenince siparis iki kez odenmis islenir. Saf silme - diff'te tek bir '+' satiri yok."
+        }
+      ],
+      "pair_id": "webhook-idempotensi-kaldirildi"
+    },
+    {
+      "case_id": "coklu-dosya-idempotensi-anahtari",
+      "branch": "pr/coklu-dosya-idempotensi-anahtari",
+      "title": "Odeme baslatmaya idempotency anahtari eklendi",
+      "primary_type": "idempotency",
+      "is_defective": true,
+      "out_of_scope": false,
+      "findings": [
+        {
+          "type": "idempotency",
+          "file": "app/checkout.py",
+          "start_line": 13,
+          "end_line": 25,
+          "focus_line": 23,
+          "title": "Idempotency anahtari her istekte yeniden uretiliyor",
+          "span_kind": "range",
+          "pure_deletion": false,
+          "anchor_text": "anahtar = str(uuid.uuid4())",
+          "in_scope": true,
+          "cross_file": true,
+          "rationale": "Idempotency anahtari HER ISTEKTE yeniden uretiliyor (uuid4). Anahtarin isi tekrari onlemekti; istege ozel olunca saglayici iki istegi FARKLI gorur ve kullanici iki kez cekilir. Anahtar siparise BAGLI olmaliydi. app/checkout.py tek basina dogru gorunuyor - anahtarin ne ise yaradigi app/gateway.py'nin sozlesmesinde yaziyor."
+        }
+      ]
+    },
+    {
+      "case_id": "temiz-idempotensi-veri-katmanina-tasindi",
+      "branch": "pr/temiz-idempotensi-veri-katmanina-tasindi",
+      "title": "Olay tekrar kontrolu veri katmanina alindi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": [],
+      "pair_id": "webhook-idempotensi-kaldirildi"
+    },
+    {
+      "case_id": "temiz-olu-kod-temizligi",
+      "branch": "pr/temiz-olu-kod-temizligi",
+      "title": "Kullanilmayan yardimci kaldirildi",
+      "primary_type": null,
+      "is_defective": false,
+      "out_of_scope": false,
+      "findings": []
+    }
+  ],
+  "pair_note": "Tuzaklar, korpus ozetindeki 'Ikizi' sutununa gore gercek vakalarla eslendi. Pairwise dogruluk: kusurlu varyant yakalanacak VE ikizi susacak."
+}

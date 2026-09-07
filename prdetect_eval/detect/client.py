@@ -23,7 +23,6 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from . import contract
-from .context_pack import Pack
 
 DEFAULT_BASE_URL = "http://localhost:11434"
 
@@ -47,7 +46,7 @@ class Response:
 class Client(Protocol):
     name: str
 
-    def complete(self, pack: Pack, schema: dict) -> Response: ...
+    def complete(self, system: str, user: str, schema: dict) -> Response: ...
 
 
 @dataclass
@@ -82,12 +81,12 @@ class OllamaClient:
         # error against a server that is in fact healthy.
         return {"Content-Type": "application/json", "ngrok-skip-browser-warning": "true"}
 
-    def _payload(self, pack: Pack, schema: dict) -> dict[str, Any]:
+    def _payload(self, system: str, user: str, schema: dict) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": pack.system},
-                {"role": "user", "content": pack.user},
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
             ],
             "format": schema,
             "stream": False,
@@ -102,8 +101,8 @@ class OllamaClient:
             payload["think"] = self.think
         return payload
 
-    def complete(self, pack: Pack, schema: dict) -> Response:
-        body = json.dumps(self._payload(pack, schema)).encode("utf-8")
+    def complete(self, system: str, user: str, schema: dict) -> Response:
+        body = json.dumps(self._payload(system, user, schema)).encode("utf-8")
         request = urllib.request.Request(
             f"{self.base_url.rstrip('/')}/api/chat",
             data=body, headers=self._headers(), method="POST",
@@ -148,40 +147,8 @@ class SilentStub:
 
     name: str = "stub:silent"
 
-    def complete(self, pack: Pack, schema: dict) -> Response:
+    def complete(self, system: str, user: str, schema: dict) -> Response:
         return Response(text=contract.render([]))
 
 
-@dataclass
-class FlagAllStub:
-    """Reports every enumerated site. The ceiling, re-derived through the real path.
-
-    Scoring this must reproduce the phase 0a candidate ceiling exactly. When it
-    does not, the fault is in packing, parsing or prediction mapping rather than
-    in any model, which is worth knowing before a card is rented.
-    """
-
-    name: str = "stub:flag_all"
-
-    def complete(self, pack: Pack, schema: dict) -> Response:
-        lines = pack.user.split("\n")
-        return Response(text=contract.render([
-            contract.Report(
-                file=candidate.focus.file, line=candidate.focus.start_line,
-                quote=_quoted(lines, candidate.focus.start_line),
-                reason="stub: every enumerated site", confidence=1.0,
-            )
-            for candidate in pack.candidates
-        ]))
-
-
-def _quoted(prompt_lines: list[str], line: int) -> str:
-    """The source text the pack printed for ``line``, as a model would copy it."""
-    marker = f"{line:5d} "
-    for text in prompt_lines:
-        if text.startswith(marker) and "|" in text:
-            return text.split("|", 1)[1].strip()
-    return ""
-
-
-STUBS = {"silent": SilentStub, "flag_all": FlagAllStub}
+STUBS = {"silent": SilentStub}

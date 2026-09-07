@@ -12,7 +12,7 @@ from typing import Iterable, Iterator
 
 from schema import FAMILY_BY_TYPE, Case, Distractor, Label, Prediction, Span
 
-DEFAULT_EVAL = Path(__file__).resolve().parents[1] / "repo" / "eval.jsonl"
+DEFAULT_EVAL = Path(__file__).resolve().parent / "datasets" / "demo_repo.eval.jsonl"
 
 
 def _read_jsonl(path: Path) -> Iterator[dict]:
@@ -31,24 +31,27 @@ def _label(row: dict, case_id: str) -> Label:
     spans = [Span(row["file"], row["start_line"], row["end_line"])]
     for equivalent in row.get("equivalent_locations", []):
         spans.append(Span(equivalent["file"], equivalent["start_line"], equivalent["end_line"]))
+    focus = None
+    if row.get("focus_start"):
+        focus = Span(row["file"], int(row["focus_start"]), int(row.get("focus_end") or row["focus_start"]))
     return Label(
         finding_id=row["finding_id"], case_id=case_id, type=row["type"],
         family=row.get("family") or FAMILY_BY_TYPE.get(row["type"], ""),
         in_scope=bool(row["in_scope"]), required=bool(row["required"]), role=row.get("role", ""),
         spans=tuple(spans), anchor_rule=row.get("anchor_rule", ""), anchor_text=row.get("anchor_text", ""),
         in_diff=bool(row.get("in_diff", True)), severity=row.get("severity", ""), cwe=row.get("cwe", ""),
+        focus=focus, title=row.get("title", ""),
+        cross_file=bool(row.get("cross_file")), pure_deletion=bool(row.get("pure_deletion")),
     )
 
 
 def load_cases(path: Path = DEFAULT_EVAL) -> list[Case]:
     if not path.exists():
-        raise SystemExit(f"{path} is missing. Run python tools/export_eval.py in repo/.")
+        raise SystemExit(f"{path} is missing. Build it with python datasets/build_<dataset>.py")
     cases = []
     for row in _read_jsonl(path):
         if "added_lines" not in row or "head_files" not in row:
-            raise SystemExit(
-                f"{path} predates the harness. Re-run python tools/export_eval.py in repo/."
-            )
+            raise SystemExit(f"{path} predates the harness. Rebuild it with datasets/build_<dataset>.py")
         case_id = row["case_id"]
         cases.append(Case(
             case_id=case_id, pair_id=row["pair_id"], variant=row["variant"], difficulty=row["difficulty"],

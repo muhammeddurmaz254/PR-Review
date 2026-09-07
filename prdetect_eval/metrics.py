@@ -18,7 +18,7 @@ from statistics import mean
 from typing import Sequence
 
 from matching import MatchResult, match_all
-from schema import CASCADE, IN_SCOPE_TYPES, Case, MatchConfig, Prediction
+from schema import CASCADE, Case, MatchConfig, Prediction, in_scope_types
 
 DEFAULT_THRESHOLDS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
 
@@ -118,6 +118,7 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
     every report.
     """
     card = DetectionCard()
+    scored_types = in_scope_types(cases)
     for case in cases:
         result = results[case.case_id]
         if scope == "in_scope":
@@ -125,7 +126,7 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
             if not positive and case.is_defective:
                 continue
             reported = (*(match.prediction for match in result.matches), *result.unmatched_predictions)
-            flagged = any(prediction.type in IN_SCOPE_TYPES for prediction in reported)
+            flagged = any(prediction.type in scored_types for prediction in reported)
         else:
             positive = case.is_defective
             flagged = bool(result.matches) or bool(result.unmatched_predictions)
@@ -277,12 +278,120 @@ def stage_losses(cases: Sequence[Case], stages: Sequence[Stage], config: MatchCo
     return rows
 
 
+def per_finding(cases: Sequence[Case], results: dict[str, MatchResult]) -> list[dict]:
+    """One row per ground-truth finding: what was expected, what was reported.
+
+    This is the artefact a person reads when a number looks wrong. Aggregates
+    say a detector scored 60%; only these rows say which six of ten, and whether
+    the misses share a shape.
+    """
+    rows = []
+    for case in cases:
+        result = results[case.case_id]
+        for label in case.labels:
+            if not label.scored:
+                continue
+            match = next((m for m in result.matches if m.label is label), None)
+            prediction = match.prediction if match else None
+            row = {
+                "case_id": case.case_id,
+                "finding_id": label.finding_id,
+                "title": label.title,
+                "expected_type": label.type,
+                "expected_file": label.span.file,
+                "expected_region": [label.span.start_line, label.span.end_line],
+                "expected_focus": (
+                    [label.focus.start_line, label.focus.end_line] if label.focus else None
+                ),
+                "cross_file": label.cross_file,
+                "pure_deletion": label.pure_deletion,
+                "found": prediction is not None,
+                "predicted_type": prediction.type if prediction else None,
+                "predicted_file": prediction.span.file if prediction else None,
+                "predicted_lines": (
+                    [prediction.span.start_line, prediction.span.end_line] if prediction else None
+                ),
+                "predicted_title": prediction.message if prediction else "",
+                "confidence": prediction.confidence if prediction else None,
+                "type_correct": bool(prediction and prediction.type == label.type),
+                "file_correct": bool(prediction and prediction.span.file == label.span.file),
+                "inside_region": bool(prediction and prediction.span.distance(label.span) == 0),
+                "iou_region": round(prediction.span.iou(label.span), 4) if prediction else 0.0,
+                "iou_focus": (
+                    round(prediction.span.iou(label.focus), 4)
+                    if prediction and label.focus else None
+                ),
+            }
+            rows.append(row)
+    return rows
+
+
+def localization(rows: Sequence[dict]) -> dict:
+    """Accuracy per dimension, plus IoU over the findings that were located.
+
+    IoU is averaged over located findings only. Averaging it over misses too
+    would fold detection failure into a localization number and make the two
+    impossible to tell apart.
+    """
+    total = len(rows)
+    located = [row for row in rows if row["inside_region"]]
+    region_ious = [row["iou_region"] for row in located]
+    focus_ious = [row["iou_focus"] for row in located if row["iou_focus"] is not None]
+    ranged = [row for row in rows if row["expected_region"][1] > row["expected_region"][0]]
+    return {
+        "findings": total,
+        "type_accuracy": round(_ratio(sum(r["type_correct"] for r in rows), total), 4),
+        "file_accuracy": round(_ratio(sum(r["file_correct"] for r in rows), total), 4),
+        "region_accuracy": round(_ratio(len(located), total), 4),
+        "located": len(located),
+        "mean_iou_region": round(sum(region_ious) / len(region_ious), 4) if region_ious else 0.0,
+        "mean_iou_focus": round(sum(focus_ious) / len(focus_ious), 4) if focus_ious else 0.0,
+        "range_labels": len(ranged),
+        "range_region_accuracy": round(
+            _ratio(sum(r["inside_region"] for r in ranged), len(ranged)), 4
+        ),
+        "cross_file_accuracy": round(
+            _ratio(
+                sum(r["inside_region"] for r in rows if r["cross_file"]),
+                sum(1 for r in rows if r["cross_file"]),
+            ), 4,
+        ),
+        "pure_deletion_accuracy": round(
+            _ratio(
+                sum(r["inside_region"] for r in rows if r["pure_deletion"]),
+                sum(1 for r in rows if r["pure_deletion"]),
+            ), 4,
+        ),
+    }
+
+
+def false_alarm_rows(cases: Sequence[Case], results: dict[str, MatchResult]) -> list[dict]:
+    """Every report that matched no label, with what the case actually contained."""
+    rows = []
+    for case in cases:
+        for prediction in results[case.case_id].unmatched_predictions:
+            rows.append({
+                "case_id": case.case_id,
+                "is_defective": case.is_defective,
+                "type": prediction.type,
+                "file": prediction.span.file,
+                "lines": [prediction.span.start_line, prediction.span.end_line],
+                "title": prediction.message,
+                "confidence": prediction.confidence,
+            })
+    return rows
+
+
 def evaluate(
     cases: Sequence[Case], predictions: Sequence[Prediction], config: MatchConfig, threshold: float = 0.0,
 ) -> dict:
     """The full metric set for one prediction source."""
     results = match_all(cases, predictions, config, threshold)
+    rows = per_finding(cases, results)
     return {
+        "per_finding": rows,
+        "localization": localization(rows),
+        "false_alarm_rows": false_alarm_rows(cases, results),
         "primary": {
             "tolerance": config.tolerance, "type_mode": config.type_mode, "threshold": threshold,
             **score(cases, results).as_dict(),
