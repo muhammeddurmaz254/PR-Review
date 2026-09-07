@@ -46,12 +46,34 @@ def test_prompt_prefix_is_byte_identical(packs):
     assert len({p.system for p in packs}) == 1
 
 
-def test_the_demo_repo_prompt_is_unchanged():
-    """Its numbers were measured under this text; a silent edit invalidates them
-    without anything failing."""
+def test_measured_prompts_are_unchanged():
+    """Each number in the plan was measured under one exact text. A silent edit
+    invalidates it without anything failing, so every version that has a
+    published score is pinned here and unpinned only by re-measuring."""
     import hashlib
-    digest = hashlib.sha256(prompt.system("demo_repo").encode("utf-8")).hexdigest()
-    assert digest.startswith("4b1de85b72188b80"), "demo_repo prompt changed; re-measure or revert"
+    pinned = {
+        ("demo_repo", "review/v1"): "4b1de85b72188b80",
+        ("swrbench", "review/v1"): "9be10ddda5fefa3f",
+    }
+    for (dataset, version), digest in pinned.items():
+        actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
+        assert actual.startswith(digest), f"{dataset} {version} changed; re-measure or revert"
+
+
+def test_every_prompt_version_renders_for_every_dataset():
+    for version in prompt.VERSIONS:
+        for dataset in prompt.TAXONOMIES:
+            text = prompt.system(dataset, version)
+            assert "{format}" not in text and text.strip()
+
+
+def test_v2_moves_the_trade_off_out_of_the_model():
+    """v1 asserted the prior and the cost; v2 grades the doubt instead."""
+    v1 = prompt.system("swrbench", "review/v1")
+    v2 = prompt.system("swrbench", "review/v2")
+    assert "a miss costs one line of recall" in v1
+    assert "a miss costs one line of recall" not in v2
+    assert "around 0.3" in v2, "v2 must anchor the confidence scale"
 
 
 def test_each_prompt_describes_its_own_print_format(dataset):

@@ -163,7 +163,7 @@ def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     return out, shown
 
 
-def build(case: Case, dataset: str) -> Pack:
+def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION) -> Pack:
     body = [
         "# Pull request",
         "",
@@ -190,7 +190,7 @@ def build(case: Case, dataset: str) -> Pack:
 
     return Pack(
         case_id=case.case_id,
-        system=prompt_module.system(dataset),
+        system=prompt_module.system(dataset, version),
         user="\n".join(body),
         shown_lines=shown,
     )

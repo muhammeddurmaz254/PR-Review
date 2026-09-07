@@ -24,7 +24,7 @@ PROMPT_VERSION = "review/v1"
 # keeps demo_repo's system prompt byte-identical to the one its numbers were
 # measured under.
 
-INSTRUCTIONS = """\
+INSTRUCTIONS_V1 = """\
 You are reviewing one pull request. Find the defects it introduces and name the \
 kind of each one.
 
@@ -100,6 +100,59 @@ in the excerpt you are pointing at.
 
 FORMATS = {"demo_repo": WHOLE_FILE_FORMAT, "swrbench": HUNK_FORMAT}
 
+
+# v2 changes one thing: where the precision/recall trade-off is made. It was
+# measured and it lost, so the default stays v1; it is kept because the negative
+# result is the reason the next stage exists, and a version that cannot be re-run
+# is a claim rather than a measurement.
+#
+# v1 made it inside the model. It asserted a prior ("most pull requests contain
+# no defect") and a cost ("a miss costs one line of recall"), and the model
+# obeyed -- it answered on ten of fifty SWRBench cases, in a corpus that is half
+# defective, and every confidence it returned sat between 0.85 and 0.95. A
+# number with no spread is not a control, so `--threshold` had nothing to work
+# with and the operating point was whatever the prompt happened to produce.
+#
+# v2 moves the trade-off out to scoring: report the suspicion and grade it, and
+# let the threshold sweep over stored artefacts choose the operating point. The
+# claim about cost is also simply false for this tool -- a miss is the whole
+# failure, not one line of recall.
+#
+# Measured on SWRBench: v2 does raise recall (6 located to 7 of 25) and does
+# widen the confidence spread (0.85-0.95 to 0.40-0.95). It still loses, because
+# the spread carries no signal -- sweeping the threshold on v2 discards true
+# positives as fast as false ones, so at every matched false-alarm count v1 is
+# ahead (t=0.90: v1 4 hits for 5 alarms, v2 4 for 9). The uncertainty this model
+# reports is not calibrated, so the trade-off cannot be moved to a number it
+# writes. It has to move to the evidence, or to a second pass.
+
+INSTRUCTIONS_V2 = INSTRUCTIONS_V1.replace(
+    """\
+Most pull requests contain no defect. An empty `findings` list is a normal \
+answer and a much better one than a guess: a false alarm costs a reviewer's \
+trust, a miss costs one line of recall.
+""",
+    """\
+Report what you suspect, not only what you can prove, and put how sure you are \
+into `confidence`. A doubt you would raise with the author belongs in the list \
+at a low confidence rather than outside it; a guess you would not defend at any \
+confidence belongs nowhere.
+
+An empty `findings` list is a real answer, and the right one when the change \
+does what its title says. It is not the safe default.
+""",
+).replace(
+    "- `confidence` is between 0 and 1.",
+    """\
+- `confidence` is between 0 and 1, and it is read: around 0.9 when you can \
+point at the line and say what breaks, around 0.5 when the code is suspicious \
+but the caller, the version or the rest of the file would settle it, around 0.3 \
+when it is a question you would ask the author rather than a claim.""",
+)
+
+VERSIONS = {"review/v1": INSTRUCTIONS_V1, "review/v2": INSTRUCTIONS_V2}
+
+
 DEMO_REPO_TYPES = {
     "authz": "An ownership or permission check is missing or too weak, so a caller "
              "reaches data or an endpoint that should not be theirs.",
@@ -141,11 +194,13 @@ def types(dataset: str) -> list[str]:
     return list(TAXONOMIES[dataset])
 
 
-def system(dataset: str) -> str:
+def system(dataset: str, version: str = PROMPT_VERSION) -> str:
     """The full system prompt: the shared instructions plus this dataset's kinds."""
+    if version not in VERSIONS:
+        raise KeyError(f"unknown prompt version {version!r}; have {', '.join(VERSIONS)}")
     taxonomy = TAXONOMIES[dataset]
     catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomy.items())
-    head, tail = INSTRUCTIONS.split("## How to look")
+    head, tail = VERSIONS[version].split("## How to look")
     return (
         f"{head.format(format=FORMATS[dataset])}"
         f"## The kinds of defect you report\n\nReport only these, and nothing else:\n\n"

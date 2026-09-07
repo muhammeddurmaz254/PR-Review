@@ -96,6 +96,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--base-url", default=client_module.DEFAULT_BASE_URL,
                         help="Ollama server; an ngrok https URL when the card is remote")
     parser.add_argument("--stub", choices=sorted(client_module.STUBS), help="run without a server")
+    parser.add_argument("--prompt-version", default=prompt.PROMPT_VERSION,
+                        choices=sorted(prompt.VERSIONS),
+                        help="v1 decided the precision/recall trade-off inside the model; "
+                             "v2 grades the confidence and leaves it to --threshold")
     parser.add_argument("--dry-run", action="store_true", help="write prompts and budget only")
     parser.add_argument("--num-ctx", type=int, default=8192)
     parser.add_argument("--temperature", type=float, default=0.0)
@@ -129,11 +133,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     types = prompt.types(args.dataset)
     schema = contract.response_schema(types)
-    packs = [pack.build(case, args.dataset) for case in cases]
+    packs = [pack.build(case, args.dataset, args.prompt_version) for case in cases]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
-    run_id = args.run_id or f"{stamp}_{args.dataset}_{slug}"
+    version_slug = args.prompt_version.replace("/", "-")
+    run_id = args.run_id or f"{stamp}_{args.dataset}_{slug}_{version_slug}"
     run_dir = args.out / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -190,7 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "predictions": len(predictions), "rejected": len(rejects), "call_failures": failures,
         "model": None if detector is None else detector.name,
         "quantization": None, "context_tokens": args.num_ctx,
-        "prompt_version": prompt.PROMPT_VERSION, "types": types,
+        "prompt_version": args.prompt_version, "types": types,
         "detectors": [DETECTOR],
         "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
         "base_url": args.base_url if isinstance(detector, client_module.OllamaClient) else None,
