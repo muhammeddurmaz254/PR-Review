@@ -16,7 +16,11 @@ asserts nothing per-case leaks into it.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "review/v1"
+# v4 is the default: it ties v3 at the finding level and leads every version at
+# the pull-request level, and it is the only one whose findings carry the line
+# they accuse -- which turns out to be worth keeping for the reader even though
+# checking it mechanically caught nothing.
+PROMPT_VERSION = "review/v4"
 
 # A second axis alongside the taxonomy: the two corpora are printed differently,
 # and describing the wrong shape is worse than describing none. demo_repo shows
@@ -260,11 +264,36 @@ a preference: a check the change applies on one path and not on its sibling, or 
 an assertion of something that can legitimately be false, is a defect.""",
 )
 
+# v4 adds one field: the line the finding is about, copied from the prompt. It
+# is not for the reader -- it is the handle stage [5] needs. A claim whose quote
+# appears nowhere in what was shown is describing code that was not there, and
+# that is decidable by string comparison rather than by asking the model again,
+# which was measured to reproduce the original mistake.
+
+INSTRUCTIONS_V4 = INSTRUCTIONS_V3.replace(
+    '{"findings": [{"file": "...", "line": 0, "type": "...", "title": "...", "confidence": 0.0}]}',
+    '{"findings": [{"file": "...", "line": 0, "quote": "...", "type": "...", '
+    '"title": "...", "confidence": 0.0}]}',
+).replace(
+    "- `type` must be one of the kinds listed above.",
+    """\
+- `quote` is the code on that line, copied exactly as printed -- without the \
+line number or the `+`/`-` mark, and without the surrounding lines. Copy it; do \
+not retype it from memory. If the defect is a line the change *deleted*, quote \
+that deleted line.
+- `type` must be one of the kinds listed above.""",
+)
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
     "review/v3": (INSTRUCTIONS_V3, TAXONOMIES_V3),
+    "review/v4": (INSTRUCTIONS_V4, TAXONOMIES_V3),
 }
+
+# Which versions ask for the quote, so the schema and the filter agree without
+# either of them guessing from the version string.
+QUOTED = frozenset({"review/v4"})
 
 
 def types(dataset: str) -> list[str]:

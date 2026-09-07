@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+from collections import Counter
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ from statistics import median
 from typing import Sequence
 
 from adapters import load_cases, write_predictions
+from detect import anchor as anchor_module
 from detect import client as client_module
 from detect import contract, pack, prompt
 from schema import Case, Prediction, Span
@@ -107,6 +109,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=300.0)
     parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None,
                         help="reasoning models only: --no-think keeps the answer parseable")
+    parser.add_argument("--max-findings", type=int, default=3,
+                        help="most confident N per pull request; 0 keeps them all")
     parser.add_argument("--limit", type=int, help="first N cases only, for a smoke run")
     parser.add_argument("--case", action="append", default=[], help="restrict to these case ids")
     parser.add_argument("--run-id")
@@ -132,7 +136,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise SystemExit(f"{args.base_url}: {problem}")
 
     types = prompt.types(args.dataset)
-    schema = contract.response_schema(types)
+    quoted = args.prompt_version in prompt.QUOTED
+    schema = contract.response_schema(types, quote=quoted)
     packs = [pack.build(case, args.dataset, args.prompt_version) for case in cases]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -151,9 +156,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     (run_dir / "system_prompt.txt").write_text(packs[0].system, encoding="utf-8", newline="\n")
 
     predictions: list[Prediction] = []
+    anchored: list[Prediction] = []
+    decisions: list[dict] = []
     responses: list[client_module.Response] = []
     rejects: list[dict] = []
     failures = 0
+    dropped = 0
+    by_case = {case.case_id: case for case in cases}
     if detector is not None:
         with (run_dir / "responses.jsonl").open("w", encoding="utf-8", newline="\n") as handle:
             for index, item in enumerate(packs, start=1):
@@ -161,7 +170,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 responses.append(response)
                 failures += bool(response.error)
                 reports, bad = contract.parse(response.text)
+                overflow = len(reports)
+                reports = contract.cap(reports, args.max_findings)
+                dropped += overflow - len(reports)
                 predictions.extend(to_predictions(item.case_id, reports))
+                if quoted:
+                    verdicts = anchor_module.resolve(reports, by_case[item.case_id])
+                    anchored.extend(to_predictions(item.case_id, anchor_module.apply(verdicts)))
+                    decisions.extend({
+                        "case_id": item.case_id, "file": v.report.file,
+                        "claimed_line": v.report.line, "line": v.line,
+                        "verdict": v.verdict, "detail": v.detail,
+                        "quote": v.report.quote, "title": v.report.title,
+                    } for v in verdicts)
                 rejects.extend({
                     "case_id": item.case_id, "stage": reject.stage,
                     "detail": reject.detail, "payload": reject.payload,
@@ -182,6 +203,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                           file=sys.stderr, flush=True)
 
     write_predictions(run_dir / "predictions.jsonl", predictions)
+    if quoted:
+        # Both files are kept so the prompt change and the filter can be scored
+        # apart: one asks whether requesting a quote moved the model, the other
+        # whether checking it is worth anything.
+        write_predictions(run_dir / "predictions.anchored.jsonl", anchored)
+        (run_dir / "anchors.jsonl").write_text(
+            "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in decisions),
+            encoding="utf-8", newline="\n")
     (run_dir / "rejects.jsonl").write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rejects),
         encoding="utf-8", newline="\n",
@@ -196,6 +225,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "model": None if detector is None else detector.name,
         "quantization": None, "context_tokens": args.num_ctx,
         "prompt_version": args.prompt_version, "types": types,
+        "max_findings": args.max_findings, "dropped_over_cap": dropped,
+        "anchors": (Counter(row["verdict"] for row in decisions) if quoted else None),
         "detectors": [DETECTOR],
         "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
         "base_url": args.base_url if isinstance(detector, client_module.OllamaClient) else None,
@@ -217,6 +248,12 @@ def main(argv: Sequence[str] | None = None) -> int:
               + (f" | measured mean {cost['measured_prompt_tokens_mean']} "
                  f"max {cost['measured_prompt_tokens_max']}"
                  if "measured_prompt_tokens_mean" in cost else ""))
+        if dropped:
+            print(f"dropped over the {args.max_findings}-per-PR cap: {dropped}")
+        if quoted:
+            counts = Counter(row["verdict"] for row in decisions)
+            print("anchors: " + "  ".join(f"{name}={n}" for name, n in counts.most_common())
+                  + f"  -> {len(anchored)} of {len(predictions)} kept")
         if rejects:
             print(f"rejected responses: {len(rejects)}  (see rejects.jsonl)")
         if failures:

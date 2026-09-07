@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from adapters import load_cases
 from detect import client as client_module
-from detect import challenge, contract, pack, prompt
+from detect import anchor, challenge, contract, pack, prompt
 
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
@@ -54,6 +54,8 @@ def test_measured_prompts_are_unchanged():
     pinned = {
         ("demo_repo", "review/v1"): "4b1de85b72188b80",
         ("swrbench", "review/v1"): "9be10ddda5fefa3f",
+        ("swrbench", "review/v3"): "243f3e371087abb8",
+        ("swrbench", "review/v4"): "3abe68a78ff83ab3",
     }
     for (dataset, version), digest in pinned.items():
         actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
@@ -433,3 +435,107 @@ def test_the_excerpt_carries_the_detector_line_numbers(dataset):
             checked += 1
             assert min(numbers) <= label.span.start_line <= max(numbers), case.case_id
     assert checked
+
+
+def _case(dataset: str, case_id: str = ""):
+    cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+    return next((c for c in cases if c.case_id == case_id), cases[0])
+
+
+def test_shown_lines_are_exactly_what_the_pack_printed(dataset):
+    """The filter compares against these; if they drift it rejects real findings."""
+    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+        numbered, _ = pack.shown_lines(case)
+        text = pack.build(case, dataset).user
+        current = ""
+        for row in text.split("\n"):
+            if row.startswith("# FILE "):
+                current = row[len("# FILE "):].split("   (commit")[0].strip()
+                continue
+            head, _, body = row.partition("| ")
+            number = head[:5].strip()
+            if current and number.isdigit() and int(number) in numbered.get(current, {}):
+                assert body in numbered[current][int(number)], f"{case.case_id}:{number}"
+
+
+def test_a_quote_that_matches_its_line_is_anchored(dataset):
+    case = _case(dataset)
+    numbered, _ = pack.shown_lines(case)
+    filename = sorted(numbered)[0]
+    line, texts = next((n, t) for n, t in sorted(numbered[filename].items())
+                       if len(t[0].strip()) > 12)
+    report = contract.Report(filename, line, "x", "t", 0.9, quote=texts[0])
+    assert anchor.resolve([report], case)[0].verdict == "anchored"
+
+
+def test_a_quote_from_elsewhere_snaps_to_where_it_actually_is(dataset):
+    """The claim is about real code and only the number is wrong, so correcting
+    the number is localization the detector did not have to earn twice."""
+    case = _case(dataset)
+    numbered, _ = pack.shown_lines(case)
+    filename = sorted(numbered)[0]
+    rows = [(n, t[0]) for n, t in sorted(numbered[filename].items()) if len(t[0].strip()) > 12]
+    unique = [(n, t) for n, t in rows
+              if sum(1 for _, other in rows if anchor.normalise(t) in anchor.normalise(other)) == 1]
+    if not unique:
+        pytest.skip("no line unique enough in this case")
+    line, text = unique[0]
+    wrong = line + 500
+    decision = anchor.resolve([contract.Report(filename, wrong, "x", "t", 0.9, quote=text)], case)[0]
+    assert decision.verdict == "snapped" and decision.line == line
+    assert anchor.apply([decision])[0].line == line
+
+
+def test_a_quote_that_was_never_shown_is_dropped(dataset):
+    case = _case(dataset)
+    numbered, _ = pack.shown_lines(case)
+    filename = sorted(numbered)[0]
+    report = contract.Report(filename, 1, "x", "t", 0.9,
+                             quote="raise NotImplementedError('nothing prints this')")
+    decision = anchor.resolve([report], case)[0]
+    assert decision.verdict == "unsupported" and not decision.kept
+    assert anchor.apply([decision]) == []
+
+
+def test_a_deleted_line_can_be_quoted_but_not_anchored():
+    """A defect that *is* the removal has no numbered line to point at."""
+    case = _case("swrbench", "pytest-dev__pytest-5668")
+    _, deleted = pack.shown_lines(case)
+    filename = next(iter(deleted))
+    decision = anchor.resolve(
+        [contract.Report(filename, 117, "x", "t", 0.9, quote=deleted[filename][0])], case)[0]
+    assert decision.verdict in {"deleted-line", "anchored"} and decision.kept
+
+
+def test_an_absent_quote_is_never_used_to_drop_a_finding(dataset):
+    """Versions before v4 do not ask for one; the filter must stay out of the way."""
+    case = _case(dataset)
+    decisions = anchor.resolve([contract.Report("a.py", 1, "x", "t", 0.9)], case)
+    assert decisions[0].verdict == "unchecked" and decisions[0].kept
+
+
+def test_v4_asks_for_the_quote_and_the_schema_requires_it():
+    assert "review/v4" in prompt.QUOTED
+    assert "`quote` is the code on that line" in prompt.system("swrbench", "review/v4")
+    assert "quote" not in prompt.system("swrbench", "review/v3")
+    schema = contract.response_schema(["F.2 Logic"], quote=True)
+    assert "quote" in schema["properties"]["findings"]["items"]["required"]
+    plain = contract.response_schema(["F.2 Logic"])
+    assert "quote" not in plain["properties"]["findings"]["items"]["properties"]
+
+
+def test_the_cap_keeps_the_most_confident_findings():
+    reports = [contract.Report("a.py", n, "x", "t", c)
+               for n, c in ((1, 0.2), (2, 0.9), (3, 0.5), (4, 0.7))]
+    kept = contract.cap(reports, 2)
+    assert [r.line for r in kept] == [2, 4]
+    assert contract.cap(reports, 0) == reports
+    assert len(contract.cap(reports, 10)) == 4
+
+
+def test_the_cap_sits_above_the_corpus_label_density():
+    """A cap at the density would be tuning against the answer key."""
+    for dataset in ("demo_repo", "swrbench"):
+        cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+        densest = max(len(case.scored_labels) for case in cases)
+        assert densest <= 3, f"{dataset} carries {densest} required labels on one case"

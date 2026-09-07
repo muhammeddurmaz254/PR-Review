@@ -134,6 +134,17 @@ def parse_diff(text: str) -> list[Hunk]:
     return hunks
 
 
+def emitted_hunks(text: str, max_lines: int = 1200) -> list[Hunk]:
+    """The hunks the cap actually lets through, so the filter and the prompt agree."""
+    kept, shown = [], 0
+    for hunk in parse_diff(text):
+        if shown >= max_lines:
+            break
+        kept.append(hunk)
+        shown += len(hunk.lines)
+    return kept
+
+
 def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     """The hunks as fenced excerpts, newest-style headers, capped.
 
@@ -161,6 +172,36 @@ def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
         out += ["```"] + hunk.lines + ["```", ""]
         shown += len(hunk.lines)
     return out, shown
+
+
+def shown_lines(case: Case) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
+    """Exactly what the pack prints, as ``(numbered, deleted)``.
+
+    ``numbered`` maps file to line number to the texts printed at it. A list,
+    not a string: a file touched by two commits is printed twice with each
+    commit's own numbering, so one number can carry two different lines, and
+    collapsing them would let the filter reject a quote the model was shown.
+
+    ``deleted`` holds the removed lines, which have no number in the new file
+    and so can be quoted but never anchored -- a defect that *is* the deletion
+    has nothing else to quote.
+    """
+    numbered: dict[str, dict[int, list[str]]] = {}
+    deleted: dict[str, list[str]] = {}
+    if case.head_files:
+        for filename, source in case.head_files.items():
+            rows, _ = _numbered(source, case.added_lines.get(filename, frozenset()))
+            numbered[filename] = {int(row[:5]): [row.split("| ", 1)[-1]] for row in rows}
+        return numbered, deleted
+    for hunk in emitted_hunks(case.diff):
+        for row in hunk.lines:
+            head, _, text = row.partition("| ")
+            number = head[:5].strip()
+            if number.isdigit():
+                numbered.setdefault(hunk.filename, {}).setdefault(int(number), []).append(text)
+            else:
+                deleted.setdefault(hunk.filename, []).append(text)
+    return numbered, deleted
 
 
 def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION) -> Pack:

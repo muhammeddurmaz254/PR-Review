@@ -31,6 +31,9 @@ class Report:
     type: str
     title: str
     confidence: float
+    # The line the model says it is accusing, copied from the prompt. Empty
+    # under prompt versions that do not ask for it.
+    quote: str = ""
 
 
 @dataclass(frozen=True)
@@ -42,23 +45,29 @@ class Reject:
     payload: str
 
 
-def response_schema(types: Sequence[str]) -> dict[str, Any]:
+def response_schema(types: Sequence[str], quote: bool = False) -> dict[str, Any]:
+    """The answer shape. ``quote`` adds the accused line, which stage [5] checks.
+
+    Constrained decoding can force the field to exist; only the filter can make
+    it mean anything, which is the whole point of asking for it.
+    """
+    properties: dict[str, Any] = {
+        "file": {"type": "string"},
+        "line": {"type": "integer"},
+        "type": {"type": "string", "enum": list(types)},
+        "title": {"type": "string"},
+        "confidence": {"type": "number"},
+    }
+    required = ["file", "line", "type", "title", "confidence"]
+    if quote:
+        properties["quote"] = {"type": "string"}
+        required.insert(2, "quote")
     return {
         "type": "object",
         "properties": {
             "findings": {
                 "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "file": {"type": "string"},
-                        "line": {"type": "integer"},
-                        "type": {"type": "string", "enum": list(types)},
-                        "title": {"type": "string"},
-                        "confidence": {"type": "number"},
-                    },
-                    "required": ["file", "line", "type", "title", "confidence"],
-                },
+                "items": {"type": "object", "properties": properties, "required": required},
             },
         },
         "required": ["findings"],
@@ -119,13 +128,33 @@ def parse(payload: str) -> tuple[list[Report], list[Reject]]:
             type=str(item.get("type", "")).strip(),
             title=str(item.get("title", "")).strip(),
             confidence=_clamp(item.get("confidence", 1.0)),
+            quote=str(item.get("quote", "") or ""),
         ))
     return reports, rejects
+
+
+def cap(reports: Sequence[Report], limit: int) -> list[Report]:
+    """The most confident ``limit`` reports for one pull request.
+
+    Measured on SWRBench: prompt v4 returned sixty-five findings, forty-three of
+    them from the two largest packs, and localization was ten of twenty-five at
+    every cap from one to unlimited. Past the first finding the model adds volume
+    and no signal, so this is a product constraint with nothing to lose -- a
+    review bot that posts thirty-two comments on one pull request is unusable
+    whatever its recall.
+
+    The default sits above the corpus's own density of one labelled finding per
+    defective pull request, so it cannot be mistaken for tuning against it.
+    """
+    if limit <= 0:
+        return list(reports)
+    return sorted(reports, key=lambda report: -report.confidence)[:limit]
 
 
 def render(reports: Sequence[Report]) -> str:
     """Serialise reports back into a contract-shaped response, for the stubs."""
     return json.dumps({"findings": [
-        {"file": r.file, "line": r.line, "type": r.type, "title": r.title, "confidence": r.confidence}
+        {"file": r.file, "line": r.line, "type": r.type, "title": r.title,
+         "confidence": r.confidence, **({"quote": r.quote} if r.quote else {})}
         for r in reports
     ]}, ensure_ascii=False)
