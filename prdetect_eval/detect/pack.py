@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Sequence
 
 from schema import Case
 
@@ -35,12 +36,14 @@ COMMIT = re.compile(r"^# commit ([0-9a-f]{7,40}) ?(.*)$")
 
 @dataclass(frozen=True)
 class Pack:
-    """One model call."""
+    """One model call. A large pull request makes several."""
 
     case_id: str
     system: str
     user: str
     shown_lines: int
+    part: int = 1
+    parts: int = 1
 
     @property
     def estimated_tokens(self) -> int:
@@ -145,6 +148,26 @@ def emitted_hunks(text: str, max_lines: int = 1200) -> list[Hunk]:
     return kept
 
 
+def render_hunks(hunks: Sequence[Hunk]) -> tuple[list[str], int]:
+    """Hunks as fenced excerpts under their file and commit headers."""
+    out: list[str] = []
+    shown = 0
+    previous = None
+    for hunk in hunks:
+        key = (hunk.filename, hunk.commit)
+        if key != previous:
+            header = f"# FILE {hunk.filename}"
+            if hunk.commit:
+                header += f"   (commit {hunk.commit})"
+            out += [header, ""]
+            previous = key
+        where = f"Lines {hunk.start}-{hunk.end}"
+        out += [f"{where}, in `{hunk.heading}`" if hunk.heading else where, ""]
+        out += ["```"] + hunk.lines + ["```", ""]
+        shown += len(hunk.lines)
+    return out, shown
+
+
 def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     """The hunks as fenced excerpts, newest-style headers, capped.
 
@@ -204,34 +227,69 @@ def shown_lines(case: Case) -> tuple[dict[str, dict[int, list[str]]], dict[str, 
     return numbered, deleted
 
 
-def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION) -> Pack:
-    body = [
-        "# Pull request",
-        "",
-        case.pr_title.strip() or "(no title)",
-    ]
+def _preamble(case: Case, part: int, parts: int) -> list[str]:
+    body = ["# Pull request", "", case.pr_title.strip() or "(no title)"]
     if case.pr_description.strip():
         body += ["", case.pr_description.strip()[:1500]]
-    body += [""]
+    if parts > 1:
+        body += ["", f"This is excerpt {part} of {parts} from this pull request. "
+                     f"Review what is here; the other excerpts are being reviewed "
+                     f"separately, so do not report a defect you cannot see."]
+    return body + [""]
 
-    shown = 0
+
+def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION) -> Pack:
+    """The whole pull request in one call."""
+    return split(case, dataset, version, max_lines=0)[0]
+
+
+def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
+          max_lines: int = 0) -> list[Pack]:
+    """The pull request as one pack, or as several when it is large.
+
+    Measured on SWRBench: the model's output volume tracks the size of the pack
+    rather than the number of defects in it. A fifty-one hunk pull request drew
+    thirty-two findings and located nothing extra, while half the small ones drew
+    an empty answer. Both look like one fixed attention budget spread over
+    whatever it is given, so the fix is to give it comparable amounts.
+
+    Whole-file cases are never split. Eight demo_repo defects exist only in the
+    relationship between two changed files, and separating them would make those
+    unreachable by construction; at the thresholds in use no demo_repo case is
+    large enough to split anyway, so the rule costs nothing and removes the risk.
+    """
+    system = prompt_module.system(dataset, version)
+
     if case.head_files:
+        body = _preamble(case, 1, 1)
+        shown = 0
         for filename in sorted(case.head_files):
             added = case.added_lines.get(filename, frozenset())
             code, count = _numbered(case.head_files[filename], added)
             shown += count
             body += [f"# FILE {filename}", "", "```"] + code + ["```", ""]
-    else:
-        # No checkout available: the diff is the whole of the evidence.
-        rendered, shown = render_diff(case.diff)
-        body += ["Only the lines this pull request changed are available; the "
-                 "rest of each file is not. Line numbers are the file's own."
-                 if rendered else "No code is available for this pull request.",
-                 ""] + rendered
+        return [Pack(case.case_id, system, "\n".join(body), shown)]
 
-    return Pack(
-        case_id=case.case_id,
-        system=prompt_module.system(dataset, version),
-        user="\n".join(body),
-        shown_lines=shown,
-    )
+    hunks = emitted_hunks(case.diff)
+    if not hunks:
+        body = _preamble(case, 1, 1) + ["No code is available for this pull request.", ""]
+        return [Pack(case.case_id, system, "\n".join(body), 0)]
+
+    groups: list[list[Hunk]] = [[]]
+    running = 0
+    for hunk in hunks:
+        if max_lines > 0 and groups[-1] and running + len(hunk.lines) > max_lines:
+            groups.append([])
+            running = 0
+        groups[-1].append(hunk)
+        running += len(hunk.lines)
+
+    packs = []
+    for index, group in enumerate(groups, start=1):
+        rendered, shown = render_hunks(group)
+        body = _preamble(case, index, len(groups))
+        body += ["Only the lines this pull request changed are available; the "
+                 "rest of each file is not. Line numbers are the file's own.", ""]
+        body += rendered
+        packs.append(Pack(case.case_id, system, "\n".join(body), shown, index, len(groups)))
+    return packs

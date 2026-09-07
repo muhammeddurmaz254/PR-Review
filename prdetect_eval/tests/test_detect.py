@@ -539,3 +539,66 @@ def test_the_cap_sits_above_the_corpus_label_density():
         cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
         densest = max(len(case.scored_labels) for case in cases)
         assert densest <= 3, f"{dataset} carries {densest} required labels on one case"
+
+
+def test_splitting_is_off_by_default_in_build(dataset):
+    """`build` is the whole pull request; only `split` with a limit divides it."""
+    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+        assert pack.build(case, dataset).parts == 1
+
+
+def test_a_split_keeps_every_line_exactly_once(dataset):
+    """A hunk dropped or duplicated between excerpts is a silent recall loss."""
+    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+        whole = pack.build(case, dataset)
+        parts = pack.split(case, dataset, max_lines=120)
+        assert sum(p.shown_lines for p in parts) == whole.shown_lines, case.case_id
+        assert {p.part for p in parts} == set(range(1, len(parts) + 1))
+
+
+def test_a_split_never_divides_a_hunk(dataset):
+    if dataset != "swrbench":
+        pytest.skip("demo_repo prints whole files and is never split")
+    for case in load_cases(DATASETS / "swrbench.eval.jsonl"):
+        parts = pack.split(case, "swrbench", max_lines=120)
+        seen = [line for p in parts for line in p.user.split("\n") if line.startswith("Lines ")]
+        whole = [line for line in pack.build(case, "swrbench").user.split("\n")
+                 if line.startswith("Lines ")]
+        assert seen == whole, case.case_id
+
+
+def test_whole_file_cases_are_never_split():
+    """Eight demo_repo defects exist only between two changed files; separating
+    them would make those unreachable however small the limit."""
+    for case in load_cases(DATASETS / "demo_repo.eval.jsonl"):
+        assert len(pack.split(case, "demo_repo", max_lines=1)) == 1
+
+
+def test_a_split_pack_says_which_excerpt_it_is(dataset):
+    if dataset != "swrbench":
+        pytest.skip("demo_repo is never split")
+    divided = [p for case in load_cases(DATASETS / "swrbench.eval.jsonl")
+               for p in pack.split(case, "swrbench", max_lines=120) if p.parts > 1]
+    assert divided
+    for item in divided:
+        assert f"excerpt {item.part} of {item.parts}" in item.user
+    assert len({p.system for p in divided}) == 1, "the cached prefix must not carry the part"
+
+
+def test_every_label_is_reachable_after_a_split(dataset):
+    """The split must not put a finding in no excerpt at all."""
+    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+        text = "\n".join(p.user for p in pack.split(case, dataset, max_lines=120))
+        for label in case.labels:
+            current = ""
+            found = False
+            for row in text.split("\n"):
+                if row.startswith("# FILE "):
+                    current = row[len("# FILE "):].split("   (commit")[0].strip()
+                    continue
+                head = row[:5].strip()
+                if current == label.span.file and head.isdigit():
+                    if label.span.start_line <= int(head) <= label.span.end_line:
+                        found = True
+                        break
+            assert found, f"{case.case_id}: {label.span.file}:{label.span.start_line}"

@@ -109,6 +109,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=300.0)
     parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None,
                         help="reasoning models only: --no-think keeps the answer parseable")
+    # Off by default: measured, it cut the raw findings from sixty-five to
+    # thirty and moved no metric, because the per-pull-request cap was already
+    # discarding exactly that surplus at no extra call. Kept for the case it
+    # does serve -- bounding the prompt when the context window is small.
+    parser.add_argument("--max-pack-lines", type=int, default=0,
+                        help="split a pull request larger than this into excerpts; 0 never splits")
     parser.add_argument("--max-findings", type=int, default=3,
                         help="most confident N per pull request; 0 keeps them all")
     parser.add_argument("--limit", type=int, help="first N cases only, for a smoke run")
@@ -138,7 +144,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     types = prompt.types(args.dataset)
     quoted = args.prompt_version in prompt.QUOTED
     schema = contract.response_schema(types, quote=quoted)
-    packs = [pack.build(case, args.dataset, args.prompt_version) for case in cases]
+    packs = [item for case in cases
+             for item in pack.split(case, args.dataset, args.prompt_version, args.max_pack_lines)]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
@@ -149,7 +156,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     (run_dir / "packs.jsonl").write_text("".join(
         json.dumps({
-            "case_id": item.case_id, "code_lines": item.shown_lines,
+            "case_id": item.case_id, "part": item.part, "parts": item.parts,
+            "code_lines": item.shown_lines,
             "estimated_prompt_tokens": item.estimated_tokens, "user": item.user,
         }, ensure_ascii=False) + "\n" for item in packs
     ), encoding="utf-8", newline="\n")
@@ -163,6 +171,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     failures = 0
     dropped = 0
     by_case = {case.case_id: case for case in cases}
+    # Reports are gathered per pull request and capped once, not per excerpt:
+    # the cap says how many comments one review may leave, and splitting a large
+    # pull request must not multiply that.
+    harvest: dict[str, list[contract.Report]] = {case.case_id: [] for case in cases}
     if detector is not None:
         with (run_dir / "responses.jsonl").open("w", encoding="utf-8", newline="\n") as handle:
             for index, item in enumerate(packs, start=1):
@@ -170,25 +182,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 responses.append(response)
                 failures += bool(response.error)
                 reports, bad = contract.parse(response.text)
-                overflow = len(reports)
-                reports = contract.cap(reports, args.max_findings)
-                dropped += overflow - len(reports)
-                predictions.extend(to_predictions(item.case_id, reports))
-                if quoted:
-                    verdicts = anchor_module.resolve(reports, by_case[item.case_id])
-                    anchored.extend(to_predictions(item.case_id, anchor_module.apply(verdicts)))
-                    decisions.extend({
-                        "case_id": item.case_id, "file": v.report.file,
-                        "claimed_line": v.report.line, "line": v.line,
-                        "verdict": v.verdict, "detail": v.detail,
-                        "quote": v.report.quote, "title": v.report.title,
-                    } for v in verdicts)
+                harvest[item.case_id].extend(reports)
                 rejects.extend({
                     "case_id": item.case_id, "stage": reject.stage,
                     "detail": reject.detail, "payload": reject.payload,
                 } for reject in bad)
                 handle.write(json.dumps({
-                    "case_id": item.case_id, "text": response.text, "error": response.error,
+                    "case_id": item.case_id, "part": item.part, "parts": item.parts,
+                    "text": response.text, "error": response.error,
                     "prompt_tokens": response.prompt_tokens,
                     "completion_tokens": response.completion_tokens,
                     "duration_ms": response.duration_ms,
@@ -197,10 +198,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # enough that the artefact has to be readable while it runs.
                 handle.flush()
                 if not args.quiet:
-                    print(f"[{index}/{len(packs)}] {item.case_id}: "
+                    where = f" [{item.part}/{item.parts}]" if item.parts > 1 else ""
+                    print(f"[{index}/{len(packs)}] {item.case_id}{where}: "
                           f"{len(reports)} finding(s), {response.duration_ms} ms"
                           + (f"  ERROR {response.error}" if response.error else ""),
                           file=sys.stderr, flush=True)
+
+        for case_id, found in harvest.items():
+            kept = contract.cap(found, args.max_findings)
+            dropped += len(found) - len(kept)
+            predictions.extend(to_predictions(case_id, kept))
+            if quoted:
+                verdicts = anchor_module.resolve(kept, by_case[case_id])
+                anchored.extend(to_predictions(case_id, anchor_module.apply(verdicts)))
+                decisions.extend({
+                    "case_id": case_id, "file": v.report.file,
+                    "claimed_line": v.report.line, "line": v.line,
+                    "verdict": v.verdict, "detail": v.detail,
+                    "quote": v.report.quote, "title": v.report.title,
+                } for v in verdicts)
 
     write_predictions(run_dir / "predictions.jsonl", predictions)
     if quoted:
@@ -226,6 +242,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "quantization": None, "context_tokens": args.num_ctx,
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
+        "max_pack_lines": args.max_pack_lines, "packs": len(packs),
         "anchors": (Counter(row["verdict"] for row in decisions) if quoted else None),
         "detectors": [DETECTOR],
         "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
