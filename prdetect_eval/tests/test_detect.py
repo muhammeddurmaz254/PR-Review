@@ -56,6 +56,7 @@ def test_measured_prompts_are_unchanged():
         ("swrbench", "review/v1"): "9be10ddda5fefa3f",
         ("swrbench", "review/v3"): "243f3e371087abb8",
         ("swrbench", "review/v4"): "3abe68a78ff83ab3",
+        ("swrbench", "review/v5"): "368c076c6929b3e9",
     }
     for (dataset, version), digest in pinned.items():
         actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
@@ -602,3 +603,28 @@ def test_every_label_is_reachable_after_a_split(dataset):
                         found = True
                         break
             assert found, f"{case.case_id}: {label.span.file}:{label.span.start_line}"
+
+
+def test_v5_puts_support_code_in_scope():
+    """Six of the seven findings the model stayed silent on live in a test, a
+    fixture, an example or a packaging script."""
+    v4 = prompt.system("swrbench", "review/v4")
+    v5 = prompt.system("swrbench", "review/v5")
+    assert "A test is not exempt for being a test" in v5
+    assert "A test is not exempt" not in v4
+    for shape in ("skip condition that is always true", "conftest", "setup.py"):
+        assert shape in v5, shape
+
+
+def test_v5_narrows_the_two_clauses_that_silenced_it():
+    """`a placeholder in an example file` reads as the file, not the placeholder,
+    and `a broad except` is the whole of one F.4 label."""
+    v5 = prompt.system("swrbench", "review/v5")
+    assert "a placeholder in an example file" not in v5
+    assert "about the expression, not the file it is in" in v5
+    assert "swallows rather than re-raises is a defect" in v5
+
+
+def test_v5_still_asks_for_the_quote():
+    assert "review/v5" in prompt.QUOTED
+    assert "`quote` is the code on that line" in prompt.system("swrbench", "review/v5")

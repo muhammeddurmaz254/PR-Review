@@ -16,11 +16,10 @@ asserts nothing per-case leaks into it.
 """
 from __future__ import annotations
 
-# v4 is the default: it ties v3 at the finding level and leads every version at
-# the pull-request level, and it is the only one whose findings carry the line
-# they accuse -- which turns out to be worth keeping for the reader even though
-# checking it mechanically caught nothing.
-PROMPT_VERSION = "review/v4"
+# The default is the best measured version. v5 leads every metric -- balanced
+# accuracy 64.6%, F1 0.217, eleven of twenty-five located -- and does it with
+# fewer reports than v4, not more.
+PROMPT_VERSION = "review/v5"
 
 # A second axis alongside the taxonomy: the two corpora are printed differently,
 # and describing the wrong shape is worse than describing none. demo_repo shows
@@ -284,16 +283,71 @@ that deleted line.
 - `type` must be one of the kinds listed above.""",
 )
 
+# v5 covers the code that is not the library. Measured against v4 it is the best
+# version on every metric, but not for the reason it was written: it gained
+# exactly one finding and lost none, and that finding is in an example file --
+# the clause narrowed below, not the section added above. Four of the five
+# defects in test files are still met with silence. The section stays because it
+# costs nothing and the hypothesis is unfalsified rather than refuted at this
+# corpus size, but the measured gain belongs to the two narrowed clauses, and
+# the pattern holds across the whole session: every real improvement came from
+# removing something the prompt said that was wrong, never from adding
+# something new.
+#
+# The original evidence: of the
+# twenty-five findings, the model stayed silent on six of the seven whose defect
+# lives in a test, a fixture, an example or a packaging script -- 86% -- against
+# six of seventeen in library code. Two clauses explain it. "A defect is a place
+# where the new code will behave wrong" does not describe a test that cannot run
+# on a version the project supports, and the suppression list named "a
+# placeholder in an example file", which reads as *the file* rather than *the
+# placeholder*, and "a broad except", which is the whole of one F.4 label.
+#
+# So this is the same repair v3 made to the taxonomy, applied to where the
+# detector looks rather than to what it calls things.
+
+SUPPORT_CODE = """\
+Tests, fixtures, examples and packaging are part of the change and defects in \
+them count. A test is not exempt for being a test:
+
+- it cannot run where the project still runs -- it needs a package this branch \
+does not depend on, or a library feature older versions lack;
+- it never really runs -- a skip condition that is always true, a fixture that \
+returns before it asserts, a parametrisation with no values;
+- it passes on the wrong thing -- it asserts against a value it also computed, \
+or checks something other than what it names;
+- a fixture or `conftest` guard swallows failures the tests were meant to show.
+
+The same holds for an example script and for `setup.py`: an example that \
+misuses the API teaches the misuse, and a packaging change that breaks the \
+documented way of running the tests breaks it for everyone.
+"""
+
+INSTRUCTIONS_V5 = INSTRUCTIONS_V4.replace(
+    "## When not to report",
+    SUPPORT_CODE + "\n## When not to report",
+).replace(
+    """\
+- Code that only looks dangerous. String building with values from a closed set, \
+a placeholder in an example file, a broad `except` that re-raises.""",
+    """\
+- Code that only looks dangerous. String building with values from a closed set, \
+a placeholder value standing in for real input, an `except` that re-raises. This \
+is about the expression, not the file it is in -- and an `except` that swallows \
+rather than re-raises is a defect, not a false alarm.""",
+)
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
     "review/v3": (INSTRUCTIONS_V3, TAXONOMIES_V3),
     "review/v4": (INSTRUCTIONS_V4, TAXONOMIES_V3),
+    "review/v5": (INSTRUCTIONS_V5, TAXONOMIES_V3),
 }
 
 # Which versions ask for the quote, so the schema and the filter agree without
 # either of them guessing from the version string.
-QUOTED = frozenset({"review/v4"})
+QUOTED = frozenset({"review/v4", "review/v5"})
 
 
 def types(dataset: str) -> list[str]:
