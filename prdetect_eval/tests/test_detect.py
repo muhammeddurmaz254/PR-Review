@@ -67,10 +67,44 @@ def test_every_prompt_version_renders_for_every_dataset():
             assert "{format}" not in text and text.strip()
 
 
+def test_the_type_names_never_move_between_versions():
+    """The schema enum and every stored label are built from these names."""
+    for version in prompt.VERSIONS:
+        _, taxonomies = prompt.VERSIONS[version]
+        for dataset in prompt.TAXONOMIES:
+            assert list(taxonomies[dataset]) == prompt.types(dataset), (version, dataset)
+
+
+def test_v3_separates_the_two_definitions_that_collided():
+    """v1 filed 'a dependency is unavailable' under F.3 and the corpus files it
+    under F.5, which is a large part of why F.3 was never once reported."""
+    v1 = prompt.SWRBENCH_TYPES
+    v3 = prompt.SWRBENCH_TYPES_V3
+    assert "dependency is unavailable" in v1["F.3 Resource"]
+    assert "dependency" not in v3["F.3 Resource"]
+    assert "dependency" in v3["F.5 Support"]
+
+
+def test_v3_covers_the_shapes_v1_left_out(dataset):
+    """Two of F.1's five cases are a deleted public name, and two of F.4's are a
+    guard that exists and is wrong. v1 described neither."""
+    text = prompt.system("swrbench", "review/v3")
+    for phrase in ("removed or narrowed", "asserts something that",
+                   "not on its sibling", "never imported"):
+        assert phrase in text, phrase
+
+
+def test_v3_leaves_demo_repo_alone():
+    _, v1 = prompt.VERSIONS["review/v1"]
+    _, v3 = prompt.VERSIONS["review/v3"]
+    assert v1["demo_repo"] == v3["demo_repo"]
+
+
 def test_v2_moves_the_trade_off_out_of_the_model():
     """v1 asserted the prior and the cost; v2 grades the doubt instead."""
     v1 = prompt.system("swrbench", "review/v1")
     v2 = prompt.system("swrbench", "review/v2")
+    assert "around 0.3" not in v1
     assert "a miss costs one line of recall" in v1
     assert "a miss costs one line of recall" not in v2
     assert "around 0.3" in v2, "v2 must anchor the confidence scale"

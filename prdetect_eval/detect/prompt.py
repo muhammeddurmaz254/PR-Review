@@ -150,8 +150,6 @@ but the caller, the version or the rest of the file would settle it, around 0.3 
 when it is a question you would ask the author rather than a claim.""",
 )
 
-VERSIONS = {"review/v1": INSTRUCTIONS_V1, "review/v2": INSTRUCTIONS_V2}
-
 
 DEMO_REPO_TYPES = {
     "authz": "An ownership or permission check is missing or too weak, so a caller "
@@ -185,7 +183,88 @@ SWRBENCH_TYPES = {
                    "so it breaks on the versions the project still supports.",
 }
 
+# v3 rewrites the SWRBench catalogue from the twenty-five reviewer rationales
+# rather than from the words F.1-F.5 suggest. Measured against v1 and v2: of the
+# thirteen findings whose location the model got right, eleven were misnamed and
+# all nine misnamings went to `F.2 Logic`. Across every prediction the model said
+# `F.2 Logic` thirty-one times and `F.3 Resource` or `F.4 Check` not once, while
+# the corpus holds five of each. Four defects in the v1 catalogue explain it:
+#
+#   * F.3 claimed "a dependency is unavailable in some run mode", which is where
+#     the corpus files F.5. The two definitions collided on the same sentence.
+#   * F.3's real centre of mass is a name or value that is not there in the form
+#     it is used -- an unimported symbol, a parameter that never reaches the
+#     query -- and none of that reads as "build, packaging, configuration".
+#   * F.1 covered misuse but not the breaking change: two of its five cases are a
+#     public alias or class attribute deleted out from under its callers.
+#   * F.4 covered the missing guard but not the wrong one: two of its five cases
+#     are a guard that exists and asserts something that can be false, or catches
+#     so broadly it hides unrelated failures.
+#
+# Both catalogues stay reachable, because the numbers already published were
+# measured under v1's.
+
+SWRBENCH_TYPES_V3 = {
+    "F.1 Interface": "Something is used against its contract, or a contract others depend on "
+                     "is broken. Both count: a call handed the wrong object or a value of the "
+                     "wrong kind for what the callee expects, and a public name -- a "
+                     "command-line flag, an alias, a class attribute a subclass overrides -- "
+                     "removed or narrowed so existing callers stop working.",
+    "F.2 Logic": "The new expression is wrong for input it will actually see: a condition true "
+                 "in a case it should not be, a value built from the wrong parts, a format "
+                 "string that never interpolates, a statement placed in a scope where it does "
+                 "not run when it is needed.",
+    "F.3 Resource": "A name, value or setting the code depends on is not available in the form "
+                    "it is used: a symbol referenced but never imported, a configuration string "
+                    "parsed too loosely, a shared context variable whose type changed under its "
+                    "consumers, a parameter computed but never passed on to the call that needs "
+                    "it, a build or test entry point that no longer works the documented way.",
+    "F.4 Check": "The guarding is wrong. It is missing where an invalid value flows on; or it "
+                 "is applied on one path and not on its sibling; or it asserts something that "
+                 "can legitimately be false; or it catches so broadly that unrelated failures "
+                 "are swallowed.",
+    "F.5 Support": "The code assumes a language version, a library version or a dependency that "
+                   "will not always be there: syntax or a name valid in only one Python "
+                   "version, an import that some supported interpreter lacks, a test needing a "
+                   "package this branch does not depend on, or a library feature older releases "
+                   "do not have.",
+}
+
 TAXONOMIES = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES}
+TAXONOMIES_V3 = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES_V3}
+
+# Two clauses of the shared instructions contradict what the SWRBench labels
+# actually are, and both suppress a category the model then never uses.
+#
+# "removal of code nothing calls" cannot be checked here: no case ships a
+# checkout, so the model cannot see a caller and reads every deletion as dead
+# code -- including the two F.1 findings that are a deleted flag and a deleted
+# class attribute.
+#
+# "anything you would raise as a preference" throws away F.4 outright. Its
+# labels are reviewer comments, and two of them are a reviewer asking for a
+# guard that a sibling function already has.
+
+INSTRUCTIONS_V3 = INSTRUCTIONS_V1.replace(
+    "- Refactoring with no behaviour change, and removal of code nothing calls.",
+    """\
+- Refactoring with no behaviour change, and removal of code nothing calls. But \
+when you cannot see the callers, a removed *public* name -- a command-line flag, \
+an exported alias, a class attribute a subclass would override -- is a breaking \
+change and not dead code.""",
+).replace(
+    "- Anything you would raise as a preference rather than a defect.",
+    """\
+- Anything you would raise as a preference rather than a defect. A guard is not \
+a preference: a check the change applies on one path and not on its sibling, or \
+an assertion of something that can legitimately be false, is a defect.""",
+)
+
+VERSIONS = {
+    "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
+    "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
+    "review/v3": (INSTRUCTIONS_V3, TAXONOMIES_V3),
+}
 
 
 def types(dataset: str) -> list[str]:
@@ -198,9 +277,9 @@ def system(dataset: str, version: str = PROMPT_VERSION) -> str:
     """The full system prompt: the shared instructions plus this dataset's kinds."""
     if version not in VERSIONS:
         raise KeyError(f"unknown prompt version {version!r}; have {', '.join(VERSIONS)}")
-    taxonomy = TAXONOMIES[dataset]
-    catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomy.items())
-    head, tail = VERSIONS[version].split("## How to look")
+    instructions, taxonomies = VERSIONS[version]
+    catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomies[dataset].items())
+    head, tail = instructions.split("## How to look")
     return (
         f"{head.format(format=FORMATS[dataset])}"
         f"## The kinds of defect you report\n\nReport only these, and nothing else:\n\n"
