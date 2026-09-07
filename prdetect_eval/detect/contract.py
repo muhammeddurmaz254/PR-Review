@@ -1,44 +1,25 @@
 """The response contract: what the model may say and how it is read back.
 
-Constrained decoding guarantees the *shape* of the answer, never its content, so
-everything here assumes a well-formed object that is still wrong: a line outside
-the file, a filename from another repository, a quote that matches nothing. Such
-a report is kept and counted, not silently dropped -- a detector that invents
-locations must pay for it in the false-alarm column rather than disappear from
-the numbers.
+The output is deliberately small -- type, file, line, one short title. The task
+is to find the defect and name its kind, not to write the review comment, so
+anything longer costs tokens and invites the model to argue itself into a
+finding it does not have.
 
-``quote`` exists so the deterministic filters of stage [5] have something to
-check against; phase 0b only records it.
+The type list is compiled into the schema as an ``enum``, so constrained
+decoding cannot emit a class the dataset does not have. That matters for the
+metric: type accuracy then measures judgment rather than formatting.
+
+Constrained decoding guarantees the shape and never the content, so a
+well-formed answer can still be wrong -- a line past the end of the file, a
+filename from another project. Those are kept and counted, not dropped: a
+detector that invents locations must pay for it in the false-alarm column
+rather than disappear from the numbers.
 """
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any
-
-CONFIDENCE_FLOOR = 0.0
-CONFIDENCE_CEILING = 1.0
-
-RESPONSE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "findings": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string"},
-                    "line": {"type": "integer"},
-                    "quote": {"type": "string"},
-                    "reason": {"type": "string"},
-                    "confidence": {"type": "number"},
-                },
-                "required": ["file", "line", "quote", "reason", "confidence"],
-            },
-        },
-    },
-    "required": ["findings"],
-}
+from typing import Any, Sequence
 
 
 @dataclass(frozen=True)
@@ -47,8 +28,8 @@ class Report:
 
     file: str
     line: int
-    quote: str
-    reason: str
+    type: str
+    title: str
     confidence: float
 
 
@@ -61,12 +42,35 @@ class Reject:
     payload: str
 
 
+def response_schema(types: Sequence[str]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "type": {"type": "string", "enum": list(types)},
+                        "title": {"type": "string"},
+                        "confidence": {"type": "number"},
+                    },
+                    "required": ["file", "line", "type", "title", "confidence"],
+                },
+            },
+        },
+        "required": ["findings"],
+    }
+
+
 def _clamp(value: Any) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError):
-        return CONFIDENCE_FLOOR
-    return max(CONFIDENCE_FLOOR, min(CONFIDENCE_CEILING, number))
+        return 0.0
+    return max(0.0, min(1.0, number))
 
 
 def parse(payload: str) -> tuple[list[Report], list[Reject]]:
@@ -112,15 +116,16 @@ def parse(payload: str) -> tuple[list[Report], list[Reject]]:
             continue
         reports.append(Report(
             file=filename, line=line,
-            quote=str(item.get("quote", "")), reason=str(item.get("reason", "")),
+            type=str(item.get("type", "")).strip(),
+            title=str(item.get("title", "")).strip(),
             confidence=_clamp(item.get("confidence", 1.0)),
         ))
     return reports, rejects
 
 
-def render(reports: list[Report]) -> str:
+def render(reports: Sequence[Report]) -> str:
     """Serialise reports back into a contract-shaped response, for the stubs."""
     return json.dumps({"findings": [
-        {"file": r.file, "line": r.line, "quote": r.quote, "reason": r.reason, "confidence": r.confidence}
+        {"file": r.file, "line": r.line, "type": r.type, "title": r.title, "confidence": r.confidence}
         for r in reports
     ]}, ensure_ascii=False)

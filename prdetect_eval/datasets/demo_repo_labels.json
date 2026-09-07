@@ -5,7 +5,7 @@
   "exclude_paths": [
     "beklentiler.json"
   ],
-  "localization_rule": "Etiket, kusuru iceren fonksiyonun tamamidir (dekoratorler dahil). Tahmin bu araligin icine duserse lokalizasyon dogrudur. IoU, tahmin araligi ile etiket araligi arasinda hesaplanir.",
+  "localization_rule": "Etiket, kusuru iceren fonksiyonun tamamidir (dekoratorler dahil); modul seviyesindeki tanimlarda kucuk yardimci modulun tamamidir. Tahmin bu araligin icine duserse lokalizasyon dogrudur. IoU ayrica raporlanir.",
   "cases": [
     {
       "case_id": "idor-siparis-detay",
@@ -335,7 +335,7 @@
           "type": "data_exposure",
           "file": "app/serializers.py",
           "start_line": 1,
-          "end_line": 7,
+          "end_line": 9,
           "focus_line": 4,
           "title": "Acik liste yalniz password_hash ayikliyor, tckn siziyor",
           "span_kind": "range",
@@ -343,7 +343,8 @@
           "anchor_text": "_GIZLI = {\"password_hash\"}",
           "in_scope": true,
           "cross_file": true,
-          "rationale": "KAPALI LISTE ACIK LISTEYE cevrildi: taban yalnizca sayilan alanlari birakiyordu, yenisi yalnizca password_hash'i ayikliyor. tckn listede yok, yani disari cikiyor. Iki dosya da tek basina makul: app/profil.py bir serilestirici cagiriyor, app/serializers.py gizli alan ayikliyor."
+          "rationale": "KAPALI LISTE ACIK LISTEYE cevrildi: taban yalnizca sayilan alanlari birakiyordu, yenisi yalnizca password_hash'i ayikliyor. tckn listede yok, yani disari cikiyor. Iki dosya da tek basina makul: app/profil.py bir serilestirici cagiriyor, app/serializers.py gizli alan ayikliyor.",
+          "span_rationale": "Modul seviyesi tanim: bolge modulun tamami."
         }
       ]
     },
