@@ -56,11 +56,16 @@ def render(run_id: str, config: dict, result: dict, baselines: dict[str, dict] |
          for name, card in result["cascade"].items()],
     )
 
-    lines += ["## Pull-request level", ""]
+    lines += ["## Pull-request level", "",
+              "Whether the pull request gets a comment at all. Balanced accuracy is the "
+              "figure to read: it is 50% for any strategy that ignores the input, on any "
+              "class balance, where plain accuracy rewards a corpus of mostly-clean cases.", ""]
     lines += _table(
-        ["universe", "TP", "FP", "TN", "FN", "precision", "recall", "accuracy"],
+        ["universe", "TP", "FP", "TN", "FN", "precision", "recall", "specificity",
+         "F1", "accuracy", "balanced acc."],
         [[name, card["tp"], card["fp"], card["tn"], card["fn"],
-          _pct(card["precision"]), _pct(card["recall"]), _pct(card["accuracy"])]
+          _pct(card["precision"]), _pct(card["recall"]), _pct(card["specificity"]),
+          _pct(card["f1"]), _pct(card["accuracy"]), _pct(card["balanced_accuracy"])]
          for name, card in (("in-scope", result["pr_level_in_scope"]), ("all types", result["pr_level_all"]))],
     )
 
@@ -115,9 +120,11 @@ def render(run_id: str, config: dict, result: dict, baselines: dict[str, dict] |
         for name, card in baselines.items():
             rows.append([name, card["predictions"], card["tp"], card["fp"], card["fn"],
                          _pct(card["precision"]), _pct(card["recall"]), _pct(card["f1"]),
-                         _pct(card["pairwise"]), f"{card['fp_per_pr']:.2f}"])
+                         _pct(card["pairwise"]), f"{card['fp_per_pr']:.2f}",
+                         _pct(card["pr_level"]["balanced_accuracy"])])
         lines += _table(
-            ["baseline", "reports", "TP", "FP", "FN", "precision", "recall", "F1", "pairwise", "FP/PR"], rows
+            ["baseline", "reports", "TP", "FP", "FN", "precision", "recall", "F1", "pairwise",
+             "FP/PR", "PR-level bal. acc."], rows
         )
 
     if notes:
@@ -133,11 +140,22 @@ def console(result: dict, baselines: dict[str, dict] | None = None) -> str:
         f"TP={primary['tp']} FP={primary['fp']} FN={primary['fn']}  "
         f"P={_pct(primary['precision'])} R={_pct(primary['recall'])} F1={_pct(primary['f1'])}",
         f"pairwise(in-scope)={_pct(result['pairwise_in_scope']['accuracy'])}  "
-        f"FP/PR={result['false_alarms']['all']['per_pr']:.2f}  "
-        f"PR-level acc={_pct(result['pr_level_in_scope']['accuracy'])}",
+        f"FP/PR={result['false_alarms']['all']['per_pr']:.2f}",
         "by type: " + "  ".join(f"{name}={_pct(row['recall'])}" for name, row in result["by_type"].items()),
     ]
+    flagging = result["pr_level_in_scope"]
+    out.insert(1, (
+        f"PR-level  caught={flagging['tp']}/{flagging['tp'] + flagging['fn']} "
+        f"quiet={flagging['tn']}/{flagging['tn'] + flagging['fp']}  "
+        f"balanced acc={_pct(flagging['balanced_accuracy'])} "
+        f"(0.5 = ignoring the input)"
+    ))
     if baselines:
         best = max(baselines.items(), key=lambda item: item[1]["recall"])
         out.append(f"best trivial baseline: {best[0]} R={_pct(best[1]['recall'])} F1={_pct(best[1]['f1'])}")
+        honest = {k: v for k, v in baselines.items() if not v["leaky"]}
+        if honest:
+            top = max(honest.items(), key=lambda item: item[1]["pr_level"]["balanced_accuracy"])
+            out.append(f"best trivial at PR level: {top[0]} "
+                       f"balanced acc={_pct(top[1]['pr_level']['balanced_accuracy'])}")
     return "\n".join(out)

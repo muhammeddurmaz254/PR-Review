@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import baselines
 import metrics
-from adapters import load_cases
+import steps
+from adapters import DEFAULT_EVAL, load_cases
 from matching import admissible, match_all, match_one
 from schema import CASCADE, PRIMARY, Case, MatchConfig, Prediction, Span
 
@@ -205,3 +206,32 @@ def test_every_baseline_stays_silent_on_no_clean_twin(cases):
 
 
 
+
+
+def test_balanced_accuracy_is_half_for_any_input_blind_strategy():
+    """The point of the PR-level metric: flagging everything, flagging nothing
+    and flipping a coin all score 0.5, on any class balance."""
+    always = metrics.DetectionCard(true_positive=25, false_positive=25, true_negative=0, false_negative=0)
+    never = metrics.DetectionCard(true_positive=0, false_positive=0, true_negative=25, false_negative=25)
+    lopsided = metrics.DetectionCard(true_positive=90, false_positive=10, true_negative=0, false_negative=0)
+    for card in (always, never, lopsided):
+        assert card.as_dict()["balanced_accuracy"] == 0.5
+    # ...while plain accuracy hands the lopsided corpus a free 90%.
+    assert lopsided.as_dict()["accuracy"] == 0.9
+
+
+def test_specificity_counts_the_clean_pull_requests_left_alone():
+    card = metrics.DetectionCard(true_positive=13, false_positive=10, true_negative=15, false_negative=12)
+    assert card.as_dict()["specificity"] == 0.6
+    assert card.as_dict()["balanced_accuracy"] == 0.56
+
+
+def test_the_step_file_leads_with_the_pull_request_verdict():
+    """It is the question the product answers; burying it under the finding
+    table is how a run reads as better than it is."""
+    cases = load_cases(DEFAULT_EVAL)
+    predictions = baselines.flag_everything(cases)
+    result = metrics.evaluate(cases, predictions, MatchConfig(tolerance=3, type_mode="exact"))
+    text = steps.render("t", {"cases": len(cases)}, result)
+    assert text.index("PR seviyesi") < text.index("Bulgu seviyesi")
+    assert "0.50 = girdiyi yok saymak" in text

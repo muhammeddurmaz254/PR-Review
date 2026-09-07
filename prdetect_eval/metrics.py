@@ -98,13 +98,29 @@ class DetectionCard:
     def total(self) -> int:
         return self.true_positive + self.false_positive + self.true_negative + self.false_negative
 
+    @property
+    def specificity(self) -> float:
+        """Share of clean pull requests left alone."""
+        return _ratio(self.true_negative, self.true_negative + self.false_positive)
+
     def as_dict(self) -> dict:
+        precision = _ratio(self.true_positive, self.true_positive + self.false_positive)
+        recall = _ratio(self.true_positive, self.true_positive + self.false_negative)
         return {
             "tp": self.true_positive, "fp": self.false_positive,
             "tn": self.true_negative, "fn": self.false_negative,
-            "precision": round(_ratio(self.true_positive, self.true_positive + self.false_positive), 4),
-            "recall": round(_ratio(self.true_positive, self.true_positive + self.false_negative), 4),
+            "precision": round(precision, 4),
+            "recall": round(recall, 4),
+            "specificity": round(self.specificity, 4),
+            "f1": round(_ratio(2 * precision * recall, precision + recall), 4),
             "accuracy": round(_ratio(self.true_positive + self.true_negative, self.total), 4),
+            # Plain accuracy is a function of the corpus's class balance, so it
+            # reads differently on a 50/50 set than on an 18/10 one and cannot be
+            # compared across the two. Balanced accuracy is 0.5 for any strategy
+            # that ignores the input -- flag everything, flag nothing, flip a
+            # coin -- on every balance, which is the comparison this metric is
+            # for.
+            "balanced_accuracy": round((recall + self.specificity) / 2, 4),
         }
 
 

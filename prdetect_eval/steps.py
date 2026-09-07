@@ -11,6 +11,13 @@ whether the report points at the code that contains the defect, which is what a
 reviewer needs. ``IoU`` asks how tightly, and is averaged only over findings
 that were located -- folding misses into it would turn a detection failure into
 a localization number.
+
+The pull-request verdict leads, because it is the question the product answers:
+a bot that misses a line is worse than one that finds it, but a bot that walks
+past the whole pull request is the failure a reviewer notices. It is reported as
+balanced accuracy, which is 0.5 for any strategy that ignores the input on any
+class balance -- unlike plain accuracy, which a corpus of mostly-clean cases
+hands out for free.
 """
 from __future__ import annotations
 
@@ -43,7 +50,8 @@ def _span(pair) -> str:
     return str(start) if start == end else f"{start}-{end}"
 
 
-def render(run_id: str, manifest: dict, result: dict, notes: Sequence[str] = ()) -> str:
+def render(run_id: str, manifest: dict, result: dict, notes: Sequence[str] = (),
+           baselines: dict[str, dict] | None = None) -> str:
     rows = result["per_finding"]
     loc = result["localization"]
     alarms = result["false_alarm_rows"]
@@ -60,8 +68,41 @@ def render(run_id: str, manifest: dict, result: dict, notes: Sequence[str] = ())
     if notes:
         lines += [f"> {note}" for note in notes] + [""]
 
+    flagging = result["pr_level_in_scope"]
+    caught = flagging["tp"] + flagging["fn"]
+    quiet = flagging["tn"] + flagging["fp"]
     lines += [
-        "## Özet",
+        "## PR seviyesi — \"bu PR'a yorum yazılmalı mı\"",
+        "",
+        "Ürünün asıl sorduğu soru bu. Bir satırı kaçırmak bir şey, PR'ın tamamını "
+        "sessiz geçmek başka bir şey. **Dengeli doğruluk** sınıf dengesinden bağımsızdır: "
+        "girdiyi hiç okumayan her strateji için 0.50'dir.",
+        "",
+    ]
+    lines += _table(
+        ["ölçüm", "değer", "ne demek"],
+        [
+            ["Yakalanan kusurlu PR", f"{flagging['tp']}/{caught}", _pct(flagging["recall"]) + " (recall)"],
+            ["Sessiz geçilen temiz PR", f"{flagging['tn']}/{quiet}",
+             _pct(flagging["specificity"]) + " (specificity)"],
+            ["**Dengeli doğruluk**", f"**{_pct(flagging['balanced_accuracy'])}**",
+             "0.50 = girdiyi yok saymak"],
+            ["Ham doğruluk", _pct(flagging["accuracy"]), "sınıf dengesine bağlı, karşılaştırılamaz"],
+        ],
+    )
+    if baselines:
+        honest = {name: card for name, card in baselines.items() if not card.get("leaky")}
+        if honest:
+            reference = max(honest.items(), key=lambda item: item[1]["pr_level"]["balanced_accuracy"])
+            lines += [
+                f"Karşılaştırma noktası — en iyi dürüst taban çizgisi "
+                f"`{reference[0]}`: dengeli doğruluk "
+                f"**{_pct(reference[1]['pr_level']['balanced_accuracy'])}**.",
+                "",
+            ]
+
+    lines += [
+        "## Bulgu seviyesi",
         "",
         "Yer bulmak ile tür adlandırmak ayrı yetenekler ve ayrı ayrı bozuluyorlar, "
         "bu yüzden ayrı ölçülüyor. Tür doğruluğu **yeri bulunan** bulgular üzerinden.",

@@ -47,6 +47,10 @@ def baseline_summary(cases: Sequence[Case], config: MatchConfig) -> dict[str, di
             **card.as_dict(),
             "pairwise": metrics.pairwise_accuracy(cases, results)["accuracy"],
             "fp_per_pr": round(card.false_alarm / len(cases), 4) if cases else 0.0,
+            # The trade a detector actually makes is at the pull request, not at
+            # the finding: `flag_everything` is the reference point, and it must
+            # be printed beside the run rather than looked up separately.
+            "pr_level": metrics.pr_level(cases, results).as_dict(),
             "leaky": name in baseline_module.LEAKY,
         }
     return summary
@@ -135,7 +139,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     markdown = report_module.render(run_id, manifest, result, trivial, notes=args.note)
     (run_dir / "report.md").write_text(markdown, encoding="utf-8", newline="\n")
     (run_dir / "step.md").write_text(
-        steps_module.render(run_id, manifest, result, notes=args.note), encoding="utf-8", newline="\n"
+        steps_module.render(run_id, manifest, result, notes=args.note, baselines=trivial),
+        encoding="utf-8", newline="\n"
     )
 
     if not args.quiet:
