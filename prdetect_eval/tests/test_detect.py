@@ -805,3 +805,16 @@ def test_a_narrowed_context_narrows_the_anchor_filter_too():
     report = contract.Report(outside, line, "sql_injection", "t", 0.9, quote=text)
     assert anchor.resolve([report], case, context=("docs/*.md",))[0].verdict == "unchecked"
     assert anchor.resolve([report], case, context=("*",))[0].verdict == "anchored"
+
+
+def test_the_same_finding_reported_twice_counts_once():
+    """It happened: one answer named the same line under the same type twice,
+    quoting the same `pass`, and paid for it as two false alarms."""
+    twice = [contract.Report("a.py", 84, "swallowed_exception", "t", 0.9, quote="pass"),
+             contract.Report("a.py", 84, "swallowed_exception", "u", 0.8, quote="pass")]
+    kept = contract.dedupe(twice)
+    assert len(kept) == 1 and kept[0].confidence == 0.9
+    # A different line, or a different type on the same line, is a different claim.
+    varied = twice + [contract.Report("a.py", 85, "swallowed_exception", "t", 0.9),
+                      contract.Report("a.py", 84, "broad_except", "t", 0.9)]
+    assert len(contract.dedupe(varied)) == 3

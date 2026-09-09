@@ -253,7 +253,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                           file=sys.stderr, flush=True)
 
         for case_id, found in harvest.items():
-            kept = contract.cap(found, args.max_findings)
+            kept = contract.cap(contract.dedupe(found), args.max_findings)
             dropped += len(found) - len(kept)
             predictions.extend(to_predictions(case_id, kept))
             if quoted:

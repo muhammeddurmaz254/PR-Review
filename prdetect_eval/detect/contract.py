@@ -133,6 +133,23 @@ def parse(payload: str) -> tuple[list[Report], list[Reject]]:
     return reports, rejects
 
 
+def dedupe(reports: Sequence[Report]) -> list[Report]:
+    """One report per (file, line, type), keeping the most confident.
+
+    Measured: a run reported the same line of the same file under the same type
+    twice, quoting the same `pass`, and it was counted as two false alarms. The
+    model has no memory between findings in one answer and the schema cannot
+    forbid a repeat, so the pipeline has to.
+    """
+    best: dict[tuple[str, int, str], Report] = {}
+    for report in reports:
+        key = (report.file, report.line, report.type)
+        if key not in best or report.confidence > best[key].confidence:
+            best[key] = report
+    return [report for report in reports if best.get(
+        (report.file, report.line, report.type)) is report]
+
+
 def cap(reports: Sequence[Report], limit: int) -> list[Report]:
     """The most confident ``limit`` reports for one pull request.
 
