@@ -57,6 +57,7 @@ def test_measured_prompts_are_unchanged():
         ("swrbench", "review/v3"): "243f3e371087abb8",
         ("swrbench", "review/v4"): "3abe68a78ff83ab3",
         ("swrbench", "review/v5"): "368c076c6929b3e9",
+        ("halka", "review/v5"): "55503f6cb42618d0",
     }
     for (dataset, version), digest in pinned.items():
         actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
@@ -653,7 +654,7 @@ def test_halka_carries_the_repository_behind_the_diff():
 
 def test_with_repo_adds_the_unchanged_files_and_nothing_else():
     case = load_cases(DATASETS / "halka.eval.jsonl")[0]
-    lean, full = pack.build(case, "halka"), pack.build(case, "halka", with_repo=True)
+    lean, full = pack.build(case, "halka"), pack.build(case, "halka", context=("*",))
     assert lean.shown_lines == full.shown_lines, "changed-code accounting must not move"
     assert full.estimated_tokens > lean.estimated_tokens * 3
     assert lean.user in full.user or "# WHAT THIS PULL REQUEST CHANGED" in full.user
@@ -673,7 +674,7 @@ def test_the_anchor_filter_sees_the_repository_when_the_pack_does():
     )
     report = contract.Report(filename, line, "sql_injection", "t", 0.9, quote=text)
     assert anchor.resolve([report], case)[0].verdict == "unchecked"
-    assert anchor.resolve([report], case, with_repo=True)[0].verdict == "anchored"
+    assert anchor.resolve([report], case, context=("*",))[0].verdict == "anchored"
 
 
 def test_every_halka_type_is_defined_once():
@@ -748,3 +749,59 @@ def test_a_clean_run_is_marked_complete(tmp_path):
         "--run-id", "fine", "--out", str(tmp_path), "--quiet",
     ]) == 0
     assert json.loads((tmp_path / "fine" / "config.json").read_text())["complete"] is True
+
+
+def test_v6_widens_the_definition_to_the_corpus_taxonomy():
+    """halka_bench names correctness, maintainability, performance, naming and
+    configuration defects. The definition was written for the first alone, and
+    the model answered nothing at all on all seven pull requests it missed."""
+    v5 = prompt.system("halka", "review/v5")
+    v6 = prompt.system("halka", "review/v6")
+    assert "the new code will behave wrong -- not code that is merely" in v5
+    assert "the new code will behave wrong -- not code that is merely" not in v6
+    for shape in ("behave wrong *later*", "wastefully", "named against the repository",
+                  "configuration, packaging or a dependency list"):
+        assert shape in v6, shape
+    assert "Formatting and taste are still not defects" in v6
+
+
+def test_v6_narrows_the_clauses_that_covered_the_rest():
+    v6 = prompt.system("halka", "review/v6")
+    assert "Duplicating a block is not refactoring" in v6
+    assert "is not a preference, it is a contract" in v6
+
+
+def test_every_halka_finding_is_in_scope():
+    """The corpus marks eight types outside `birincil_kapsam`, but the reason is
+    the product's rule-id vocabulary, not the label."""
+    cases = load_cases(DATASETS / "halka.eval.jsonl")
+    labels = [label for case in cases for label in case.labels]
+    assert len(labels) == 49
+    assert all(label.in_scope and label.required for label in labels)
+
+
+def test_context_can_be_narrowed_to_a_pattern():
+    """Carrying everything was measured and lost, so the mechanism has to be able
+    to carry a little: the conventions doc is 560 tokens against the repo's
+    twelve thousand."""
+    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
+    doc = pack.build(case, "halka", context=("docs/*.md",))
+    everything = pack.build(case, "halka", context=("*",))
+    assert "# FILE docs/conventions.md   (unchanged)" in doc.user
+    assert doc.estimated_tokens < everything.estimated_tokens / 3
+    for filename in case.context_files:
+        if not filename.startswith("docs/"):
+            assert f"# FILE {filename}   (unchanged)" not in doc.user
+
+
+def test_a_narrowed_context_narrows_the_anchor_filter_too():
+    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
+    outside, line, text = next(
+        (name, n, row)
+        for name in sorted(case.context_files) if not name.startswith("docs/")
+        for n, row in enumerate(case.context_files[name].split("\n"), 1)
+        if len(row.strip()) > 24
+    )
+    report = contract.Report(outside, line, "sql_injection", "t", 0.9, quote=text)
+    assert anchor.resolve([report], case, context=("docs/*.md",))[0].verdict == "unchecked"
+    assert anchor.resolve([report], case, context=("*",))[0].verdict == "anchored"

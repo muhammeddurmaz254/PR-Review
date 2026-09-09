@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from typing import Sequence
 
 from schema import Case
@@ -197,7 +198,7 @@ def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     return out, shown
 
 
-def shown_lines(case: Case, with_repo: bool = False) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
+def shown_lines(case: Case, context: Sequence[str] = ()) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
     """Exactly what the pack prints, as ``(numbered, deleted)``.
 
     ``numbered`` maps file to line number to the texts printed at it. A list,
@@ -213,10 +214,11 @@ def shown_lines(case: Case, with_repo: bool = False) -> tuple[dict[str, dict[int
     deleted: dict[str, list[str]] = {}
     if case.head_files:
         sources = dict(case.head_files)
-        if with_repo:
+        if context:
             # The filter compares a quote against what was printed; leaving the
             # unchanged files out would reject every quote taken from them.
-            sources |= case.context_files
+            sources |= {name: text for name, text in case.context_files.items()
+                        if any(fnmatch(name, pattern) for pattern in context)}
         for filename, source in sources.items():
             rows, _ = _numbered(source, case.added_lines.get(filename, frozenset()))
             numbered[filename] = {int(row[:5]): [row.split("| ", 1)[-1]] for row in rows}
@@ -244,22 +246,25 @@ def _preamble(case: Case, part: int, parts: int) -> list[str]:
 
 
 def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
-          with_repo: bool = False) -> Pack:
+          context: Sequence[str] = ()) -> Pack:
     """The whole pull request in one call."""
-    return split(case, dataset, version, max_lines=0, with_repo=with_repo)[0]
+    return split(case, dataset, version, max_lines=0, context=context)[0]
 
 
-def _repo_section(case: Case) -> list[str]:
-    """The rest of the repository at head, unchanged, after the diff.
+def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
+    """Unchanged files from the repository at head, after the diff.
 
-    Two thirds of halka_bench's defects are only legible against a convention its
-    base branch establishes somewhere the pull request never opens -- a predicate
-    a sibling endpoint uses, a unit contract in a common module. Carrying the
-    repository is not a retrieval strategy; it is the ceiling a retrieval
-    strategy would be measured against, and it fits here because the repository
-    is fifty-nine files.
+    Carrying *everything* was measured and lost: rung 1 on halka_bench scored
+    worse than the diff alone on every metric, gaining the two defect types that
+    need the repository and losing four that were visible in the change. A fixed
+    attention budget spread over twenty-seven thousand tokens stops seeing the
+    diff. So the whole repository is the ceiling a retrieval policy is bounded
+    by, not a policy -- and since the ceiling is below the floor, a policy can
+    only win by being narrow. ``patterns`` is how narrow.
     """
-    if not case.context_files:
+    chosen = {name: text for name, text in case.context_files.items()
+              if any(fnmatch(name, pattern) for pattern in patterns)}
+    if not chosen:
         return []
     body = [
         "# THE REST OF THE REPOSITORY",
@@ -270,14 +275,14 @@ def _repo_section(case: Case) -> list[str]:
         "Do not report a defect in them -- report only what this pull request does.",
         "",
     ]
-    for filename in sorted(case.context_files):
-        rows, _ = _numbered(case.context_files[filename], frozenset())
+    for filename in sorted(chosen):
+        rows, _ = _numbered(chosen[filename], frozenset())
         body += [f"# FILE {filename}   (unchanged)", "", "```"] + rows + ["```", ""]
     return body
 
 
 def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
-          max_lines: int = 0, with_repo: bool = False) -> list[Pack]:
+          max_lines: int = 0, context: Sequence[str] = ()) -> list[Pack]:
     """The pull request as one pack, or as several when it is large.
 
     Measured on SWRBench: the model's output volume tracks the size of the pack
@@ -296,14 +301,14 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
     if case.head_files:
         body = _preamble(case, 1, 1)
         shown = 0
-        body += ["# WHAT THIS PULL REQUEST CHANGED", ""] if with_repo else []
+        body += ["# WHAT THIS PULL REQUEST CHANGED", ""] if context else []
         for filename in sorted(case.head_files):
             added = case.added_lines.get(filename, frozenset())
             code, count = _numbered(case.head_files[filename], added)
             shown += count
             body += [f"# FILE {filename}", "", "```"] + code + ["```", ""]
-        if with_repo:
-            body += _repo_section(case)
+        if context:
+            body += _repo_section(case, context)
         return [Pack(case.case_id, system, "\n".join(body), shown)]
 
     hunks = emitted_hunks(case.diff)

@@ -16,10 +16,10 @@ asserts nothing per-case leaks into it.
 """
 from __future__ import annotations
 
-# The default is the best measured version. v5 leads every metric -- balanced
-# accuracy 64.6%, F1 0.217, eleven of twenty-five located -- and does it with
-# fewer reports than v4, not more.
-PROMPT_VERSION = "review/v5"
+# The default is the best measured version. On halka_bench, where the project now
+# measures, that is v6: F1 0.808 against v5's 0.804, forty-three of forty-nine
+# located, and the widest definition of a defect any version has carried.
+PROMPT_VERSION = "review/v6"
 
 # A second axis alongside the taxonomy: the two corpora are printed differently,
 # and describing the wrong shape is worse than describing none. demo_repo shows
@@ -408,17 +408,70 @@ is about the expression, not the file it is in -- and an `except` that swallows 
 rather than re-raises is a defect, not a false alarm.""",
 )
 
+# v6 widens what counts as a defect. Measured on halka_bench: the model reported
+# *nothing at all* on all seven pull requests it missed -- not a wrong line, no
+# line -- and five of the seven are kinds its own definition excludes. The
+# instructions say a defect is "a place where the new code will behave wrong",
+# and a misleading name, a duplicated config value, a duplicated test block, a
+# query in a loop and the same computation done twice all behave correctly. The
+# suppression list then names "refactoring with no behaviour change" and
+# "anything you would raise as a preference", which reads as the rest of them.
+# The remaining two live in a requirements file and a settings tuple, which do
+# not read as code at all.
+#
+# halka_bench's taxonomy spans correctness, maintainability, performance, naming
+# and configuration. The definition was written for one of those five.
+
+DEFECT_SCOPE = """\
+A defect is a place this change makes worse and a reviewer would ask to fix. \
+Most are about behaviour: the new code will do the wrong thing when it runs. \
+Not all of them are, and these count too:
+
+- it will behave wrong *later*, when something else changes -- a value copied \
+away from the single source that documents it, a block duplicated so that one \
+contract now has to be remembered in two places;
+- it does the right thing wastefully -- the same expensive call twice in one \
+flow, or one query per row where a batch call already exists;
+- it is named against the repository's own convention, so callers read it \
+wrongly even though it runs correctly;
+- it is in configuration, packaging or a dependency list rather than in code -- \
+a package moved out of the runtime requirements, a host dropped from an \
+allow-list the code still reaches for.
+
+Formatting and taste are still not defects, and neither is code that is merely \
+unusual or unfinished.
+"""
+
+INSTRUCTIONS_V6 = INSTRUCTIONS_V5.replace(
+    """\
+Read the change against what the title says it does. A defect is a place where \
+the new code will behave wrong -- not code that is merely unusual, unfinished or \
+differently styled.
+""",
+    "Read the change against what the title says it does.\n\n" + DEFECT_SCOPE,
+).replace(
+    "- Refactoring with no behaviour change, and removal of code nothing calls. But",
+    "- Refactoring that leaves one copy of the logic, and removal of code nothing "
+    "calls. Duplicating a block is not refactoring. But",
+).replace(
+    "- Anything you would raise as a preference rather than a defect. A guard is not",
+    "- Anything you would raise as a preference rather than a defect -- but a rule "
+    "this repository already follows in several places is not a preference, it is "
+    "a contract. A guard is not",
+)
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
     "review/v3": (INSTRUCTIONS_V3, TAXONOMIES_V3),
     "review/v4": (INSTRUCTIONS_V4, TAXONOMIES_V3),
     "review/v5": (INSTRUCTIONS_V5, TAXONOMIES_V3),
+    "review/v6": (INSTRUCTIONS_V6, TAXONOMIES_V3),
 }
 
 # Which versions ask for the quote, so the schema and the filter agree without
 # either of them guessing from the version string.
-QUOTED = frozenset({"review/v4", "review/v5"})
+QUOTED = frozenset({"review/v4", "review/v5", "review/v6"})
 
 
 def types(dataset: str) -> list[str]:

@@ -116,8 +116,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--resume", action="store_true",
                         help="reuse the answers already in the run directory and ask only "
                              "for the packs still missing")
+    parser.add_argument("--context", action="append", default=[], metavar="GLOB",
+                        help="carry unchanged files matching this pattern (repeatable). "
+                             "Everything ('*') was measured and lost; narrow wins or nothing does")
     parser.add_argument("--with-repo", action="store_true",
-                        help="carry the unchanged files too, where the corpus ships a checkout")
+                        help="shorthand for --context '*'")
     parser.add_argument("--max-pack-lines", type=int, default=0,
                         help="split a pull request larger than this into excerpts; 0 never splits")
     parser.add_argument("--max-findings", type=int, default=3,
@@ -149,9 +152,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     types = prompt.types(args.dataset)
     quoted = args.prompt_version in prompt.QUOTED
     schema = contract.response_schema(types, quote=quoted)
+    context = tuple(args.context) or (("*",) if args.with_repo else ())
     packs = [item for case in cases
              for item in pack.split(case, args.dataset, args.prompt_version,
-                                    args.max_pack_lines, args.with_repo)]
+                                    args.max_pack_lines, context)]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
@@ -253,7 +257,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             dropped += len(found) - len(kept)
             predictions.extend(to_predictions(case_id, kept))
             if quoted:
-                verdicts = anchor_module.resolve(kept, by_case[case_id], with_repo=args.with_repo)
+                verdicts = anchor_module.resolve(kept, by_case[case_id], context=context)
                 anchored.extend(to_predictions(case_id, anchor_module.apply(verdicts)))
                 decisions.extend({
                     "case_id": case_id, "file": v.report.file,
@@ -288,7 +292,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
         "max_pack_lines": args.max_pack_lines, "packs": len(packs),
-        "with_repo": args.with_repo, "reused_answers": len(done),
+        "context": list(context), "reused_answers": len(done),
         # A run that lost its server two thirds of the way through still writes
         # every artefact, because that is what --resume reads. It must not also
         # look finished: the tunnel died at call 28 of 110 once and the run

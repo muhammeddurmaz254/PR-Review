@@ -53,9 +53,9 @@ class Decision:
 
 
 def resolve(reports: Sequence[contract.Report], case: Case, min_quote: int = 4,
-            with_repo: bool = False) -> list[Decision]:
+            context: Sequence[str] = ()) -> list[Decision]:
     """One decision per report, in order."""
-    numbered, deleted = pack_module.shown_lines(case, with_repo)
+    numbered, deleted = pack_module.shown_lines(case, context)
     decisions: list[Decision] = []
     for report in reports:
         quote = normalise(report.quote)

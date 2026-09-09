@@ -18,10 +18,16 @@ branch -- a predicate a sibling endpoint uses, a unit contract in
 ``common/money.py``, a docstring on a selector the pull request never opens.
 Shipping only the diff would make them unreachable by construction.
 
-**Scope comes from the taxonomy, not from this file.** ``taxonomy.json`` marks
-each type ``birincil_kapsam``; the eight types outside it are the ones the
-product cannot express one to one, and they are exported in_scope=false so a
-detector that finds them is neither rewarded nor punished.
+**Every label is in scope.** ``taxonomy.json`` marks eight types outside
+``birincil_kapsam``, but the reason is the *product's* rule-id vocabulary, not
+the label: ``karsiliksiz`` means the existing static analyser has no id for the
+type, and ``paylasimli`` means its id is shared so a match to the product is
+ambiguous. Neither applies to a detector scored against the corpus's own ``tur``
+field, which is unique. Excluding them dropped eleven real defects -- SSRF,
+unsafe deserialization, a secret in a log, a missing lock -- from a measurement
+that has nothing to do with the product's vocabulary. The corpus's own
+classification is carried through on each finding so the product-facing view
+stays reconstructible.
 """
 from __future__ import annotations
 
@@ -108,7 +114,7 @@ def build(bench: Path, out_path: Path, keep_context: bool = True) -> int:
             kind = defect["tur"]
             meta = taxonomy.get(kind, {})
             where = defect["konum"]
-            in_scope = bool(meta.get("birincil_kapsam"))
+            in_scope = True
             findings.append({
                 "finding_id": f"{case_id}-f{index}",
                 "type": kind,
@@ -125,6 +131,12 @@ def build(bench: Path, out_path: Path, keep_context: bool = True) -> int:
                 "focus_start": where["baslangic_satiri"],
                 "focus_end": where["bitis_satiri"],
                 "anchor_rule": defect.get("kapsam_turu", ""),
+                # The corpus's product-facing classification, kept but not used
+                # for scope: `birincil_kapsam` and `eslesme_sinifi` describe what
+                # the existing analyser can express, not what a defect is.
+                "product_scope": bool(meta.get("birincil_kapsam")),
+                "product_match_class": defect.get("eslesme_sinifi", ""),
+                "rule_ids": defect.get("kural_kimlikleri", []),
                 "anchor_text": "\n".join(where.get("capa_metni", [])),
                 "title": defect.get("gerekce", ""),
                 "in_diff": True,
