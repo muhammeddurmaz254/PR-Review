@@ -49,24 +49,48 @@ code whose callers, callees and remaining file are not shown; not being able to 
 confirm a claim is not the same as refuting it, and "stands" is the answer \
 whenever the excerpt is merely insufficient.
 
-Reply with JSON only:
+Reply with JSON only, and **in this order**:
 
-{"verdict": "stands", "quote": "", "reason": "..."}
+{"reason": "...", "quote": "", "verdict": "supports"}
 
-- `verdict` is `stands` or `refuted`.
-- `quote` is the text from the excerpt that contradicts the claim, copied \
-exactly. Required to refute; leave it empty when the claim stands.
-- `reason` is one short clause, under fifteen words.
+- `reason` comes first, and it is where you work: say what the lines actually \
+do, in one short clause.
+- `quote` is text copied exactly from the excerpt. Required when the verdict is \
+`contradicts`; otherwise leave it empty.
+- `verdict` comes last and names what your own reason just said about the \
+excerpt:
+  - `supports` -- the lines show what the claim describes. Use this whenever \
+your reason confirms the claim, even partly.
+  - `contradicts` -- the lines show the opposite of the claim: the argument it \
+says is missing is there, the call it names does something else.
+  - `does_not_settle` -- the lines neither show it nor rule it out.
+
+Only `contradicts` removes the claim. If your reason ends by agreeing with the \
+claim, the verdict is `supports`, never `contradicts`.
 """
 
+# Two things here were measured, not designed.
+#
+# Field order: constrained decoding emits properties in schema order, and with
+# thinking disabled that order is the only room the model has. With `verdict`
+# first it voted then explained; reason first produced visibly better readings.
+#
+# The values: `stands`/`refuted` was worse than useless. Reason-first raised the
+# refutations from six to twenty and nine of those twenty carried a reason that
+# *agreed* with the claim -- "explicitly assigns the string literal ... which
+# constitutes a hardcoded credential", verdict `refuted`. The model read well and
+# inverted the vote, because "refuted" reads as "I have something to say about
+# this line". So the enum no longer contains a negation: each value names what
+# the excerpt does, and only one of them removes a finding.
 VERDICT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "verdict": {"type": "string", "enum": ["stands", "refuted"]},
-        "quote": {"type": "string"},
         "reason": {"type": "string"},
+        "quote": {"type": "string"},
+        "verdict": {"type": "string",
+                    "enum": ["supports", "contradicts", "does_not_settle"]},
     },
-    "required": ["verdict", "quote", "reason"],
+    "required": ["reason", "quote", "verdict"],
     "additionalProperties": False,
 }
 
@@ -121,10 +145,12 @@ def parse(text: str) -> tuple[str, str, str]:
         return "stands", "", "unparseable verdict"
     if not isinstance(document, dict):
         return "stands", "", "verdict was not an object"
-    verdict = str(document.get("verdict", "stands")).strip().lower()
+    verdict = str(document.get("verdict", "supports")).strip().lower()
     quote = str(document.get("quote", "") or "")
     reason = str(document.get("reason", "") or "")
-    if verdict != "refuted":
+    # Only an explicit contradiction removes a finding; every other answer,
+    # including one this parser does not recognise, keeps it.
+    if verdict != "contradicts":
         return "stands", quote, reason
     return "refuted", quote, reason
 

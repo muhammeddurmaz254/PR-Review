@@ -436,6 +436,29 @@ def test_the_challenge_prompt_defaults_to_keeping_the_finding():
     assert "Quote the exact text" in text
 
 
+def test_the_verdict_is_decoded_after_the_reason():
+    """Constrained decoding emits properties in schema order, and with thinking
+    off that order is the only place the model can work. Measured with the
+    verdict first: two of the three true positives it killed carried a reason
+    that confirmed the claim the verdict had already rejected."""
+    fields = list(challenge.VERDICT_SCHEMA["properties"])
+    assert fields == ["reason", "quote", "verdict"]
+    assert challenge.VERDICT_SCHEMA["required"] == fields
+    assert "`verdict` comes last" in challenge.SYSTEM
+
+
+def test_no_verdict_value_is_a_negation():
+    """`refuted` was read as "I have something to say about this line": nine of
+    twenty refutations carried a reason that agreed with the claim. Each value
+    now names what the excerpt does, and only one of them removes a finding."""
+    values = challenge.VERDICT_SCHEMA["properties"]["verdict"]["enum"]
+    assert values == ["supports", "contradicts", "does_not_settle"]
+    for value in ("supports", "does_not_settle", "anything-unrecognised", ""):
+        assert challenge.parse(json.dumps({"verdict": value, "quote": "x", "reason": "r"}))[0] == "stands"
+    assert challenge.parse(json.dumps(
+        {"verdict": "contradicts", "quote": "x", "reason": "r"}))[0] == "refuted"
+
+
 def test_the_excerpt_carries_the_detector_line_numbers(dataset):
     """The claim names a line; an excerpt renumbered against it proves nothing."""
     cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
