@@ -113,6 +113,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     # thirty and moved no metric, because the per-pull-request cap was already
     # discarding exactly that surplus at no extra call. Kept for the case it
     # does serve -- bounding the prompt when the context window is small.
+    parser.add_argument("--resume", action="store_true",
+                        help="reuse the answers already in the run directory and ask only "
+                             "for the packs still missing")
+    parser.add_argument("--with-repo", action="store_true",
+                        help="carry the unchanged files too, where the corpus ships a checkout")
     parser.add_argument("--max-pack-lines", type=int, default=0,
                         help="split a pull request larger than this into excerpts; 0 never splits")
     parser.add_argument("--max-findings", type=int, default=3,
@@ -145,7 +150,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     quoted = args.prompt_version in prompt.QUOTED
     schema = contract.response_schema(types, quote=quoted)
     packs = [item for case in cases
-             for item in pack.split(case, args.dataset, args.prompt_version, args.max_pack_lines)]
+             for item in pack.split(case, args.dataset, args.prompt_version,
+                                    args.max_pack_lines, args.with_repo)]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
@@ -153,6 +159,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     run_id = args.run_id or f"{stamp}_{args.dataset}_{slug}_{version_slug}"
     run_dir = args.out / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
+
+    # A corpus run against a rented card is long enough that the tunnel outlives
+    # it only sometimes: rung 1 on halka_bench is 110 calls at two minutes each,
+    # and it has been lost twice at thirteen. Answers already on disk are reused
+    # rather than paid for again -- but only when the prompt behind them is the
+    # same text, because a run stitched from two prompts is worse than no run.
+    done: dict[tuple[str, int], dict] = {}
+    if args.resume and (run_dir / "responses.jsonl").exists():
+        stored = run_dir / "system_prompt.txt"
+        if stored.exists() and stored.read_text(encoding="utf-8") != packs[0].system:
+            raise SystemExit(
+                f"{run_dir} was written under a different system prompt; "
+                f"resume would mix two. Use a new --run-id."
+            )
+        for line in (run_dir / "responses.jsonl").read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                done[(row["case_id"], row.get("part", 1))] = row
 
     (run_dir / "packs.jsonl").write_text("".join(
         json.dumps({
@@ -176,8 +200,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     # pull request must not multiply that.
     harvest: dict[str, list[contract.Report]] = {case.case_id: [] for case in cases}
     if detector is not None:
-        with (run_dir / "responses.jsonl").open("w", encoding="utf-8", newline="\n") as handle:
+        mode = "a" if done else "w"
+        with (run_dir / "responses.jsonl").open(mode, encoding="utf-8", newline="\n") as handle:
             for index, item in enumerate(packs, start=1):
+                stored = done.get((item.case_id, item.part))
+                if stored is not None and not stored.get("error"):
+                    reports, bad = contract.parse(stored["text"])
+                    harvest[item.case_id].extend(reports)
+                    responses.append(client_module.Response(
+                        text=stored["text"],
+                        prompt_tokens=int(stored.get("prompt_tokens", 0)),
+                        completion_tokens=int(stored.get("completion_tokens", 0)),
+                        duration_ms=int(stored.get("duration_ms", 0)),
+                    ))
+                    continue
                 response = detector.complete(item.system, item.user, schema)
                 responses.append(response)
                 failures += bool(response.error)
@@ -209,7 +245,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             dropped += len(found) - len(kept)
             predictions.extend(to_predictions(case_id, kept))
             if quoted:
-                verdicts = anchor_module.resolve(kept, by_case[case_id])
+                verdicts = anchor_module.resolve(kept, by_case[case_id], with_repo=args.with_repo)
                 anchored.extend(to_predictions(case_id, anchor_module.apply(verdicts)))
                 decisions.extend({
                     "case_id": case_id, "file": v.report.file,
@@ -243,6 +279,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
         "max_pack_lines": args.max_pack_lines, "packs": len(packs),
+        "with_repo": args.with_repo, "reused_answers": len(done),
         "anchors": (Counter(row["verdict"] for row in decisions) if quoted else None),
         "detectors": [DETECTOR],
         "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
@@ -265,6 +302,8 @@ def main(argv: Sequence[str] | None = None) -> int:
               + (f" | measured mean {cost['measured_prompt_tokens_mean']} "
                  f"max {cost['measured_prompt_tokens_max']}"
                  if "measured_prompt_tokens_mean" in cost else ""))
+        if done:
+            print(f"reused {len(done)} answer(s) already on disk")
         if dropped:
             print(f"dropped over the {args.max_findings}-per-PR cap: {dropped}")
         if quoted:

@@ -25,7 +25,7 @@ from detect import anchor, challenge, contract, pack, prompt
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
 
-@pytest.fixture(scope="session", params=["demo_repo", "swrbench"])
+@pytest.fixture(scope="session", params=["demo_repo", "swrbench", "halka"])
 def dataset(request) -> str:
     return request.param
 
@@ -628,3 +628,76 @@ def test_v5_narrows_the_two_clauses_that_silenced_it():
 def test_v5_still_asks_for_the_quote():
     assert "review/v5" in prompt.QUOTED
     assert "`quote` is the code on that line" in prompt.system("swrbench", "review/v5")
+
+
+def test_halka_carries_the_repository_behind_the_diff():
+    """Thirty-three of forty-nine defects are only legible against code the pull
+    request does not touch; a pack without it cannot reach them."""
+    cases = load_cases(DATASETS / "halka.eval.jsonl")
+    assert all(case.context_files for case in cases)
+    for case in cases:
+        assert not (set(case.context_files) & set(case.head_files)), case.case_id
+
+
+def test_with_repo_adds_the_unchanged_files_and_nothing_else():
+    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
+    lean, full = pack.build(case, "halka"), pack.build(case, "halka", with_repo=True)
+    assert lean.shown_lines == full.shown_lines, "changed-code accounting must not move"
+    assert full.estimated_tokens > lean.estimated_tokens * 3
+    assert lean.user in full.user or "# WHAT THIS PULL REQUEST CHANGED" in full.user
+    for filename in case.context_files:
+        assert f"# FILE {filename}   (unchanged)" in full.user
+        assert filename not in lean.user
+
+
+def test_the_anchor_filter_sees_the_repository_when_the_pack_does():
+    """Otherwise every quote taken from an unchanged file is called invented."""
+    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
+    filename, line, text = next(
+        (name, n, row)
+        for name in sorted(case.context_files)
+        for n, row in enumerate(case.context_files[name].split("\n"), 1)
+        if len(row.strip()) > 24
+    )
+    report = contract.Report(filename, line, "sql_injection", "t", 0.9, quote=text)
+    assert anchor.resolve([report], case)[0].verdict == "unchecked"
+    assert anchor.resolve([report], case, with_repo=True)[0].verdict == "anchored"
+
+
+def test_every_halka_type_is_defined_once():
+    assert len(prompt.HALKA_TYPES) == 41
+    text = prompt.system("halka", "review/v5")
+    for name in prompt.HALKA_TYPES:
+        assert f"`{name}`" in text, name
+
+
+def test_resume_refuses_to_mix_two_prompts(tmp_path):
+    """A run stitched from two prompt versions is worse than no run."""
+    import run_detect
+    run_dir = tmp_path / "half"
+    run_dir.mkdir()
+    (run_dir / "system_prompt.txt").write_text("a prompt this run was not made under\n")
+    (run_dir / "responses.jsonl").write_text(
+        json.dumps({"case_id": "x", "part": 1, "text": '{"findings": []}'}) + "\n")
+    with pytest.raises(SystemExit) as raised:
+        run_detect.main([
+            "--dataset", "halka", "--stub", "silent", "--resume",
+            "--run-id", "half", "--out", str(tmp_path), "--quiet",
+        ])
+    assert "different system prompt" in str(raised.value)
+
+
+def test_resume_reuses_the_answers_already_on_disk(tmp_path):
+    import run_detect
+    args = ["--dataset", "halka", "--stub", "silent", "--limit", "4",
+            "--run-id", "part", "--out", str(tmp_path), "--quiet"]
+    run_detect.main(args)
+    first = (tmp_path / "part" / "responses.jsonl").read_text().splitlines()
+    assert len(first) == 4
+
+    # Truncate to two answers, then resume: the two survivors are not re-asked.
+    (tmp_path / "part" / "responses.jsonl").write_text("\n".join(first[:2]) + "\n")
+    run_detect.main(args + ["--resume"])
+    manifest = json.loads((tmp_path / "part" / "config.json").read_text())
+    assert manifest["reused_answers"] == 2
+    assert len((tmp_path / "part" / "responses.jsonl").read_text().splitlines()) == 4

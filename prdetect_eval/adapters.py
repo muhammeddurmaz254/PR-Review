@@ -60,7 +60,8 @@ def load_cases(path: Path = DEFAULT_EVAL) -> list[Case]:
             changed_files=tuple(row["changed_files"]), noise_files=tuple(row.get("noise_files", [])),
             deleted_files=tuple(row.get("deleted_files", [])),
             added_lines={name: frozenset(lines) for name, lines in row["added_lines"].items()},
-            head_files=dict(row["head_files"]), diff=row["diff"],
+            head_files=dict(row["head_files"]),
+            context_files=dict(row.get("context_files", {})), diff=row["diff"],
             labels=tuple(_label(finding, case_id) for finding in row["findings"]),
             distractors=tuple(
                 Distractor(Span(d["file"], d["start_line"], d["end_line"]), d.get("looks_like", ""), d.get("why_not", ""))

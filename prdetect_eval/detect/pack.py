@@ -197,7 +197,7 @@ def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     return out, shown
 
 
-def shown_lines(case: Case) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
+def shown_lines(case: Case, with_repo: bool = False) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
     """Exactly what the pack prints, as ``(numbered, deleted)``.
 
     ``numbered`` maps file to line number to the texts printed at it. A list,
@@ -212,7 +212,12 @@ def shown_lines(case: Case) -> tuple[dict[str, dict[int, list[str]]], dict[str, 
     numbered: dict[str, dict[int, list[str]]] = {}
     deleted: dict[str, list[str]] = {}
     if case.head_files:
-        for filename, source in case.head_files.items():
+        sources = dict(case.head_files)
+        if with_repo:
+            # The filter compares a quote against what was printed; leaving the
+            # unchanged files out would reject every quote taken from them.
+            sources |= case.context_files
+        for filename, source in sources.items():
             rows, _ = _numbered(source, case.added_lines.get(filename, frozenset()))
             numbered[filename] = {int(row[:5]): [row.split("| ", 1)[-1]] for row in rows}
         return numbered, deleted
@@ -238,13 +243,41 @@ def _preamble(case: Case, part: int, parts: int) -> list[str]:
     return body + [""]
 
 
-def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION) -> Pack:
+def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
+          with_repo: bool = False) -> Pack:
     """The whole pull request in one call."""
-    return split(case, dataset, version, max_lines=0)[0]
+    return split(case, dataset, version, max_lines=0, with_repo=with_repo)[0]
+
+
+def _repo_section(case: Case) -> list[str]:
+    """The rest of the repository at head, unchanged, after the diff.
+
+    Two thirds of halka_bench's defects are only legible against a convention its
+    base branch establishes somewhere the pull request never opens -- a predicate
+    a sibling endpoint uses, a unit contract in a common module. Carrying the
+    repository is not a retrieval strategy; it is the ceiling a retrieval
+    strategy would be measured against, and it fits here because the repository
+    is fifty-nine files.
+    """
+    if not case.context_files:
+        return []
+    body = [
+        "# THE REST OF THE REPOSITORY",
+        "",
+        "These files are not changed by this pull request. They are here because "
+        "a change is judged against the code around it: the conventions this "
+        "repository already follows are stated by these files, not by the diff. "
+        "Do not report a defect in them -- report only what this pull request does.",
+        "",
+    ]
+    for filename in sorted(case.context_files):
+        rows, _ = _numbered(case.context_files[filename], frozenset())
+        body += [f"# FILE {filename}   (unchanged)", "", "```"] + rows + ["```", ""]
+    return body
 
 
 def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
-          max_lines: int = 0) -> list[Pack]:
+          max_lines: int = 0, with_repo: bool = False) -> list[Pack]:
     """The pull request as one pack, or as several when it is large.
 
     Measured on SWRBench: the model's output volume tracks the size of the pack
@@ -263,11 +296,14 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
     if case.head_files:
         body = _preamble(case, 1, 1)
         shown = 0
+        body += ["# WHAT THIS PULL REQUEST CHANGED", ""] if with_repo else []
         for filename in sorted(case.head_files):
             added = case.added_lines.get(filename, frozenset())
             code, count = _numbered(case.head_files[filename], added)
             shown += count
             body += [f"# FILE {filename}", "", "```"] + code + ["```", ""]
+        if with_repo:
+            body += _repo_section(case)
         return [Pack(case.case_id, system, "\n".join(body), shown)]
 
     hunks = emitted_hunks(case.diff)

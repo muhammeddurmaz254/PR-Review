@@ -101,7 +101,8 @@ numbering restarts from that commit's view, so answer with the numbers printed \
 in the excerpt you are pointing at.
 """
 
-FORMATS = {"demo_repo": WHOLE_FILE_FORMAT, "swrbench": HUNK_FORMAT}
+FORMATS = {"demo_repo": WHOLE_FILE_FORMAT, "swrbench": HUNK_FORMAT,
+           "halka": WHOLE_FILE_FORMAT}
 
 
 # v2 changes one thing: where the precision/recall trade-off is made. It was
@@ -233,8 +234,78 @@ SWRBENCH_TYPES_V3 = {
                    "do not have.",
 }
 
-TAXONOMIES = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES}
-TAXONOMIES_V3 = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES_V3}
+
+# halka_bench names forty-one kinds, thirty-three of them in primary scope. The
+# definitions are the corpus's own, translated: it grounds each one in a
+# convention its base branch establishes in more than one place, and v3 measured
+# what happens when a catalogue is written from what the words suggest instead.
+#
+# Its repository is small enough to carry whole -- fifty-nine files, about twelve
+# thousand tokens -- and two thirds of its defects are only legible against code
+# the pull request does not touch. That is what `--with-repo` is for.
+
+HALKA_TYPES = {
+    "missing_authz_check": "A mutation or object access is guarded by a weaker permission "
+                           "predicate than its siblings use for the same kind of operation.",
+    "crossfile_ownership": "A query does not scope to the tenant; the scoping contract is "
+                           "shared between the caller and the query and one side dropped it.",
+    "crossfile_data_exposure": "Serialization bypasses the closed field list and sends "
+                               "sensitive columns to the client.",
+    "crossfile_error_propagation": "A failure the callee reports is swallowed by the caller "
+                                   "and reported as success.",
+    "crossfile_idempotency": "The idempotency key changes on every run, so the duplicate "
+                             "guard never engages.",
+    "crossfile_ordering": "An ordering guarantee the consumer depends on was removed on the "
+                          "producer side.",
+    "crossfile_unit_mismatch": "A value is passed in a different unit from the one the callee "
+                               "expects.",
+    "sql_injection": "User data is concatenated into SQL text.",
+    "command_injection": "User data is concatenated into shell command text.",
+    "xss": "User data is written unescaped into an HTML response.",
+    "error_detail_disclosure": "Exception text or a stack trace is put into the client response.",
+    "hardcoded_credential": "A secret value is written into the source.",
+    "weak_crypto_primitive": "A broken digest, predictable randomness, or a secret compared in "
+                             "non-constant time.",
+    "unvalidated_passthrough": "Request data is forwarded as-is into a call that expects "
+                               "validated input.",
+    "wrong_argument": "Arguments are passed to a call in the wrong order or the wrong role.",
+    "wrong_data_source": "A value is read from a cache the repository documents as able to go "
+                         "stale; the authority is elsewhere.",
+    "wrong_state_check": "A state comparison is made against a value the state machine does "
+                         "not contain.",
+    "silent_overwrite": "A write clobbers existing fields instead of merging them.",
+    "unreachable_code": "Statements control flow can never reach.",
+    "unused_symbol": "A symbol is defined and referenced from nowhere.",
+    "misleading_name": "A name describes the behaviour wrongly by the repository's own naming "
+                       "convention.",
+    "duplicated_block": "A copy of a block that already exists in the repository.",
+    "duplicated_config": "A second copy of a configuration value documented as single-source.",
+    "duplicated_test_block": "A copy of an existing test block.",
+    "broad_except": "An exception type far wider than the failure being handled is caught.",
+    "swallowed_exception": "An exception is caught and neither logged nor reported to the caller.",
+    "unclosed_resource": "An opened resource is not closed by a `with` block or a `close` call.",
+    "redundant_work": "The same expensive computation is done more than once in one flow.",
+    "work_in_loop": "A query with a batch alternative is run one row at a time inside a loop.",
+    "removed_dependency": "A package imported at runtime was dropped from the runtime "
+                          "dependency list.",
+    "removed_network_config": "A network target the code still uses was removed from "
+                              "configuration.",
+    "missing_assertion": "A test asserts nothing.",
+    "hardcoded_endpoint": "A test uses a literal path string instead of the URL map.",
+    "null_deref": "The result of a call that can return None is used unchecked.",
+    "off_by_one": "A pagination offset breaks the repository's one-based page contract.",
+    "unguarded_dict_access": "Unguarded dictionary access with a key that came from outside.",
+    "missing_lock": "A read-modify-write runs without the repository's locking contract.",
+    "secret_in_log": "A raw secret is written to the log stream in clear text.",
+    "ssrf_unvalidated_fetch": "A user-controlled address is fetched, bypassing the allow-list gate.",
+    "unsafe_deserialization": "Untrusted data is handed to a loader that can execute code.",
+    "divergent_change": "A module is changed for unrelated reasons.",
+}
+
+TAXONOMIES = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES,
+              "halka": HALKA_TYPES}
+TAXONOMIES_V3 = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES_V3,
+                 "halka": HALKA_TYPES}
 
 # Two clauses of the shared instructions contradict what the SWRBench labels
 # actually are, and both suppress a category the model then never uses.

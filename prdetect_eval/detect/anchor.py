@@ -52,9 +52,10 @@ class Decision:
         return self.verdict != "unsupported"
 
 
-def resolve(reports: Sequence[contract.Report], case: Case, min_quote: int = 4) -> list[Decision]:
+def resolve(reports: Sequence[contract.Report], case: Case, min_quote: int = 4,
+            with_repo: bool = False) -> list[Decision]:
     """One decision per report, in order."""
-    numbered, deleted = pack_module.shown_lines(case)
+    numbered, deleted = pack_module.shown_lines(case, with_repo)
     decisions: list[Decision] = []
     for report in reports:
         quote = normalise(report.quote)

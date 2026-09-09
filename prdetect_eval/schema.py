@@ -205,6 +205,11 @@ class Case:
     deleted_files: tuple[str, ...]
     added_lines: dict[str, frozenset[int]]
     head_files: dict[str, str]
+    # The rest of the repository at head, when a checkout exists. Two thirds of
+    # halka_bench's defects are defined against code the pull request does not
+    # touch, so a corpus that ships only the changed files puts most of its own
+    # ground truth out of reach. Empty for the diff-only corpora.
+    context_files: dict[str, str]
     diff: str
     labels: tuple[Label, ...]
     distractors: tuple[Distractor, ...]
