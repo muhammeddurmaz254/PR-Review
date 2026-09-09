@@ -5,3 +5,5 @@ datas
 PLAN.md
 halka_bench/
 *.ipynb
+
+prdetect_eval/datasets/*.eval.jsonl
