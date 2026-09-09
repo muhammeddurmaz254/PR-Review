@@ -160,20 +160,29 @@ def parse(payload: str) -> tuple[list[Report], list[Reject]]:
 
 
 def dedupe(reports: Sequence[Report]) -> list[Report]:
-    """One report per (file, line, type), keeping the most confident.
+    """One report per line, keeping the most confident.
 
-    Measured: a run reported the same line of the same file under the same type
-    twice, quoting the same `pass`, and it was counted as two false alarms. The
-    model has no memory between findings in one answer and the schema cannot
-    forbid a repeat, so the pipeline has to.
+    The justification is the product rule, not the measurement: a review bot that
+    leaves two comments on one line is worse to read than one, whatever it found.
+    That can be argued before seeing any data, which is what separates it from a
+    rule fitted to the answers.
+
+    The measurement only checks the price. Across 188 cases of three corpora it
+    fires exactly once -- on a line the model named twice under two types, one
+    matching the label and one not -- and it removes no true positive anywhere.
+    So the gain is a single false alarm, which is noise; the reason to keep it is
+    that it costs nothing and the alternative is a worse comment thread.
+
+    The cost it *could* have: two genuinely different defects on one line become
+    one report. None occurs in these corpora, and a reviewer told about the line
+    will see both.
     """
-    best: dict[tuple[str, int, str], Report] = {}
+    best: dict[tuple[str, int], Report] = {}
     for report in reports:
-        key = (report.file, report.line, report.type)
+        key = (report.file, report.line)
         if key not in best or report.confidence > best[key].confidence:
             best[key] = report
-    return [report for report in reports if best.get(
-        (report.file, report.line, report.type)) is report]
+    return [report for report in reports if best.get((report.file, report.line)) is report]
 
 
 def cap(reports: Sequence[Report], limit: int) -> list[Report]:

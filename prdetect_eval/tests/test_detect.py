@@ -830,17 +830,19 @@ def test_a_narrowed_context_narrows_the_anchor_filter_too():
     assert anchor.resolve([report], case, context=("*",))[0].verdict == "anchored"
 
 
-def test_the_same_finding_reported_twice_counts_once():
-    """It happened: one answer named the same line under the same type twice,
-    quoting the same `pass`, and paid for it as two false alarms."""
-    twice = [contract.Report("a.py", 84, "swallowed_exception", "t", 0.9, quote="pass"),
-             contract.Report("a.py", 84, "swallowed_exception", "u", 0.8, quote="pass")]
-    kept = contract.dedupe(twice)
-    assert len(kept) == 1 and kept[0].confidence == 0.9
-    # A different line, or a different type on the same line, is a different claim.
-    varied = twice + [contract.Report("a.py", 85, "swallowed_exception", "t", 0.9),
-                      contract.Report("a.py", 84, "broad_except", "t", 0.9)]
-    assert len(contract.dedupe(varied)) == 3
+def test_one_comment_per_line():
+    """A bot that leaves two comments on one line is worse to read than one --
+    an argument available before seeing any data, which is what separates this
+    from a rule fitted to the answers. Measured: fires once in 188 cases, costs
+    no true positive on any of the three corpora."""
+    hedged = [contract.Report("a.py", 84, "swallowed_exception", "t", 0.9, quote="pass"),
+              contract.Report("a.py", 84, "crossfile_error_propagation", "u", 0.8, quote="pass")]
+    kept = contract.dedupe(hedged)
+    assert len(kept) == 1 and kept[0].type == "swallowed_exception"
+    # A different line is a different claim, and a different file is too.
+    spread = hedged + [contract.Report("a.py", 85, "broad_except", "t", 0.9),
+                       contract.Report("b.py", 84, "broad_except", "t", 0.9)]
+    assert len(contract.dedupe(spread)) == 3
 
 
 def test_the_legacy_field_order_is_exactly_what_was_measured():
