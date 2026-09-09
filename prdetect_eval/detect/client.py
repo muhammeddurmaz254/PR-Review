@@ -127,6 +127,26 @@ class OllamaClient:
             )
         return Response(text="", error=last)
 
+    def build(self) -> str:
+        """The served model's digest and quantization, or "" if unknown.
+
+        A resumed run can be stitched from two machines -- this corpus has been
+        served from a Kaggle notebook and a Colab one on the same tunnel URL --
+        and answers from two different builds are not one measurement. The digest
+        is what makes that checkable instead of assumed.
+        """
+        probe = urllib.request.Request(f"{self.base_url.rstrip('/')}/api/tags", headers=self._headers())
+        try:
+            with urllib.request.urlopen(probe, timeout=30) as handle:
+                document = json.loads(handle.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+            return ""
+        for entry in document.get("models", []):
+            if entry.get("name") == self.model or entry.get("name", "").startswith(f"{self.model}:"):
+                details = entry.get("details", {})
+                return f"{entry.get('digest', '')[:16]}/{details.get('quantization_level', '?')}"
+        return ""
+
     def health(self) -> str:
         """Which models the server has, so a typo fails before the corpus runs."""
         probe = urllib.request.Request(f"{self.base_url.rstrip('/')}/api/tags", headers=self._headers())

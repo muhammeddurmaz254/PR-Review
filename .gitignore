@@ -4,3 +4,4 @@ repo
 datas
 PLAN.md
 halka_bench/
+*.ipynb

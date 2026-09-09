@@ -341,7 +341,10 @@ class _FakeOllama(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        self._send({"models": [{"name": "test-model:latest"}]})
+        self._send({"models": [{
+            "name": "test-model:latest", "digest": "deadbeef" * 8,
+            "details": {"quantization_level": "Q4_K_M"},
+        }]})
 
     def do_POST(self) -> None:
         _FakeOllama.seen = json.loads(self.rfile.read(int(self.headers["Content-Length"])).decode())
@@ -376,6 +379,15 @@ def test_client_speaks_the_ollama_api(fake_server):
     assert response.prompt_tokens == 1234
     reports, rejects = contract.parse(response.text)
     assert not rejects and reports[0].line == 5
+
+
+def test_the_client_reports_the_served_build(fake_server):
+    """A resumed run can be stitched from two machines; the digest is what makes
+    "same model" checkable instead of assumed."""
+    client = client_module.OllamaClient(model="test-model", base_url=fake_server)
+    assert client.build().startswith("deadbeef")
+    assert client_module.OllamaClient(model="absent", base_url=fake_server).build() == ""
+    assert client_module.OllamaClient(model="m", base_url="http://127.0.0.1:9", timeout=1).build() == ""
 
 
 def test_client_reports_a_missing_model(fake_server):
@@ -701,3 +713,38 @@ def test_resume_reuses_the_answers_already_on_disk(tmp_path):
     manifest = json.loads((tmp_path / "part" / "config.json").read_text())
     assert manifest["reused_answers"] == 2
     assert len((tmp_path / "part" / "responses.jsonl").read_text().splitlines()) == 4
+
+
+class _DyingOllama(_FakeOllama):
+    """Healthy enough to start, dead by the first call -- the tunnel's failure."""
+
+    def do_POST(self) -> None:
+        self.send_error(502, "tunnel gone")
+
+
+def test_a_run_that_lost_its_server_does_not_look_finished(tmp_path):
+    """It happened: the tunnel died at call 28 of 110, the run exited 0, and the
+    predictions file it left behind would have scored as a finished rung 1."""
+    import run_detect
+    server = HTTPServer(("127.0.0.1", 0), _DyingOllama)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    code = run_detect.main([
+        "--dataset", "halka", "--model", "test-model",
+        "--base-url", f"http://127.0.0.1:{server.server_port}",
+        "--timeout", "2", "--limit", "2", "--run-id", "dead",
+        "--out", str(tmp_path), "--quiet",
+    ])
+    server.shutdown()
+    assert code == 1
+    manifest = json.loads((tmp_path / "dead" / "config.json").read_text())
+    assert manifest["complete"] is False
+    assert manifest["call_failures"] == 2
+
+
+def test_a_clean_run_is_marked_complete(tmp_path):
+    import run_detect
+    assert run_detect.main([
+        "--dataset", "halka", "--stub", "silent", "--limit", "2",
+        "--run-id", "fine", "--out", str(tmp_path), "--quiet",
+    ]) == 0
+    assert json.loads((tmp_path / "fine" / "config.json").read_text())["complete"] is True

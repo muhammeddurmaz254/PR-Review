@@ -165,6 +165,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # and it has been lost twice at thirteen. Answers already on disk are reused
     # rather than paid for again -- but only when the prompt behind them is the
     # same text, because a run stitched from two prompts is worse than no run.
+    build = detector.build() if isinstance(detector, client_module.OllamaClient) else ""
     done: dict[tuple[str, int], dict] = {}
     if args.resume and (run_dir / "responses.jsonl").exists():
         stored = run_dir / "system_prompt.txt"
@@ -173,6 +174,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{run_dir} was written under a different system prompt; "
                 f"resume would mix two. Use a new --run-id."
             )
+        if (run_dir / "config.json").exists():
+            was = json.loads((run_dir / "config.json").read_text(encoding="utf-8")).get("model_build")
+            if was and build and was != build:
+                raise SystemExit(
+                    f"{run_dir} was answered by model build {was}, this server serves {build}; "
+                    f"resume would mix two. Use a new --run-id."
+                )
         for line in (run_dir / "responses.jsonl").read_text(encoding="utf-8").splitlines():
             if line.strip():
                 row = json.loads(line)
@@ -275,11 +283,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         "scored_labels": sum(len(case.scored_labels) for case in cases),
         "predictions": len(predictions), "rejected": len(rejects), "call_failures": failures,
         "model": None if detector is None else detector.name,
+        "model_build": build or None,
         "quantization": None, "context_tokens": args.num_ctx,
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
         "max_pack_lines": args.max_pack_lines, "packs": len(packs),
         "with_repo": args.with_repo, "reused_answers": len(done),
+        # A run that lost its server two thirds of the way through still writes
+        # every artefact, because that is what --resume reads. It must not also
+        # look finished: the tunnel died at call 28 of 110 once and the run
+        # exited 0 with a predictions file that would have scored as rung 1.
+        "complete": detector is None or failures == 0,
         "anchors": (Counter(row["verdict"] for row in decisions) if quoted else None),
         "detectors": [DETECTOR],
         "sampling": {"temperature": args.temperature, "seed": args.seed, "think": args.think},
@@ -312,12 +326,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                   + f"  -> {len(anchored)} of {len(predictions)} kept")
         if rejects:
             print(f"rejected responses: {len(rejects)}  (see rejects.jsonl)")
-        if failures:
-            print(f"call failures: {failures}")
         print(f"\nartefacts: {run_dir}")
-        if detector is not None:
-            print(f"score it:  python run_eval.py --eval {eval_path} "
-                  f"--predictions {run_dir / 'predictions.jsonl'}")
+    if failures:
+        print(f"\n!! {failures} of {len(packs)} calls failed; this run is INCOMPLETE.",
+              file=sys.stderr)
+        print(f"!! Do not score it. Re-run the same command with --resume once the "
+              f"server is back; only the failed calls are asked again.", file=sys.stderr)
+        return 1
+    if not args.quiet and detector is not None:
+        print(f"score it:  python run_eval.py --eval {eval_path} "
+              f"--predictions {run_dir / 'predictions.jsonl'}")
     return 0
 
 
