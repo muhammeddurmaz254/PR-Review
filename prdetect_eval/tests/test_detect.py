@@ -841,3 +841,53 @@ def test_the_same_finding_reported_twice_counts_once():
     varied = twice + [contract.Report("a.py", 85, "swallowed_exception", "t", 0.9),
                       contract.Report("a.py", 84, "broad_except", "t", 0.9)]
     assert len(contract.dedupe(varied)) == 3
+
+
+def test_the_legacy_field_order_is_exactly_what_was_measured():
+    """Six prompt versions were measured under it; their numbers mean nothing
+    under another order."""
+    schema = contract.response_schema(["authz"], quote=True)["properties"]["findings"]["items"]
+    assert list(schema["properties"]) == ["file", "line", "type", "title", "confidence", "quote"]
+    assert schema["required"] == list(schema["properties"])
+    plain = contract.response_schema(["authz"])["properties"]["findings"]["items"]
+    assert list(plain["properties"]) == ["file", "line", "type", "title", "confidence"]
+
+
+def test_v7_produces_the_evidence_before_the_claim():
+    """The quote was emitted last -- after the file, line, type, title and even
+    the confidence -- so the line it accuses was chosen after the accusation."""
+    assert "review/v7" in prompt.EVIDENCE_FIRST
+    assert prompt.EVIDENCE_FIRST.isdisjoint({"review/v%d" % n for n in range(1, 7)})
+    schema = contract.response_schema(
+        ["authz"], quote=True, order=contract.EVIDENCE_ORDER)["properties"]["findings"]["items"]
+    assert list(schema["properties"]) == ["quote", "title", "type", "file", "line", "confidence"]
+    text = prompt.system("halka", "review/v7")
+    assert text.index('"quote"') < text.index('"title"') < text.index('"file"')
+    assert "Choose it by reading, before you have decided what is wrong" in text
+
+
+def _example_order(version: str) -> list[str]:
+    text = prompt.system("halka", version)
+    start = text.index('{"findings"')
+    example = text[start:text.index("\n", start)]
+    return sorted((example.index(f'"{name}"'), name)
+                  for name in ("file", "line", "type", "title", "confidence", "quote")
+                  if f'"{name}"' in example)
+
+
+def test_v7_shows_the_fields_in_the_order_it_decodes_them():
+    """A prompt that names one order while decoding forces another teaches the
+    model that the instruction is not binding."""
+    shown = [name for _, name in _example_order("review/v7")]
+    assert shown == list(contract.EVIDENCE_ORDER)
+
+
+def test_the_versions_before_v7_showed_an_order_they_did_not_decode():
+    """Kept as a record, not a target: v4 to v6 print `quote` third and decode it
+    last. Their numbers were measured that way and cannot be re-lit by fixing the
+    text, so the fix is v7 and this is what it fixes."""
+    shown = [name for _, name in _example_order("review/v6")]
+    assert shown.index("quote") == 2
+    decoded = list(contract.response_schema(
+        ["authz"], quote=True)["properties"]["findings"]["items"]["properties"])
+    assert decoded.index("quote") == len(decoded) - 1

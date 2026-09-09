@@ -460,6 +460,80 @@ differently styled.
     "a contract. A guard is not",
 )
 
+# v7 changes only the order the answer is produced in. Measured in the challenge
+# stage: constrained decoding emits schema properties in order, `think: false`
+# leaves no other room to work, and asking for the verdict before the reason had
+# the model vote and then justify -- eleven points of F1. The detector had the
+# same fault and worse: `quote` was emitted *last*, after the file, the line, the
+# type, the title and the confidence, so the line it claims to accuse was chosen
+# after the accusation. v7 reverses it -- copy a line, say what breaks, name the
+# kind, then locate it.
+
+INSTRUCTIONS_V7 = INSTRUCTIONS_V6.replace(
+    '{"findings": [{"file": "...", "line": 0, "quote": "...", "type": "...", '
+    '"title": "...", "confidence": 0.0}]}',
+    '{"findings": [{"quote": "...", "title": "...", "type": "...", '
+    '"file": "...", "line": 0, "confidence": 0.0}]}',
+).replace(
+    """\
+- `file` is the path exactly as printed in a FILE header.
+- `line` is a line number printed in the code. Point at the line where the \
+defect is; anywhere inside the affected function counts, so prefer the most \
+specific line you can name.
+- `quote` is the code on that line, copied exactly as printed -- without the \
+line number or the `+`/`-` mark, and without the surrounding lines. Copy it; do \
+not retype it from memory. If the defect is a line the change *deleted*, quote \
+that deleted line.
+- `type` must be one of the kinds listed above.
+- `title` is one short clause naming the problem -- under twelve words, no \
+explanation, no suggested fix.""",
+    """\
+Answer the fields in the order they are written above; each one is meant to be \
+settled before the next.
+
+- `quote` comes first: the code you are accusing, copied exactly as printed -- \
+without the line number or the `+`/`-` mark, and without the surrounding lines. \
+Copy it from the excerpt; do not retype it from memory. If the defect is a line \
+the change *deleted*, quote that deleted line. Choose it by reading, before you \
+have decided what is wrong.
+- `title` is one short clause naming what that line gets wrong -- under twelve \
+words, no explanation, no suggested fix.
+- `type` must be one of the kinds listed above, and must fit the title you just \
+wrote.
+- `file` is the path exactly as printed in a FILE header.
+- `line` is the number printed against the line you quoted.""",
+)
+
+# v8 keeps v7's idea and fixes what it got wrong. v7 led with the quote and lost
+# six findings: a quote is a copy, not room to reason, so asking for it first
+# only makes the model commit to a line before it knows what is wrong, and it
+# answers only when already certain. The challenge stage won by putting the
+# *reason* before the vote; the detector's reason is the title.
+
+INSTRUCTIONS_V8 = INSTRUCTIONS_V7.replace(
+    '{"findings": [{"quote": "...", "title": "...", "type": "...", '
+    '"file": "...", "line": 0, "confidence": 0.0}]}',
+    '{"findings": [{"title": "...", "quote": "...", "type": "...", '
+    '"file": "...", "line": 0, "confidence": 0.0}]}',
+).replace(
+    """\
+- `quote` comes first: the code you are accusing, copied exactly as printed -- \
+without the line number or the `+`/`-` mark, and without the surrounding lines. \
+Copy it from the excerpt; do not retype it from memory. If the defect is a line \
+the change *deleted*, quote that deleted line. Choose it by reading, before you \
+have decided what is wrong.
+- `title` is one short clause naming what that line gets wrong -- under twelve \
+words, no explanation, no suggested fix.""",
+    """\
+- `title` comes first and is where you work: one short clause naming what goes \
+wrong -- under twelve words, no explanation, no suggested fix.
+- `quote` is the code that title is about, copied exactly as printed -- without \
+the line number or the `+`/`-` mark, and without the surrounding lines. Copy it \
+from the excerpt; do not retype it from memory. If the defect is a line the \
+change *deleted*, quote that deleted line. If you cannot find a line that shows \
+what your title says, you do not have a finding.""",
+)
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -467,11 +541,18 @@ VERSIONS = {
     "review/v4": (INSTRUCTIONS_V4, TAXONOMIES_V3),
     "review/v5": (INSTRUCTIONS_V5, TAXONOMIES_V3),
     "review/v6": (INSTRUCTIONS_V6, TAXONOMIES_V3),
+    "review/v7": (INSTRUCTIONS_V7, TAXONOMIES_V3),
+    "review/v8": (INSTRUCTIONS_V8, TAXONOMIES_V3),
 }
 
 # Which versions ask for the quote, so the schema and the filter agree without
 # either of them guessing from the version string.
-QUOTED = frozenset({"review/v4", "review/v5", "review/v6"})
+QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/v8"})
+
+# Which versions want the answer produced evidence-first. Everything measured
+# before v7 was measured under the legacy order and has to stay on it.
+EVIDENCE_FIRST = frozenset({"review/v7"})
+CLAIM_FIRST = frozenset({"review/v8"})
 
 
 def types(dataset: str) -> list[str]:

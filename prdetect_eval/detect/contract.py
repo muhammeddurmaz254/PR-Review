@@ -45,23 +45,49 @@ class Reject:
     payload: str
 
 
-def response_schema(types: Sequence[str], quote: bool = False) -> dict[str, Any]:
-    """The answer shape. ``quote`` adds the accused line, which stage [5] checks.
+# The order a schema lists its properties is the order constrained decoding
+# emits them, and with `think: false` it is the only place the model works. The
+# original order put `quote` last, after the file, the line, the type, the title
+# and even the confidence -- so the "line it accuses" was written *after* the
+# claim was already committed, and could only ever be retro-fitted to it. That is
+# a plausible reason stage [5] never rejected anything: the model copies whatever
+# sits at the line it had already chosen.
+#
+# The same fault, found and measured in the challenge stage, cost that stage
+# eleven points of F1. LEGACY is kept because five prompt versions were measured
+# under it and their numbers mean nothing under another order.
+LEGACY_ORDER = ("file", "line", "type", "title", "confidence", "quote")
+EVIDENCE_ORDER = ("quote", "title", "type", "file", "line", "confidence")
+# Measured against EVIDENCE_ORDER: putting the quote first cost six findings and
+# four points of F1. A quote is a copy, not a place to think, so leading with it
+# only forces an early commitment to a line -- the model answers when it is
+# already sure. What won in the challenge was the *reason* before the vote, and
+# the detector's reason is `title`.
+CLAIM_ORDER = ("title", "quote", "type", "file", "line", "confidence")
 
-    Constrained decoding can force the field to exist; only the filter can make
-    it mean anything, which is the whole point of asking for it.
+FIELDS: dict[str, Any] = {
+    "file": {"type": "string"},
+    "line": {"type": "integer"},
+    "title": {"type": "string"},
+    "confidence": {"type": "number"},
+    "quote": {"type": "string"},
+}
+
+
+def response_schema(types: Sequence[str], quote: bool = False,
+                    order: Sequence[str] = LEGACY_ORDER) -> dict[str, Any]:
+    """The answer shape, in the order the model is to produce it.
+
+    ``quote`` adds the accused line, which stage [5] checks. Constrained decoding
+    can force the field to exist; only the order decides whether it was read or
+    invented.
     """
+    names = [name for name in order if quote or name != "quote"]
     properties: dict[str, Any] = {
-        "file": {"type": "string"},
-        "line": {"type": "integer"},
-        "type": {"type": "string", "enum": list(types)},
-        "title": {"type": "string"},
-        "confidence": {"type": "number"},
+        name: ({"type": "string", "enum": list(types)} if name == "type" else FIELDS[name])
+        for name in names
     }
-    required = ["file", "line", "type", "title", "confidence"]
-    if quote:
-        properties["quote"] = {"type": "string"}
-        required.insert(2, "quote")
+    required = list(names)
     return {
         "type": "object",
         "properties": {

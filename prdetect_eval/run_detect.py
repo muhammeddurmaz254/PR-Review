@@ -151,7 +151,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     types = prompt.types(args.dataset)
     quoted = args.prompt_version in prompt.QUOTED
-    schema = contract.response_schema(types, quote=quoted)
+    order = contract.LEGACY_ORDER
+    if args.prompt_version in prompt.EVIDENCE_FIRST:
+        order = contract.EVIDENCE_ORDER
+    elif args.prompt_version in prompt.CLAIM_FIRST:
+        order = contract.CLAIM_ORDER
+    schema = contract.response_schema(types, quote=quoted, order=order)
     context = tuple(args.context) or (("*",) if args.with_repo else ())
     packs = [item for case in cases
              for item in pack.split(case, args.dataset, args.prompt_version,
@@ -291,6 +296,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "quantization": None, "context_tokens": args.num_ctx,
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
+        "field_order": list(order),
         "max_pack_lines": args.max_pack_lines, "packs": len(packs),
         "context": list(context), "reused_answers": len(done),
         # A run that lost its server two thirds of the way through still writes
