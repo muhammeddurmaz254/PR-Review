@@ -1,72 +1,81 @@
 # prdetect-eval
 
-Measurement harness for the PR defect detector, and the `authz` detector that
-runs against it. Everything except the model call itself works without a GPU.
+Measurement harness for the PR defect detector, and the detector itself.
+Everything except the model call works without a GPU.
 
-The corpus lives in `../repo` (fieldops-bench) and is consumed only through
-`../repo/eval.jsonl`. Scoring never touches the built git repository, so a
-changed metric is re-scored from stored artefacts instead of re-running a
-detector — on a GPU pipeline that difference is hours.
+Start with `../HANDOFF.md` if you are picking this up. This file is the
+reference for the harness's own vocabulary: what a run writes, how a number is
+counted, and how to read a report.
+
+## Corpora
+
+Three, none of them in version control — each is generated from a source
+directory that is not either. Build before running anything, including the
+tests:
+
+```console
+python datasets/build_halka.py       # 110 cases, real checkout, the primary one
+python datasets/build_swrbench.py    # 50 real OSS pull requests, diff only
+python datasets/build_demo_repo.py   # 28 cases, whole files
+```
 
 ## Layout
 
 | Module | Job |
 |---|---|
-| `schema.py` | `Span` / `Label` / `Prediction` / `Candidate` / `Case`, the cascade rungs, `MatchConfig` |
-| `adapters.py` | `eval.jsonl` and prediction-file loaders |
+| `schema.py` | `Span` / `Label` / `Prediction` / `Case`, the cascade rungs, `MatchConfig` |
+| `adapters.py` | corpus and prediction-file loaders |
 | `matching.py` | one-to-one greedy assignment, closest admissible pair first |
-| `metrics.py` | scope-aware scoring, cascade, PR level, pairwise, breakdowns, threshold sweep, stage losses |
+| `metrics.py` | scope-aware scoring, cascade, pull-request level, pairwise, breakdowns, threshold sweep |
 | `baselines.py` | the trivial heuristics every real number is reported against |
-| `pyunits.py` | line-preserving structural view of a Python file (`ast`, not LibCST) |
-| `candidates/` | stage [2] enumerators: arm A population counters, arm B static patterns |
-| `detect/context_pack.py` | stage [3] — one file's sites, its sibling table and its code, with real line numbers |
-| `detect/prompt.py` | the `authz` system prompt, versioned and byte-stable |
-| `detect/contract.py` | the response JSON schema and its parser |
-| `detect/client.py` | stage [4] — Ollama chat, plus the `silent` and `flag_all` stubs |
-| `report.py` | Markdown and console rendering |
-| `run_eval.py` | score a prediction file or a baseline |
-| `run_ceiling.py` | oracle-judgment ablation: the ceiling of candidate enumeration |
-| `run_detect.py` | run the `authz` detector over the corpus |
+| `pyunits.py` | line-preserving structural view of a Python file (`ast`) |
+| `detect/pack.py` | stage [3] — one pull request per call, real line numbers, `+`/`-` marks |
+| `detect/prompt.py` | eight prompt versions, each a (instructions, taxonomy) pair; measured ones are hash-pinned |
+| `detect/contract.py` | the response schema, its parser, the per-PR cap and the one-comment-per-line rule |
+| `detect/client.py` | stage [4] — Ollama chat, the `silent` stub, model-build reporting |
+| `detect/anchor.py` | stage [5] — holds each finding to the line it quotes |
+| `detect/challenge.py` | stage [6] — hands each claim back with the lines it is about |
+| `report.py` `steps.py` | Markdown and console rendering; `step.md` is the one a person reads |
+| `run_detect.py` `run_challenge.py` `run_eval.py` | the three entry points |
+
+There is no stage [2]. Candidate enumeration was measured away: the changed code
+fits in the prompt, and selecting sites inside it can only lose findings.
 
 ## Commands
 
 ```console
-python run_ceiling.py                                  # phase 0a deliverable
-python run_eval.py --baseline largest_diff_file        # one trivial baseline
-python run_eval.py --predictions path/to/preds.jsonl   # score a detector run
+python run_detect.py --dataset halka --dry-run          # prompts + budget, no server
+python run_detect.py --dataset halka --stub silent      # the precision floor
+python run_detect.py --dataset halka --model qwen3.8:27b --base-url https://<ngrok> --no-think
+python run_challenge.py --run <run_id> --model qwen3.8:27b --base-url https://<ngrok> --no-think
+python run_eval.py --eval datasets/halka.eval.jsonl --predictions runs/<id>/predictions.jsonl
+python run_eval.py --eval datasets/halka.eval.jsonl --baseline largest_diff_file
 python -m pytest tests/ -q
-
-python run_detect.py --dry-run                         # prompts + context budget, no server
-python run_detect.py --stub flag_all                   # upper bound through the real path
-python run_detect.py --model qwen2.5-coder:32b --base-url https://<ngrok>.app
 ```
 
-`run_detect.py` writes `predictions.jsonl`; `run_eval.py --predictions` scores it.
-The split is deliberate — a changed metric never costs a second GPU pass.
+`run_detect.py` writes `predictions.jsonl`; `run_eval.py` scores it. The split
+is deliberate — **scoring is a pure function of stored artefacts**, so a changed
+metric never costs a second GPU pass.
 
-## Running the model on a rented card
+A run whose calls partly failed exits non-zero and records `complete: false`;
+re-run the same command with `--resume` to ask only for what is missing. Resume
+refuses if the system prompt or the served model build has changed.
 
-The detector talks to Ollama over HTTP and nothing else, so a tunnelled remote
-card is the same as a local one: start `ollama serve`, expose it, and pass the
-URL to `--base-url`. `--model` is checked against `/api/tags` before the corpus
-runs, so a wrong tag fails in a second rather than 111 timeouts later.
+## What a run writes
 
-Decoding is constrained by `detect/contract.RESPONSE_SCHEMA`, and
-`detect/prompt.SYSTEM` is a constant with nothing interpolated into it so the
-server can reuse its KV cache across calls. Both are asserted by tests.
-
-Every run writes `runs/<run_id>/` holding `config.json` (model, quantization,
-context, prompt version, detectors, sampling, harness commit — empty until a
-model is in the loop), `predictions.jsonl`, `metrics.json` and `report.md`.
+`runs/<run_id>/` holds `config.json` (model and its digest, context, prompt
+version, field order, cap, sampling, harness commit), `packs.jsonl`,
+`responses.jsonl`, `predictions.jsonl`, `anchors.jsonl`, `metrics.json`,
+`report.md` and `step.md`.
 
 ## Prediction format
 
 One JSON object per reported defect:
 
 ```json
-{"case_id":"authz-001-buggy","file":"apps/workorders/views.py","line":18,
- "type":"authz","confidence":0.85,"detector":"authz.orm_read","stage":"detect",
- "message":"queryset is not scoped to the caller organization"}
+{"case_id":"authz-01-kusurlu","file":"halka/billing/views.py","line":62,
+ "type":"missing_authz_check","confidence":0.9,"detector":"review.llm",
+ "stage":"detect","message":"read predicate guards a state-changing endpoint"}
 ```
 
 `end_line` is optional and defaults to `line`.
@@ -79,12 +88,13 @@ Every prediction lands in exactly one bucket:
 |---|---|---|
 | true positive | matched a **required in-scope** label | precision and recall |
 | neutral (optional) | matched an in-scope label the corpus marks `required: false` | reported separately |
-| neutral (out of scope) | matched a label outside the five current types | reported separately |
+| neutral (out of scope) | matched a label outside the current scope | reported separately |
 | false alarm | matched nothing | precision |
 
-Recall's denominator is the 16 required in-scope labels. Reporting a real defect
-the current scope excludes neither helps nor hurts, which is what lets the
-corpus keep 27 types while the detector targets 5.
+The neutral buckets are what let a corpus carry real defects nobody labelled as
+required: on SWRBench, five were confirmed by hand after a run, and counting
+them as recall would have scored the detector against answers its own output
+produced.
 
 Matching is one-to-one: a prediction satisfies at most one label and a label
 consumes at most one prediction. A label with `equivalent_locations` is
@@ -92,12 +102,15 @@ satisfied by its nearest copy.
 
 ## Reading a report
 
-- **Cascade** — the drop from `file` to `line+/-0` is localization loss, not
-  detection loss. They need different fixes.
+- **Pull-request level first.** `step.md` leads with it because it is the
+  question the product answers. It is reported as **balanced accuracy**
+  (recall + specificity) / 2, which is 0.5 for any strategy that ignores the
+  input on any class balance — plain accuracy rewards a lopsided corpus.
+- **Cascade** — the drop from `file` to `line` is localization loss, not
+  detection loss. On every corpus measured so far it is zero: k=0, k=3 and k=10
+  give identical numbers, so there is no line-precision work to do.
 - **Pairwise accuracy** — a feature counts only when the defective variant is
-  caught *and* its clean twin stays silent. Every trivial baseline scores 0 here.
+  caught *and* its clean twin stays silent. Every trivial baseline scores 0.
 - **Trivial baselines** — printed with every run. `hot_spot_memoriser` reads the
   answer key and `every_added_line` reports everything; they are ceilings, not
-  competitors. The other six are honest and must stay weak.
-- **Cost** in the ceiling report — coverage bought by widening candidate regions
-  shows up as context lines per PR, not as a better ceiling.
+  competitors. The others are honest and must stay weak.
