@@ -311,12 +311,20 @@ def test_swrbench_marks_exactly_the_added_lines(dataset):
         assert marked == {name: set(lines) for name, lines in case.added_lines.items()}, case.case_id
 
 
-def test_every_pack_shows_some_code(dataset, packs):
+def test_a_pack_is_empty_only_when_the_change_touches_no_code(dataset, packs):
     """All twenty-five clean SWRBench cases once had an empty diff and an empty
     file list, so their zero false alarms measured an empty prompt rather than a
-    model. Nothing here may be asked about code it was not shown."""
+    model. Since only source is reviewed a change to a manifest alone is empty
+    too -- which is allowed, but it must not be scored, and no case carrying a
+    scored label may be one."""
+    cases = {case.case_id: case for case in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
     for item in packs:
-        assert item.shown_lines > 0, item.case_id
+        case = cases[item.case_id]
+        if item.shown_lines == 0:
+            assert not case.reviewable, item.case_id
+            assert not case.scored_labels, item.case_id
+        else:
+            assert case.reviewable, item.case_id
 
 
 def test_clean_and_defective_packs_are_the_same_size(dataset, packs):
@@ -336,7 +344,7 @@ def test_every_label_is_printed_in_its_pack(dataset, packs):
     for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
         text = by_id[case.case_id].user
         current = ""
-        for label in case.labels:
+        for label in case.scored_labels:
             found = False
             for row in text.split("\n"):
                 if row.startswith("# FILE "):
@@ -705,7 +713,7 @@ def test_every_label_is_reachable_after_a_split(dataset):
     """The split must not put a finding in no excerpt at all."""
     for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
         text = "\n".join(p.user for p in pack.split(case, dataset, max_lines=120))
-        for label in case.labels:
+        for label in case.scored_labels:
             current = ""
             found = False
             for row in text.split("\n"):
@@ -761,7 +769,8 @@ def test_with_repo_adds_the_unchanged_files_and_nothing_else():
     assert full.estimated_tokens > lean.estimated_tokens * 3
     assert lean.user in full.user or "# WHAT THIS PULL REQUEST CHANGED" in full.user
     for filename in case.context_files:
-        assert f"# FILE {filename}   (unchanged)" in full.user
+        if pack.is_code(filename):
+            assert f"# FILE {filename}   (unchanged)" in full.user
         assert filename not in lean.user
 
 
@@ -873,13 +882,17 @@ def test_v6_narrows_the_clauses_that_covered_the_rest():
     assert "is not a preference, it is a contract" in v6
 
 
-def test_every_halka_finding_is_in_scope():
+def test_only_labels_the_pack_can_show_are_in_scope():
     """The corpus marks eight types outside `birincil_kapsam`, but the reason is
-    the product's rule-id vocabulary, not the label."""
+    the product's rule-id vocabulary rather than the label, so every one of them
+    is scored. The single exclusion is a different thing: a label in a manifest,
+    which the pack no longer prints and so cannot be found."""
     cases = load_cases(DATASETS / "halka.eval.jsonl")
     labels = [label for case in cases for label in case.labels]
     assert len(labels) == 49
-    assert all(label.in_scope and label.required for label in labels)
+    for label in labels:
+        assert label.in_scope == pack.is_code(label.span.file), label.finding_id
+    assert sum(not label.in_scope for label in labels) == 1
 
 
 def test_context_can_be_narrowed_to_a_pattern():
@@ -887,13 +900,13 @@ def test_context_can_be_narrowed_to_a_pattern():
     to carry a little: the conventions doc is 560 tokens against the repo's
     twelve thousand."""
     case = load_cases(DATASETS / "halka.eval.jsonl")[0]
-    doc = pack.build(case, "halka", context=("docs/*.md",))
+    narrow = pack.build(case, "halka", context=("halka/common/*.py",))
     everything = pack.build(case, "halka", context=("*",))
-    assert "# FILE docs/conventions.md   (unchanged)" in doc.user
-    assert doc.estimated_tokens < everything.estimated_tokens / 3
+    assert "# FILE halka/common/http.py   (unchanged)" in narrow.user
+    assert narrow.estimated_tokens < everything.estimated_tokens / 2
     for filename in case.context_files:
-        if not filename.startswith("docs/"):
-            assert f"# FILE {filename}   (unchanged)" not in doc.user
+        if not filename.startswith("halka/common/"):
+            assert f"# FILE {filename}   (unchanged)" not in narrow.user
 
 
 def test_a_narrowed_context_narrows_the_anchor_filter_too():
@@ -1125,3 +1138,131 @@ def test_a_cross_file_claim_cannot_be_refuted_from_one_file():
 def test_every_other_kind_of_claim_can_be():
     for kind in ("sql_injection", "missing_lock", "F.2 Logic", "business_logic"):
         assert challenge.settleable(kind)
+
+
+# --- [4a] / [4b]: the detector reports, a second call names ------------------
+
+def test_the_open_prompt_carries_no_catalogue():
+    """The whole point is that breadth lives in a search rather than in front of
+    the code: fifty-four kinds in the detector's prompt cost 0.242 of F1."""
+    text = prompt.system("halka", "review/open")
+    assert "kinds of defect you report" not in text
+    for name in prompt.types("halka"):
+        assert f"`{name}`" not in text, name
+    assert "there is no list of kinds to choose from" in text.lower()
+    assert len(text) < len(prompt.system("halka", "review/v6")) * 0.7
+
+
+def test_an_open_answer_has_no_type_field():
+    schema = contract.response_schema(
+        [], quote=True, order=contract.OPEN_ORDER)["properties"]["findings"]["items"]
+    assert list(schema["properties"]) == ["file", "line", "title", "confidence", "quote"]
+    assert "type" not in schema["properties"]
+
+
+def test_the_catalogue_holds_every_configured_kind():
+    from detect import naming
+    catalogue = naming.pool()
+    for dataset in ("halka", "demo_repo", "swrbench"):
+        for name in prompt.types(dataset):
+            assert name in catalogue, name
+    assert len(catalogue) == 54
+
+
+def test_retrieval_puts_the_right_kind_in_the_shortlist():
+    """Its ceiling is this stage's ceiling. Measured on the forty-three findings a
+    real run located, queried with the titles that run wrote: the right kind is
+    in the top five 91% of the time, and widening to twelve adds nothing."""
+    from detect import naming
+    catalogue = naming.pool()
+    for finding, expected in (
+        ({"title": "Redirect target fetched without allow-list validation",
+          "quote": "yanit = requests.get(url)"}, "ssrf_unvalidated_fetch"),
+        ({"title": "Search term concatenated into SQL text",
+          "quote": 'raw_query("SELECT ... WHERE x = " + terim)'}, "sql_injection"),
+        ({"title": "Invoice status not checked before applying credit",
+          "quote": "invoice.cached_total_minor -= int(delta_minor)"}, "wrong_state_check"),
+    ):
+        assert expected in naming.rank(finding, catalogue), (expected, finding["title"])
+
+
+def test_the_retrieval_ceiling_is_recorded_not_assumed():
+    """The nine percent it cannot reach fail one way: the finding and the
+    definition name one thing in different words. Kept as a fact so that a change
+    which claims to fix retrieval has to move it."""
+    from detect import naming
+    catalogue = naming.pool()
+    beyond = {"title": "Failure counter never incremented on exception", "quote": "pass"}
+    assert "swallowed_exception" not in naming.rank(beyond, catalogue)
+    assert "swallowed_exception" in naming.rank(beyond, catalogue, limit=8)
+
+
+def test_naming_may_refuse_every_candidate():
+    """A name that does not fit is a wrong answer that reads like a right one, and
+    an unreadable reply must not invent one either."""
+    from detect import naming
+    schema = naming.schema(["sql_injection", "xss"])
+    assert naming.NONE in schema["properties"]["type"]["enum"]
+    assert list(schema["properties"]) == ["reason", "type"]
+    assert naming.parse(json.dumps({"reason": "r", "type": naming.NONE})) == ("", "r")
+    assert naming.parse(json.dumps({"reason": "r", "type": "xss"})) == ("xss", "r")
+    for broken in ("", "not json", "[]"):
+        assert naming.parse(broken)[0] == ""
+
+
+def test_naming_shows_only_the_shortlist():
+    from detect import naming
+    catalogue = naming.pool()
+    candidates = ["sql_injection", "xss"]
+    text = naming.build({"title": "t", "quote": "q", "file": "a.py", "line": 3},
+                        candidates, catalogue)
+    assert "`sql_injection`" in text and "`xss`" in text
+    assert f"`{naming.NONE}`" in text
+    for name in catalogue:
+        if name not in candidates:
+            assert f"`{name}`" not in text, name
+
+
+def test_the_namer_refuses_to_search_blind():
+    """A prediction row calls the finding's words `message`; reading `title` off
+    it silently gave every finding the same shortlist and scored 12% where
+    retrieval alone allows 91%."""
+    import run_name
+    from detect import naming
+    catalogue = naming.pool()
+    blind = naming.rank({"title": "", "quote": ""}, catalogue)
+    seeing = naming.rank({"title": "Redirect target fetched without allow-list validation",
+                          "quote": "requests.get(url)"}, catalogue)
+    assert blind != seeing, "an empty query must not look like a real one"
+    assert blind == list(catalogue)[:len(blind)], "the empty case is the catalogue head"
+
+
+def test_the_hybrid_states_scope_without_naming_kinds():
+    """Removing the catalogue cost eight of forty-three findings, because it was
+    also saying what counts as a defect. The families put that back without
+    putting fifty-four names in front of the code."""
+    hybrid = prompt.system("halka", "review/hybrid")
+    assert "kinds of defect you report" not in hybrid
+    for name in prompt.types("halka"):
+        assert f"`{name}`" not in hybrid, name
+    for family in ("Access.", "Untrusted input.", "Hidden failure.", "Maintenance.",
+                   "Configuration and packaging.", "Version assumptions."):
+        assert f"**{family}**" in hybrid, family
+    assert "you are not choosing a label here" in hybrid
+    # Scope costs a few hundred tokens; the catalogue cost a thousand.
+    open_prompt = prompt.system("halka", "review/open")
+    assert len(open_prompt) < len(hybrid) < len(prompt.system("halka", "review/v6"))
+
+
+def test_the_families_name_no_repository_and_no_type():
+    """They have to carry to a codebase whose kinds nobody has written down."""
+    lowered = prompt.FAMILIES.lower()
+    assert "repositor" not in lowered and "halka" not in lowered
+    every = set(prompt.types("halka")) | set(prompt.types("demo_repo"))
+    for name in every:
+        assert name not in prompt.FAMILIES, name
+
+
+def test_the_hybrid_answers_without_a_type():
+    assert "review/hybrid" in prompt.OPEN
+    assert '"type"' not in prompt.system("halka", "review/hybrid")

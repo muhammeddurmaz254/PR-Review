@@ -23,6 +23,11 @@ import json
 import re
 import subprocess
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from detect import pack
 from typing import Sequence
 
 HERE = Path(__file__).resolve().parent
@@ -87,8 +92,10 @@ def build(labels_path: Path, out_path: Path) -> int:
             findings.append({
                 "finding_id": f"{case['case_id']}-f{index}",
                 "type": finding["type"],
-                "in_scope": bool(finding["in_scope"]),
-                "required": bool(finding["in_scope"]),
+                # Only code is put in front of the model, so a label in a
+                # document is unreachable by construction and is not scored.
+                "in_scope": bool(finding["in_scope"]) and pack.is_code(finding["file"]),
+                "required": bool(finding["in_scope"]) and pack.is_code(finding["file"]),
                 "role": "primary",
                 "file": finding["file"],
                 "start_line": finding["start_line"],

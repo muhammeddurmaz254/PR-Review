@@ -32,6 +32,17 @@ from . import prompt as prompt_module
 # `@@ -old,n +new,m @@ enclosing context`. Only the new-side start is needed:
 # it is the line number the reviewer sees, and the one a label refers to.
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@ ?(.*)$")
+
+# Only source is reviewed. A reviewer of a Python service reads Python; prose and
+# manifests are a different job with different evidence, and the two labels that
+# live in one -- a package moved between requirements files, a password left in a
+# README -- are marked out of scope by the exporters rather than left reachable
+# in a pack that no longer shows them.
+CODE_SUFFIXES = (".py",)
+
+
+def is_code(filename: str) -> bool:
+    return filename.endswith(CODE_SUFFIXES)
 COMMIT = re.compile(r"^# commit ([0-9a-f]{7,40}) ?(.*)$")
 
 
@@ -181,6 +192,8 @@ def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     shown = 0
     previous = None
     for index, hunk in enumerate(hunks):
+        if not is_code(hunk.filename):
+            continue
         if shown >= max_lines:
             out += [f"({len(hunks) - index} further hunks are not shown here.)", ""]
             break
@@ -213,7 +226,7 @@ def shown_lines(case: Case, context: Sequence[str] = ()) -> tuple[dict[str, dict
     numbered: dict[str, dict[int, list[str]]] = {}
     deleted: dict[str, list[str]] = {}
     if case.head_files:
-        sources = dict(case.head_files)
+        sources = {name: text for name, text in case.head_files.items() if is_code(name)}
         if context:
             # The filter compares a quote against what was printed; leaving the
             # unchanged files out would reject every quote taken from them.
@@ -224,6 +237,8 @@ def shown_lines(case: Case, context: Sequence[str] = ()) -> tuple[dict[str, dict
             numbered[filename] = {int(row[:5]): [row.split("| ", 1)[-1]] for row in rows}
         return numbered, deleted
     for hunk in emitted_hunks(case.diff):
+        if not is_code(hunk.filename):
+            continue
         for row in hunk.lines:
             head, _, text = row.partition("| ")
             number = head[:5].strip()
@@ -263,7 +278,7 @@ def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
     only win by being narrow. ``patterns`` is how narrow.
     """
     chosen = {name: text for name, text in case.context_files.items()
-              if any(fnmatch(name, pattern) for pattern in patterns)}
+              if is_code(name) and any(fnmatch(name, pattern) for pattern in patterns)}
     if not chosen:
         return []
     body = [
@@ -302,7 +317,7 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
         body = _preamble(case, 1, 1)
         shown = 0
         body += ["# WHAT THIS PULL REQUEST CHANGED", ""] if context else []
-        for filename in sorted(case.head_files):
+        for filename in sorted(name for name in case.head_files if is_code(name)):
             added = case.added_lines.get(filename, frozenset())
             code, count = _numbered(case.head_files[filename], added)
             shown += count

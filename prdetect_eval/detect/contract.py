@@ -57,6 +57,9 @@ class Reject:
 # eleven points of F1. LEGACY is kept because five prompt versions were measured
 # under it and their numbers mean nothing under another order.
 LEGACY_ORDER = ("file", "line", "type", "title", "confidence", "quote")
+# The same order with the name removed: an open run reports what is wrong and
+# stage [4b] decides what it is called.
+OPEN_ORDER = ("file", "line", "title", "confidence", "quote")
 EVIDENCE_ORDER = ("quote", "title", "type", "file", "line", "confidence")
 # Measured against EVIDENCE_ORDER: putting the quote first cost six findings and
 # four points of F1. A quote is a copy, not a place to think, so leading with it

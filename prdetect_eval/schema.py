@@ -229,6 +229,19 @@ class Case:
         """True when the pull request adds or rewrites a line inside ``span``."""
         return bool(self.added_lines.get(span.file, frozenset()).intersection(span.lines))
 
+    @property
+    def reviewable(self) -> bool:
+        """Whether this pull request changes anything the detector is shown.
+
+        Only source is reviewed, so a change that touches nothing but a manifest
+        or a document reaches the model as an empty prompt. Staying quiet on one
+        is neither right nor wrong, and counting it as a true negative is the
+        same free specificity that made SWRBench's first clean half meaningless.
+        """
+        from detect.pack import is_code
+        return any(is_code(name) for name in self.head_files) or bool(self.diff.strip()
+                                                                     and not self.head_files)
+
     def source_lines(self, filename: str) -> list[str]:
         return self.head_files.get(filename, "").split("\n")
 

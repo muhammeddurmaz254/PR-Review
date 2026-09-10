@@ -35,7 +35,12 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from detect import pack
 from typing import Sequence
 
 HERE = Path(__file__).resolve().parent
@@ -114,7 +119,9 @@ def build(bench: Path, out_path: Path, keep_context: bool = True) -> int:
             kind = defect["tur"]
             meta = taxonomy.get(kind, {})
             where = defect["konum"]
-            in_scope = True
+            # Only code is put in front of the model, so a label in a manifest or
+            # a document is unreachable by construction and must not be scored.
+            in_scope = pack.is_code(where["dosya"])
             findings.append({
                 "finding_id": f"{case_id}-f{index}",
                 "type": kind,

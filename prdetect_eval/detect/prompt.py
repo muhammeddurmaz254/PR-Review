@@ -916,6 +916,85 @@ change *deleted*, quote that deleted line. If you cannot find a line that shows 
 what your title says, you do not have a finding.""",
 )
 
+# --- [4a] Taksonomisiz dedektör ---------------------------------------------
+#
+# Every prompt version so far hands the model the list of kinds and asks it to
+# find and name in one answer. This one drops the list: report what is wrong in
+# your own words, and let a second call pick the name. It exists because the
+# per-repository cost of a catalogue is the objection nothing else has answered
+# -- a shared one costs five to ten points of F1, and writing a grounded one
+# means knowing the repository before the tool is useful.
+
+INSTRUCTIONS_OPEN = INSTRUCTIONS_V6.replace(
+    "- `type` must be one of the kinds listed above, and must fit the title you "
+    "just wrote.\n", ""
+).replace(
+    '{"findings": [{"file": "...", "line": 0, "quote": "...", "type": "...", '
+    '"title": "...", "confidence": 0.0}]}',
+    '{"findings": [{"file": "...", "line": 0, "quote": "...", "title": "...", '
+    '"confidence": 0.0}]}'
+).replace(
+    "- `type` must be one of the kinds listed above.\n", ""
+).replace(
+    """\
+- `title` is one short clause naming the problem -- under twelve words, no \
+explanation, no suggested fix.""",
+    """\
+- `title` is one short clause naming the problem in your own words -- under \
+twelve words, no explanation, no suggested fix. There is no list of kinds to \
+choose from; say what goes wrong and let the words be yours.""",
+)
+
+# --- Melez: kapsam prompt'ta, isimler aramada -------------------------------
+#
+# Taking the catalogue out of the detector cost eight of forty-three findings.
+# The list was doing two jobs and only one of them was naming: it also said what
+# counts as a defect at all, which is why widening that definition in v6 helped
+# and why removing it hurt. A rule list ("this repository does X") sends the
+# model hunting and cost 0.067 of F1; a list of defect *classes* is a scope
+# statement and earns its place.
+#
+# So the scope stays in front of the code, as a dozen families that name no
+# repository and no product's rule ids, and the fifty-four precise names move to
+# the search where breadth is free. The detector still answers in its own words:
+# a family is not a label, it is the boundary of what to report.
+
+FAMILIES = """\
+Report a defect that falls in one of these families. They are broad on purpose \
+-- you are not choosing a label here, only judging whether what you found is the \
+kind of thing worth a comment.
+
+- **Access.** An operation is reachable by someone it should not be, or a query \
+returns data belonging to someone else.
+- **Untrusted input.** A value from outside reaches something that acts on it: \
+query text, a command, a response body, a decoder, an address to fetch.
+- **Secrets.** A credential is written where it can be read back, or an internal \
+detail reaches the client.
+- **Wrong logic.** The code runs and does the wrong thing for input it will see: \
+a wrong argument, unit, state, source or bound; a value clobbered instead of \
+merged.
+- **Hidden failure.** A failure is swallowed, reported as success, or caught so \
+broadly that unrelated ones disappear with it.
+- **Concurrency and repetition.** Interleaved or retried work leaves inconsistent \
+state: a missing lock, an ordering nobody establishes, a duplicate guard that \
+never matches.
+- **Resources.** Something opened is not reliably released.
+- **Wasted work.** The same expensive thing is done twice, or once per row where \
+one call would do.
+- **Maintenance.** A block, a value or a test is duplicated; code is unreachable \
+or unreferenced; a name says something the body does not do.
+- **Configuration and packaging.** A dependency, host or setting the code still \
+uses is gone, or is defined twice so the two can drift.
+- **Tests.** A test asserts nothing, always skips, or checks something other than \
+what it names.
+- **Version assumptions.** The code assumes a language or library version the \
+project still has to run under.
+"""
+
+INSTRUCTIONS_HYBRID = INSTRUCTIONS_OPEN.replace(
+    "## How to look", FAMILIES + "\n## How to look", 1
+)
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -931,7 +1010,17 @@ VERSIONS = {
     "review/v6-located": (INSTRUCTIONS_V6, TAXONOMIES_LOCATED),
     "review/v6-reachable": (INSTRUCTIONS_V6, TAXONOMIES_REACHABLE),
     "review/v6-demo-evidence": (INSTRUCTIONS_V6, TAXONOMIES_DEMO_EVIDENCE),
+    "review/open": (INSTRUCTIONS_OPEN, TAXONOMIES_V3),
+    "review/hybrid": (INSTRUCTIONS_HYBRID, TAXONOMIES_V3),
 }
+
+# Versions that carry no catalogue: the detector says what is wrong in its own
+# words and stage [4b] maps that onto a name. Every measurement behind the
+# taxonomy work says this is worth trying -- breadth in the prompt manufactured
+# false alarms, a rule list sent the model hunting, and naming is the closed
+# question the challenge stage does well -- and none of it says the detector can
+# work without a catalogue at all. That is what the run answers.
+OPEN = frozenset({"review/open", "review/hybrid"})
 
 # Which versions ask for the quote, so the schema and the filter agree without
 # either of them guessing from the version string.
@@ -964,8 +1053,13 @@ def system(dataset: str, version: str = PROMPT_VERSION) -> str:
     if version not in VERSIONS:
         raise KeyError(f"unknown prompt version {version!r}; have {', '.join(VERSIONS)}")
     instructions, taxonomies = VERSIONS[version]
-    catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomies[dataset].items())
     head, tail = instructions.split("## How to look")
+    if version in OPEN:
+        # No catalogue at all. The whole point of an open version is that naming
+        # is somebody else's call, so listing kinds here would put the breadth
+        # back in the one prompt it was taken out of.
+        return f"{head.format(format=FORMATS[dataset])}## How to look{tail}"
+    catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomies[dataset].items())
     return (
         f"{head.format(format=FORMATS[dataset])}"
         f"## The kinds of defect you report\n\nReport only these, and nothing else:\n\n"

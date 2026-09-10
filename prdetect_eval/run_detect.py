@@ -156,7 +156,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     types = prompt.types(args.dataset, args.prompt_version)
     quoted = args.prompt_version in prompt.QUOTED
     order = contract.LEGACY_ORDER
-    if args.prompt_version in prompt.EVIDENCE_FIRST:
+    if args.prompt_version in prompt.OPEN:
+        order = contract.OPEN_ORDER
+    elif args.prompt_version in prompt.EVIDENCE_FIRST:
         order = contract.EVIDENCE_ORDER
     elif args.prompt_version in prompt.CLAIM_FIRST:
         order = contract.CLAIM_ORDER
