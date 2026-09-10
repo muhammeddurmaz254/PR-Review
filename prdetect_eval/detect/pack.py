@@ -27,6 +27,7 @@ from typing import Sequence
 
 from schema import Case
 
+from . import facts as facts_module
 from . import prompt as prompt_module
 
 # `@@ -old,n +new,m @@ enclosing context`. Only the new-side start is needed:
@@ -261,9 +262,10 @@ def _preamble(case: Case, part: int, parts: int) -> list[str]:
 
 
 def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
-          context: Sequence[str] = ()) -> Pack:
+          context: Sequence[str] = (), with_facts: bool = False) -> Pack:
     """The whole pull request in one call."""
-    return split(case, dataset, version, max_lines=0, context=context)[0]
+    return split(case, dataset, version, max_lines=0, context=context,
+                 with_facts=with_facts)[0]
 
 
 def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
@@ -297,7 +299,8 @@ def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
 
 
 def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
-          max_lines: int = 0, context: Sequence[str] = ()) -> list[Pack]:
+          max_lines: int = 0, context: Sequence[str] = (),
+          with_facts: bool = False) -> list[Pack]:
     """The pull request as one pack, or as several when it is large.
 
     Measured on SWRBench: the model's output volume tracks the size of the pack
@@ -322,6 +325,8 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
             code, count = _numbered(case.head_files[filename], added)
             shown += count
             body += [f"# FILE {filename}", "", "```"] + code + ["```", ""]
+        if with_facts:
+            body += facts_module.render(facts_module.collect(case))
         if context:
             body += _repo_section(case, context)
         return [Pack(case.case_id, system, "\n".join(body), shown)]

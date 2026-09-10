@@ -1324,3 +1324,60 @@ def test_the_client_keeps_the_thinking_it_is_given(fake_server):
     server.shutdown()
     assert response.thinking == "step one"
     assert contract.parse(response.text) == ([], [])
+
+
+def test_repo_facts_are_silent_unless_they_discriminate():
+    """Two of the three kinds first written were deleted before costing a run:
+    counting same-prefix siblings fired on 33 defective cases and 38 clean, and
+    reporting any unreferenced symbol on 32 and 41. What is left speaks on two
+    cases in a hundred and ten, both of them defective."""
+    from detect import facts
+    cases = load_cases(DATASETS / "halka.eval.jsonl")
+    speaking = [case for case in cases if facts.collect(case)]
+    assert len(speaking) == 2
+    assert all(case.is_defective for case in speaking)
+
+
+def test_repo_facts_only_ask_about_names_the_change_defines():
+    """A fact about code the pull request never touches is an invitation to hunt."""
+    from detect import facts
+    for case in load_cases(DATASETS / "halka.eval.jsonl"):
+        collected = facts.collect(case)
+        if not collected:
+            continue
+        touched = "\n".join(
+            "\n".join(case.source_lines(name)[line - 1] for line in sorted(lines)
+                      if line <= len(case.source_lines(name)))
+            for name, lines in case.added_lines.items() if name in case.head_files)
+        for fact in collected:
+            assert fact.subject in touched, fact.subject
+
+
+def test_the_facts_block_states_answers_not_code():
+    from detect import facts
+    cases = {case.case_id: case for case in load_cases(DATASETS / "halka.eval.jsonl")}
+    case = cases["conf-03-kusurlu"]
+    lean = pack.build(case, "halka")
+    with_facts = pack.build(case, "halka", with_facts=True)
+    assert "WHAT THE REPOSITORY SAYS" in with_facts.user
+    assert "WHAT THE REPOSITORY SAYS" not in lean.user
+    assert "measurements, not accusations" in with_facts.user
+    # A fact is a line, not a file: the block costs tens of tokens, not thousands.
+    assert with_facts.estimated_tokens - lean.estimated_tokens < 200
+
+
+def test_the_challenger_is_told_what_was_counted():
+    """It refuted a true positive it could not have settled: the claim was that a
+    timeout duplicates a value in another module, and the excerpt was one file."""
+    from detect import facts
+    cases = {case.case_id: case for case in load_cases(DATASETS / "halka.eval.jsonl")}
+    case = cases["conf-03-kusurlu"]
+    counted = [fact.render() for fact in facts.collect(case)]
+    assert counted, "the fact that settles this claim has to exist"
+    claim = {"file": "halka/integrations/client.py", "line": 12,
+             "title": "Timeout value duplicated from settings source", "type": "duplicated_config"}
+    without = challenge.build(claim, ["   12   | ZAMAN_ASIMI_SANIYE = 5.0"])
+    with_facts = challenge.build(claim, ["   12   | ZAMAN_ASIMI_SANIYE = 5.0"], counted)
+    assert "OUTBOUND_TIMEOUT_SECONDS" not in without
+    assert "OUTBOUND_TIMEOUT_SECONDS" in with_facts
+    assert "not read from the excerpt above" in with_facts

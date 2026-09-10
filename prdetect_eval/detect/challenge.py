@@ -112,8 +112,18 @@ def excerpt(case: Case, filename: str, line: int, radius: int = 12) -> list[str]
     return out
 
 
-def build(claim: dict, rows: Sequence[str]) -> str:
-    """The user message: the claim, then the lines, and nothing else."""
+def build(claim: dict, rows: Sequence[str], facts: Sequence[str] = ()) -> str:
+    """The user message: the claim, the lines, and what was counted.
+
+    The facts are here because of one measured failure. `conf-03` claims a
+    timeout is duplicated from a value in the settings module; the challenger saw
+    `client.py` alone, could not see the other definition, concluded the constant
+    was merely hardcoded and refuted a true positive. Its own instruction says a
+    claim stands when the excerpt cannot settle it, and it is not reliably held
+    to that -- the same reason `settleable` exists for cross-file kinds. A claim
+    about two places is settled by knowing what is in both, and the counting
+    stage already knows.
+    """
     return "\n".join([
         "# Claim",
         "",
@@ -129,6 +139,9 @@ def build(claim: dict, rows: Sequence[str]) -> str:
         *(rows or ["(the excerpt is empty; the claim cannot be refuted from it)"]),
         "```",
         "",
+        *(["# What was counted elsewhere", "",
+           "Measured over the whole repository, not read from the excerpt above.",
+           "", *facts, ""] if facts else []),
     ])
 
 

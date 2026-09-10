@@ -21,6 +21,7 @@ from typing import Sequence
 from adapters import load_cases
 from detect import challenge as challenge_module
 from detect import client as client_module
+from detect import facts as facts_module
 
 HERE = Path(__file__).resolve().parent
 RUNS = HERE / "runs"
@@ -73,7 +74,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     for index, claim in enumerate(claims, start=1):
         case = cases[claim["case_id"]]
         rows = challenge_module.excerpt(case, claim["file"], claim["line"], args.radius)
-        user = challenge_module.build(claim, rows)
+        counted = [fact.render() for fact in facts_module.collect(case)]
+        user = challenge_module.build(claim, rows, counted)
         if detector is None:
             verdicts.append({**claim, "verdict": "stands", "quote": "", "reason": "dry run",
                              "excerpt_lines": len(rows), "user": user})
