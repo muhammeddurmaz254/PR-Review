@@ -25,7 +25,9 @@ from typing import Sequence
 from adapters import load_cases
 from detect import challenge as challenge_module
 from detect import contract
+from detect import consequence as consequence_module
 from detect import evidence as evidence_module
+from detect import scope as scope_module
 
 HERE = Path(__file__).resolve().parent
 RUNS = HERE / "runs"
@@ -41,8 +43,12 @@ def _report(row: dict) -> contract.Report:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--run", required=True, help="detect run id under runs/")
-    parser.add_argument("--challenge", help="challenge run id whose verdicts to replay")
+    parser.add_argument("--challenge", help="verify run id whose verdicts.jsonl to replay")
+    parser.add_argument("--consequence", help="verify run id whose consequences.jsonl to replay")
+    parser.add_argument("--strict-consequence", action="store_true",
+                        help="also drop a claim of harm that named no run")
     parser.add_argument("--dataset", help="defaults to the dataset recorded in the run")
+    parser.add_argument("--scope-gate", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--evidence-gate", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--cross-file-gate", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--one-per-line", action=argparse.BooleanOptionalAction, default=True)
@@ -57,7 +63,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     cases = {c.case_id: c for c in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
     claims = [json.loads(l) for l in (source / "predictions.jsonl").read_text().splitlines() if l.strip()]
 
-    counts = {"claims": len(claims), "off_operation": 0, "refuted": 0,
+    counts = {"claims": len(claims), "named_no_harm": 0, "claimed_harm_without_a_run": 0,
+              "out_of_scope": 0, "off_operation": 0, "refuted": 0,
               "spared_cross_file": 0, "spared_unquoted": 0, "deduped": 0}
     survivors = list(claims)
 
@@ -82,6 +89,47 @@ def main(argv: Sequence[str] | None = None) -> int:
                 survivors.append(claim)
                 continue
             counts["refuted"] += 1
+
+    if args.consequence:
+        answers = [json.loads(l) for l in
+                   (args.out / args.consequence / "consequences.jsonl").read_text().splitlines()
+                   if l.strip()]
+        by_claim = {(a["case_id"], a["file"], a["line"], a["type"]): a for a in answers}
+        kept = []
+        for claim in survivors:
+            answer = by_claim.get((claim["case_id"], claim["file"], claim["line"], claim["type"]))
+            if answer is None:
+                # A claim the consequence node never saw keeps the detector's
+                # answer, like every other unanswered question in this pipeline.
+                kept.append(claim)
+                continue
+            harmless = consequence_module.harmless(answer.get("harm", ""))
+            vacuous = bool(answer.get("claims_harm_without_a_run"))
+            if harmless:
+                counts["named_no_harm"] += 1
+            elif vacuous and args.strict_consequence:
+                counts["claimed_harm_without_a_run"] += 1
+            else:
+                kept.append(claim)
+                continue
+            if not args.quiet:
+                print(f"  no harm named  {claim['case_id']}:{claim['line']}  "
+                      f"{claim['type']} -- harm={answer.get('harm')} "
+                      f"trigger={answer.get('trigger', '')[:60]!r}", file=sys.stderr)
+        survivors = kept
+
+    if args.scope_gate:
+        kept = []
+        for claim in survivors:
+            decision = scope_module.resolve([_report(claim)], cases[claim["case_id"]])[0]
+            if decision.kept:
+                kept.append(claim)
+            else:
+                counts["out_of_scope"] += 1
+                if not args.quiet:
+                    print(f"  out-of-scope   {claim['case_id']}:{claim['line']}  "
+                          f"{claim['type']} -- {decision.detail}", file=sys.stderr)
+        survivors = kept
 
     if args.evidence_gate:
         kept = []
@@ -114,7 +162,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8", newline="\n")
     (run_dir / "config.json").write_text(json.dumps({
         **manifest, "run_id": run_dir.name, "stage": "regate",
-        "regated_run": args.run, "challenge_run": args.challenge, "dataset": dataset,
+        "regated_run": args.run, "challenge_run": args.challenge,
+        "consequence_run": args.consequence,
+        "strict_consequence": bool(args.strict_consequence), "dataset": dataset,
+        "scope_gate": bool(args.scope_gate),
         "evidence_gate": bool(args.evidence_gate),
         "cross_file_gate": bool(args.cross_file_gate),
         "one_per_line": bool(args.one_per_line),
@@ -123,6 +174,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not args.quiet:
         print(f"claims {counts['claims']}  refuted {counts['refuted']}  "
+              f"no-harm {counts['named_no_harm']}  "
+              f"out-of-scope {counts['out_of_scope']}  "
               f"off-operation {counts['off_operation']}  "
               f"spared (cross-file) {counts['spared_cross_file']}  "
               f"-> {len(survivors)}")

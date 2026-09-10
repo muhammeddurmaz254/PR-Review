@@ -33,10 +33,15 @@ python datasets/build_demo_repo.py   # 28 cases, whole files
 | `detect/prompt.py` | eight prompt versions, each a (instructions, taxonomy) pair; measured ones are hash-pinned |
 | `detect/contract.py` | the response schema, its parser, the per-PR cap and the one-comment-per-line rule |
 | `detect/client.py` | stage [4] — Ollama chat, the `silent` stub, model-build reporting |
+| `detect/scope.py` | stage [5] — refuses a report the pull request cannot be about |
 | `detect/anchor.py` | stage [5] — holds each finding to the line it quotes |
-| `detect/challenge.py` | stage [6] — hands each claim back with the lines it is about |
+| `detect/evidence.py` | stage [5b] — holds a finding to the operation its own type names |
+| `detect/facts.py` | stage [3b] — what a reader cannot answer by reading; counted, not shown |
+| `detect/challenge.py` | stage [6a] — does the excerpt *contradict* the claim? |
+| `detect/consequence.py` | stage [6b] — name the run in which this goes wrong (off by default; measured, see PLAN §D13) |
 | `report.py` `steps.py` | Markdown and console rendering; `step.md` is the one a person reads |
 | `run_detect.py` `run_challenge.py` `run_eval.py` | the three entry points |
+| `run_regate.py` | re-applies the deterministic stages to a finished run, without a server |
 
 There is no stage [2]. Candidate enumeration was measured away: the changed code
 fits in the prompt, and selecting sites inside it can only lose findings.
@@ -48,6 +53,8 @@ python run_detect.py --dataset halka --dry-run          # prompts + budget, no s
 python run_detect.py --dataset halka --stub silent      # the precision floor
 python run_detect.py --dataset halka --model qwen3.8:27b --base-url https://<ngrok> --no-think
 python run_challenge.py --run <run_id> --model qwen3.8:27b --base-url https://<ngrok> --no-think
+python run_challenge.py --run <run_id> --stage both --model ...   # ask [6b] as well
+python run_regate.py --run <run_id> --challenge <challenge_id>     # re-filter offline
 python run_eval.py --eval datasets/halka.eval.jsonl --predictions runs/<id>/predictions.jsonl
 python run_eval.py --eval datasets/halka.eval.jsonl --baseline largest_diff_file
 python -m pytest tests/ -q

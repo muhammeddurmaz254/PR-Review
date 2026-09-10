@@ -20,7 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from adapters import load_cases
 from detect import client as client_module
-from detect import anchor, challenge, contract, evidence, pack, prompt
+from detect import anchor, challenge, consequence, contract, evidence, pack, prompt
+from detect import scope as scope_module
 
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
@@ -1381,3 +1382,103 @@ def test_the_challenger_is_told_what_was_counted():
     assert "OUTBOUND_TIMEOUT_SECONDS" not in without
     assert "OUTBOUND_TIMEOUT_SECONDS" in with_facts
     assert "not read from the excerpt above" in with_facts
+
+
+# ---------------------------------------------------------------- stage [5] scope
+
+
+def test_a_pull_request_with_no_code_gets_no_findings(dataset):
+    """The two claims written from a title and description alone were both false.
+
+    A pack that carries no code cannot ground a report, and the challenge stage
+    cannot tell -- an empty excerpt neither shows nor rules out anything, so it
+    refuted the claim on `conf-01-kusurlu` and let the identical claim on
+    `conf-01-temiz` stand. The rule belongs one stage earlier and mechanically.
+    """
+    cases = [c for c in load_cases(DATASETS / f"{dataset}.eval.jsonl") if not c.reviewable]
+    if not cases:
+        pytest.skip(f"{dataset} has no case without reviewable code")
+    for case in cases:
+        report = contract.Report(file=next(iter(case.head_files), "x.py"), line=1,
+                                 type="secrets", title="anything at all", confidence=1.0)
+        decisions = scope_module.resolve([report], case)
+        assert not decisions[0].kept, case.case_id
+        assert "no code" in decisions[0].detail
+
+
+def test_the_scope_gate_never_drops_a_label(dataset):
+    """The gate is only free if no labelled defect lies outside its own diff."""
+    checked = 0
+    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+        for label in case.labels:
+            if not label.in_scope:
+                continue
+            report = contract.Report(file=label.span.file, line=label.span.start_line,
+                                     type=label.type, title="", confidence=1.0)
+            checked += 1
+            assert scope_module.resolve([report], case)[0].kept, (case.case_id, label.type)
+    assert checked
+
+
+def test_the_scope_gate_reads_the_file_not_the_line():
+    """A pure deletion has no added line to point at and is still this PR's defect."""
+    case = _case("demo_repo")
+    changed = next(iter(case.changed_files))
+    report = contract.Report(file=changed, line=10 ** 6, type="secrets", title="",
+                             confidence=1.0)
+    assert scope_module.resolve([report], case)[0].kept
+
+
+# ------------------------------------------------------- stage [6b] consequence
+
+
+def test_only_an_absent_harm_removes_a_finding():
+    """Every other answer, including one this module does not know, keeps it."""
+    for value in ("style_only", "none"):
+        assert consequence.harmless(value)
+    for value in ("wrong_behaviour", "unsafe_access", "resource_cost",
+                  "", "unparseable", "severe", "MAYBE"):
+        assert not consequence.harmless(value)
+
+
+def test_an_unreadable_answer_keeps_the_detectors_report():
+    """A server hiccup must not be scored as a precision gain."""
+    for text in ("", "not json", "[]", '{"harm": null}'):
+        harm, trigger, effect = consequence.parse(text)
+        assert not consequence.harmless(harm)
+
+
+def test_the_schema_puts_the_run_before_the_verdict():
+    """Generation order is schema order; the label must name work already done."""
+    assert list(consequence.HARM_SCHEMA["properties"]) == ["trigger", "consequence", "harm"]
+    assert consequence.HARM_SCHEMA["properties"]["harm"]["enum"][-2:] == ["style_only", "none"]
+
+
+def test_a_claim_of_harm_must_point_at_a_run():
+    """`concrete` is to a survival what `honours` is to a refutation."""
+    assert consequence.concrete("a member of another org calls void",
+                                "the invoice is voided")
+    for trigger, effect in (("none", "the invoice is voided"),
+                            ("", "the invoice is voided"),
+                            ("a caller", "none"),
+                            ("N/A", "n/a"),
+                            ("yok", "hicbiri")):
+        assert not consequence.concrete(trigger, effect), (trigger, effect)
+
+
+def test_the_two_verify_nodes_are_asked_different_questions():
+    """The split is the point: same evidence, different question.
+
+    Stage [6a] agreed with twelve of the thirteen false alarms it was shown, and
+    its own reasons say why -- they were accurate. A second node that merely
+    reworded "contradict" would inherit that ceiling.
+    """
+    assert "contradict" in challenge.SYSTEM
+    assert "contradict" not in consequence.SYSTEM
+    assert "goes wrong" in consequence.SYSTEM
+    claim = {"file": "a.py", "line": 3, "type": "wrong_argument", "title": "t"}
+    rows = ["   3 + | f(x)"]
+    assert consequence.build(claim, rows) != challenge.build(claim, rows)
+    # Same evidence, so a difference in the answers is a difference in the question.
+    for payload in (consequence.build(claim, rows), challenge.build(claim, rows)):
+        assert "f(x)" in payload and "wrong_argument" in payload

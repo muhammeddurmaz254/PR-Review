@@ -26,6 +26,7 @@ from typing import Sequence
 
 from adapters import load_cases, write_predictions
 from detect import anchor as anchor_module
+from detect import scope as scope_module
 from detect import evidence as evidence_module
 from detect import client as client_module
 from detect import contract, pack, prompt
@@ -127,6 +128,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="shorthand for --context '*'")
     parser.add_argument("--max-pack-lines", type=int, default=0,
                         help="split a pull request larger than this into excerpts; 0 never splits")
+    parser.add_argument("--scope-gate", action=argparse.BooleanOptionalAction, default=True,
+                        help="drop a report about a file this pull request does not change, "
+                             "and every report on a pull request that shows no code (stage [5])")
     parser.add_argument("--evidence-gate", action=argparse.BooleanOptionalAction, default=True,
                         help="drop a finding whose type names an operation the accused "
                              "statement does not perform (stage [5b])")
@@ -221,6 +225,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     rejects: list[dict] = []
     failures = 0
     off_operation = 0
+    out_of_scope = 0
     dropped = 0
     by_case = {case.case_id: case for case in cases}
     # Reports are gathered per pull request and capped once, not per excerpt:
@@ -272,6 +277,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         for case_id, found in harvest.items():
             kept = contract.cap(contract.dedupe(found), args.max_findings)
             dropped += len(found) - len(kept)
+            if args.scope_gate:
+                # Stage [5] proper: a report the pull request cannot be about is
+                # refused before anything reads the line it names.
+                placements = scope_module.resolve(kept, by_case[case_id])
+                out_of_scope += sum(1 for p in placements if not p.kept)
+                signatures.extend({
+                    "case_id": case_id, "file": p.report.file, "line": p.report.line,
+                    "type": p.report.type, "verdict": "out_of_scope" if not p.kept else "in_scope",
+                    "detail": p.detail, "title": p.report.title,
+                } for p in placements if not p.kept)
+                kept = scope_module.apply(placements)
             if args.evidence_gate:
                 # Stage [5b] runs before the quote gate: both refuse a report for
                 # pointing at the wrong place, and neither reads a label, so the
@@ -324,6 +340,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "quantization": None, "context_tokens": args.num_ctx,
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
+        "scope_gate": bool(args.scope_gate),
+        "dropped_out_of_scope": out_of_scope,
         "evidence_gate": bool(args.evidence_gate),
         "dropped_off_operation": off_operation,
         "field_order": list(order),
@@ -360,6 +378,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"reused {len(done)} answer(s) already on disk")
         if dropped:
             print(f"dropped over the {args.max_findings}-per-PR cap: {dropped}")
+        if args.scope_gate and out_of_scope:
+            print(f"dropped for naming something this pull request does not change: {out_of_scope}")
         if args.evidence_gate and off_operation:
             print(f"dropped for naming an operation the statement does not perform: {off_operation}")
         if quoted:
