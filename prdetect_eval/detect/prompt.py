@@ -683,6 +683,99 @@ DEMO_REPO_TYPES_EVIDENCE = {
 
 TAXONOMIES_DEMO_EVIDENCE = {**TAXONOMIES_V3, "demo_repo": DEMO_REPO_TYPES_EVIDENCE}
 
+# --- Deney G: geniş katalog + jenerik tanımlar ------------------------------
+#
+# B put all fifty-four names in the prompt and lost 0.242 of F1, eleven of its
+# eighteen false alarms arriving under kinds the corpus does not contain. But B
+# carried halka_bench's *grounded* definitions for its own forty-one and each
+# other corpus's for theirs, so it confounded two things: how many names there
+# are, and whether their definitions were written with a repository in hand.
+#
+# This is the configuration a real deployment would actually ship -- every name
+# anyone might need, none of the definitions written against the code being
+# reviewed. If it lands near C the breadth is affordable and B measured the
+# definitions; if it lands near B the breadth is the cost and a shared catalogue
+# has to be narrowed per pull request after all.
+
+SWRBENCH_TYPES_EVIDENCE = {
+    "F.1 Interface": "A call is handed an object or a value of a different kind from the one "
+                     "the callee's signature declares, or a public name callers rely on is "
+                     "removed or narrowed.",
+    "F.2 Logic": "The expression is wrong for input it will see: a condition true in a case "
+                 "it should not be, a value built from the wrong parts, a format string that "
+                 "never interpolates.",
+    "F.3 Resource": "A name, path or setting is not available in the form it is used: a symbol "
+                    "referenced but never imported, a parameter computed and never passed on, "
+                    "an entry point that no longer works the documented way.",
+    "F.4 Check": "The guarding is wrong: missing where an invalid value flows on, applied on "
+                 "one path and not the one beside it, asserting something that can be false, "
+                 "or catching so widely that unrelated failures vanish.",
+    "F.5 Support": "The code assumes a language version, a library version or a dependency "
+                   "that will not always be there.",
+}
+
+HALKA_TYPES_WIDE_EVIDENCE = {**HALKA_TYPES_EVIDENCE, **DEMO_REPO_TYPES_EVIDENCE,
+                             **SWRBENCH_TYPES_EVIDENCE}
+
+TAXONOMIES_WIDE_EVIDENCE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_WIDE_EVIDENCE}
+
+# --- Deney H: tekilleştirilmiş ve genişletilmiş katalog ---------------------
+#
+# G merged three taxonomies and lost a quarter of F1. The extra false alarms did
+# not arrive under the kinds that could not occur -- `F.1 Interface` produced one
+# -- but under the coarse synonyms the merge introduced: `authz` beside
+# `missing_authz_check`, `injection` beside `sql_injection`, `error_handling`
+# beside three separate halka names. The model reported under the coarse name and
+# the label carried the precise one.
+#
+# So this catalogue is the same test without that fault. Nothing is a synonym of
+# anything else, and twelve classes are added that this corpus cannot contain at
+# all -- a deployment ships names for defects it may never see. If it lands near
+# C, breadth is affordable once the catalogue is a catalogue; if it lands near G,
+# the count itself is the cost and a shared one has to be narrowed per pull
+# request.
+
+BEYOND_CORPUS = {
+    "path_traversal": "A path is built from a value the caller controls and used to open a "
+                      "file, without the containment the other file opens in this codebase "
+                      "apply.",
+    "open_redirect": "A redirect is sent to a location the request supplied, without the "
+                     "restriction applied where other redirect targets are chosen.",
+    "mass_assignment": "A request body is bound wholesale onto a stored object, so fields the "
+                       "explicit list for that object leaves out can be written from outside.",
+    "insecure_default": "A default turns a protection off -- verification skipped, debug left "
+                        "on, a permissive origin -- where the same setting is explicit "
+                        "elsewhere.",
+    "unbounded_resource": "A response, file or query result is read whole into memory with no "
+                          "limit, where a bound or a stream is used for the same kind of "
+                          "input elsewhere.",
+    "float_money": "A monetary amount is held or computed in a floating type, where the "
+                   "surrounding code keeps money in an exact one.",
+    "naive_datetime": "A timestamp is created or compared without a timezone, where the other "
+                      "timestamps in this codebase carry one.",
+    "blocking_call_in_async": "A synchronous call that waits -- a socket, a file, a sleep -- "
+                              "runs inside a coroutine, where an awaitable form of the same "
+                              "call exists.",
+    "mutable_default_argument": "A parameter defaults to a mutable object, so the value "
+                                "outlives the call and is shared by every later one.",
+    "regex_denial_of_service": "A pattern with nested or overlapping repetition is matched "
+                               "against input from outside, where the time it takes grows "
+                               "faster than the input does.",
+    "breaking_public_api": "A name callers outside this change depend on -- an exported "
+                           "symbol, a flag, an attribute a subclass overrides -- is removed, "
+                           "renamed or narrowed.",
+    "missing_migration": "A stored model's shape is changed with no accompanying migration, "
+                         "where every other change to that model has one.",
+}
+
+# One name per class: the halka forty-one, none of which is a synonym of another,
+# plus twelve classes it cannot contain.
+HALKA_TYPES_BROAD = {**HALKA_TYPES_EVIDENCE, **BEYOND_CORPUS}
+
+TAXONOMIES_BROAD = {**TAXONOMIES_V3, "halka": HALKA_TYPES_BROAD}
+
+
+
 
 
 
@@ -1012,6 +1105,8 @@ VERSIONS = {
     "review/v6-demo-evidence": (INSTRUCTIONS_V6, TAXONOMIES_DEMO_EVIDENCE),
     "review/open": (INSTRUCTIONS_OPEN, TAXONOMIES_V3),
     "review/hybrid": (INSTRUCTIONS_HYBRID, TAXONOMIES_V3),
+    "review/v6-wide-evidence": (INSTRUCTIONS_V6, TAXONOMIES_WIDE_EVIDENCE),
+    "review/v6-broad": (INSTRUCTIONS_V6, TAXONOMIES_BROAD),
 }
 
 # Versions that carry no catalogue: the detector says what is wrong in its own
@@ -1027,7 +1122,8 @@ OPEN = frozenset({"review/open", "review/hybrid"})
 QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/v8",
                     "review/v6-generic", "review/v6-wide", "review/v6-evidence",
                     "review/v6-located", "review/v6-reachable",
-                    "review/v6-demo-evidence"})
+                    "review/v6-demo-evidence", "review/v6-wide-evidence",
+                    "review/v6-broad"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.

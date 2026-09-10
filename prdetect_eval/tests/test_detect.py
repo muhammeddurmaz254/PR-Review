@@ -75,7 +75,7 @@ def test_every_prompt_version_renders_for_every_dataset():
 # ask what a shared catalogue would cost. Every other version may reword a
 # definition but must leave the names alone, because the schema enum and every
 # stored label are built from them.
-NAME_CHANGING = {"review/v6-wide"}
+NAME_CHANGING = {"review/v6-wide", "review/v6-wide-evidence", "review/v6-broad"}
 
 
 def test_the_type_names_never_move_between_versions():
@@ -147,6 +147,43 @@ def test_the_reachable_catalogue_lifts_only_the_diff_restriction():
             assert vague not in lowered, f"{name}: {vague!r}"
     # Only the restriction moved; the definitions that never carried it are equal.
     assert sum(located[k] != reachable[k] for k in located) == 21
+
+
+def test_the_wide_evidence_catalogue_is_wide_and_names_no_repository():
+    """B confounded two things: how many names there are, and whether their
+    definitions were written with the repository in hand. This separates them --
+    every name, none of the grounding."""
+    wide = prompt.HALKA_TYPES_WIDE_EVIDENCE
+    assert len(wide) == 54
+    for dataset in ("halka", "demo_repo", "swrbench"):
+        for name in prompt.types(dataset):
+            assert name in wide, name
+    for name, text in wide.items():
+        lowered = text.lower()
+        assert "repositor" not in lowered and "halka" not in lowered, name
+    assert len(prompt.types("halka", "review/v6-wide-evidence")) == 54
+
+
+def test_the_broad_catalogue_is_wider_than_the_corpus_and_holds_no_synonyms():
+    """G's quarter of F1 went to coarse synonyms the merge introduced, not to the
+    kinds that could not occur. This is the same breadth without that fault: no
+    name overlaps another, and twelve classes cannot occur here at all."""
+    broad = prompt.HALKA_TYPES_BROAD
+    assert len(broad) == 53
+    assert set(prompt.HALKA_TYPES) < set(broad)
+    beyond = set(prompt.BEYOND_CORPUS)
+    assert len(beyond) == 12
+    assert beyond.isdisjoint(prompt.HALKA_TYPES)
+    # None of the coarse names the merge brought in.
+    for coarse in ("authz", "injection", "error_handling", "data_exposure", "secrets",
+                   "race_condition", "business_logic", "F.1 Interface", "F.2 Logic"):
+        assert coarse not in broad, coarse
+    for name, text in broad.items():
+        lowered = text.lower()
+        assert "repositor" not in lowered and "halka" not in lowered, name
+    # Nothing in this corpus can be reported under an added class and be right.
+    labelled = {label for label in prompt.HALKA_TYPES}
+    assert beyond.isdisjoint(labelled)
 
 
 def test_the_generic_catalogue_names_no_repository():
