@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from adapters import load_cases
 from detect import client as client_module
-from detect import anchor, challenge, contract, pack, prompt
+from detect import anchor, challenge, contract, evidence, pack, prompt
 
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
@@ -71,12 +71,91 @@ def test_every_prompt_version_renders_for_every_dataset():
             assert "{format}" not in text and text.strip()
 
 
+# Two versions change the type *names* on purpose: they are the experiments that
+# ask what a shared catalogue would cost. Every other version may reword a
+# definition but must leave the names alone, because the schema enum and every
+# stored label are built from them.
+NAME_CHANGING = {"review/v6-wide"}
+
+
 def test_the_type_names_never_move_between_versions():
-    """The schema enum and every stored label are built from these names."""
     for version in prompt.VERSIONS:
+        if version in NAME_CHANGING:
+            continue
         _, taxonomies = prompt.VERSIONS[version]
         for dataset in prompt.TAXONOMIES:
             assert list(taxonomies[dataset]) == prompt.types(dataset), (version, dataset)
+
+
+def test_the_schema_follows_the_version_that_asked_for_it():
+    """A schema built from the default map would let the model answer with a type
+    the prompt never listed."""
+    assert len(prompt.types("halka", "review/v6-wide")) == 54
+    assert len(prompt.types("halka", "review/v6")) == 41
+    text = prompt.system("halka", "review/v6-wide")
+    for name in prompt.types("halka", "review/v6-wide"):
+        assert f"`{name}`" in text, name
+
+
+def test_the_evidence_catalogue_names_no_repository():
+    """Deney C separates two things Deney A confounded: naming this codebase, and
+    saying what would establish the claim. Only the first is machine-checkable.
+
+    A keyword list was tried for the second and rejected: it scored the catalogue
+    27 of 41 while the definitions it missed -- "escaped on the other paths that
+    render it", "wider than anything the body it guards can raise" -- demand
+    evidence as plainly as the ones it caught. Padding the definitions to satisfy
+    the list would have corrupted the experiment it exists to run. Whether the
+    shape holds is what the measurement answers, not what a regex can.
+    """
+    types = prompt.HALKA_TYPES_EVIDENCE
+    assert set(types) == set(prompt.HALKA_TYPES)
+    for name, text in types.items():
+        assert "repositor" not in text.lower(), name
+        assert "halka" not in text.lower(), name
+
+
+def test_the_located_catalogue_points_at_something_findable():
+    """Deney C demanded a comparison and left the reference unnamed, so on a clean
+    pull request the model found *some* neighbour that differed and called it a
+    violation -- six extra false alarms, all under the comparative types. D keeps
+    the demand and names where to look, in words that are a location rather than
+    a convention."""
+    types = prompt.HALKA_TYPES_LOCATED
+    assert set(types) == set(prompt.HALKA_TYPES)
+    for name, text in types.items():
+        lowered = text.lower()
+        assert "repositor" not in lowered and "halka" not in lowered, name
+        # The words C used to gesture at a reference without giving one.
+        for vague in ("its sibling", "siblings", "neighbour", "elsewhere"):
+            assert vague not in lowered, f"{name}: {vague!r}"
+
+
+def test_the_reachable_catalogue_lifts_only_the_diff_restriction():
+    """E is D with one phrase removed and nothing else, so the difference between
+    the two runs is the restriction alone. D lost three true positives whose
+    reference lives in code the pull request does not touch, and thirty-three of
+    this corpus's forty-nine defects are grounded that way."""
+    located, reachable = prompt.HALKA_TYPES_LOCATED, prompt.HALKA_TYPES_REACHABLE
+    assert set(located) == set(reachable)
+    for name, text in reachable.items():
+        lowered = text.lower()
+        assert "shown in this change" not in lowered, name
+        assert "shown here" not in lowered, name
+        assert "repositor" not in lowered and "halka" not in lowered, name
+        for vague in ("its sibling", "siblings", "neighbour", "elsewhere"):
+            assert vague not in lowered, f"{name}: {vague!r}"
+    # Only the restriction moved; the definitions that never carried it are equal.
+    assert sum(located[k] != reachable[k] for k in located) == 21
+
+
+def test_the_generic_catalogue_names_no_repository():
+    """Deney A only means something if the generic definitions were written from
+    the class of defect, not from how halka_bench expresses it."""
+    for name, text in prompt.HALKA_TYPES_GENERIC.items():
+        assert "repositor" not in text.lower(), name
+        assert "sibling" not in text.lower(), name
+    assert set(prompt.HALKA_TYPES_GENERIC) == set(prompt.HALKA_TYPES)
 
 
 def test_v3_separates_the_two_definitions_that_collided():
@@ -893,3 +972,156 @@ def test_the_versions_before_v7_showed_an_order_they_did_not_decode():
     decoded = list(contract.response_schema(
         ["authz"], quote=True)["properties"]["findings"]["items"]["properties"])
     assert decoded.index("quote") == len(decoded) - 1
+
+
+# --- stage [5b]: the accused statement must perform the operation the type names
+
+
+def test_a_type_without_a_signature_is_never_gated(dataset):
+    """The filter is opt-in per type; everything else passes untouched.
+
+    swrbench and demo_repo name kinds of change, not operations, so no type of
+    theirs carries a signature and the stage is inert on both corpora. That is
+    the property that makes it safe to leave on by default.
+    """
+    case = _case(dataset)
+    filename = sorted(pack.shown_lines(case)[0])[0]
+    report = contract.Report(filename, 1, "no_such_type_anywhere", "t", 0.9)
+    decision = evidence.resolve([report], case)[0]
+    assert decision.verdict == "no-signature" and decision.kept
+
+
+def _synthetic(body: str, filename: str = "app/net.py"):
+    """One file of made-up source, addressed the way a Case is."""
+    from schema import Case
+    return Case(case_id="synthetic", pair_id=None, variant="", difficulty="",
+                primary_type=None, is_defective=True, pr_title="", pr_description="",
+                changed_files=(filename,), noise_files=(), deleted_files=(),
+                added_lines={filename: frozenset()}, head_files={filename: body},
+                context_files={}, diff="", labels=(), distractors=())
+
+
+EGRESS_IDIOMS = {
+    "module call": "import requests\ndef f(url):\n    return requests.get(url)\n",
+    "pooled session on self":
+        "import requests\nclass C:\n    def f(self, url):\n        return self.session.get(url)\n",
+    "opener held in a local":
+        "import urllib\ndef f(url, opener):\n    return opener.open(url)\n",
+    "awaited client":
+        "import httpx\nclass C:\n    async def f(self, url):\n        return await self.client.get(url)\n",
+    "aliased import": "import requests as rq\ndef f(url):\n    return rq.get(url)\n",
+    "session passed in":
+        "import aiohttp\nasync def f(url, sess):\n    r = sess.get(url)\n    return r\n",
+    "third-party wrapper":
+        "from vendorlib.http import fetch_url\ndef f(url):\n    return fetch_url(url)\n",
+}
+
+
+@pytest.mark.parametrize("idiom", sorted(EGRESS_IDIOMS))
+def test_every_real_world_egress_idiom_survives_the_gate(idiom):
+    """The filter must fail open on code it cannot read.
+
+    A pooled `requests.Session` or `httpx.Client` held on `self` is the dominant
+    idiom in production code, not the exception. An earlier version of this
+    signature tested the statement against a list of module prefixes; measured
+    against these seven idioms it recognised one, so in any repository but this
+    corpus it would have deleted real findings.
+    """
+    body = EGRESS_IDIOMS[idiom]
+    rows = body.split("\n")
+    line = max(i for i, row in enumerate(rows, 1)
+               if ("get(" in row or "open(" in row or "fetch_url(" in row)
+               and not row.startswith(("import", "from")))
+    report = contract.Report("app/net.py", line, "ssrf_unvalidated_fetch", "t", 0.9)
+    assert evidence.resolve([report], _synthetic(body))[0].kept, idiom
+
+
+@pytest.mark.parametrize("form", ["from app.http import fetch_url", "from .http import fetch_url"])
+def test_a_wrapper_of_this_project_does_not_survive(form):
+    """Absolute or relative, an import of this project's own code is a body the
+    reviewer was not shown, so a claim about what it does is misplaced here."""
+    body = f"{form}\ndef f(url):\n    return fetch_url(url)\n"
+    report = contract.Report("app/net.py", 3, "ssrf_unvalidated_fetch", "t", 0.9)
+    assert not evidence.resolve([report], _synthetic(body))[0].kept
+
+
+def test_an_ssrf_claim_on_a_wrapper_call_is_dropped():
+    """`fetch_url(icon_url)` performs no visible egress on the line accused.
+
+    Nothing here decides that the wrapper is safe -- the point is narrower: the
+    report names a line whose only call is a project function, so whatever it is
+    accusing lives in a body the reviewer was never shown.
+    """
+    case = _case("halka", "ssrf-01-temiz")
+    report = contract.Report("halka/integrations/client.py", 35,
+                             "ssrf_unvalidated_fetch", "fetched without a gate", 0.9)
+    decision = evidence.resolve([report], case)[0]
+    assert decision.verdict == "off-operation" and not decision.kept
+    assert evidence.apply([decision]) == []
+
+
+def test_an_ssrf_claim_on_a_raw_client_call_stands():
+    case = _case("halka", "ssrf-01-kusurlu")
+    report = contract.Report("halka/integrations/client.py", 36,
+                             "ssrf_unvalidated_fetch", "fetched without a gate", 0.9)
+    assert evidence.resolve([report], case)[0].verdict == "on-operation"
+
+
+def test_an_ssrf_claim_on_the_argument_line_of_a_wrapped_call_stands():
+    """The unit is the statement. A call split over four lines is one operation,
+    and prompt v7 anchored `ssrf-02-kusurlu` on its argument line, not its first.
+    Line-scoped, this filter dropped that true positive."""
+    case = _case("halka", "ssrf-02-kusurlu")
+    report = contract.Report("halka/integrations/services.py", 51,
+                             "ssrf_unvalidated_fetch", "callback fetched raw", 0.9)
+    assert evidence.resolve([report], case)[0].verdict == "on-operation"
+
+
+def test_a_user_value_in_the_parameter_tuple_is_not_an_injection():
+    """`raw_query("... ILIKE %s", (org_id, "%%%s%%" % terim))` interpolates a
+    user string and is safe: the placeholder tuple is where user data belongs.
+    Only an argument that carries SQL *and* is built at runtime is the defect,
+    which is why this signature reads arguments instead of the statement text."""
+    case = _case("halka", "inj-01-temiz")
+    report = contract.Report("halka/reporting/selectors.py", 42,
+                             "sql_injection", "user input concatenated into LIKE", 0.9)
+    assert evidence.resolve([report], case)[0].verdict == "off-operation"
+
+
+def test_a_user_value_inside_the_query_text_is_an_injection():
+    case = _case("halka", "inj-01-kusurlu")
+    report = contract.Report("halka/reporting/selectors.py", 39,
+                             "sql_injection", "user input concatenated into LIKE", 0.9)
+    assert evidence.resolve([report], case)[0].verdict == "on-operation"
+
+
+def test_a_file_outside_the_pull_request_is_left_alone(dataset):
+    """A report the filter cannot read pays in the false-alarm column instead."""
+    case = _case(dataset)
+    report = contract.Report("not/in/this/pr.py", 1, "ssrf_unvalidated_fetch", "t", 0.9)
+    decision = evidence.resolve([report], case)[0]
+    assert decision.verdict == "unchecked" and decision.kept
+
+
+def test_no_signature_is_given_to_a_type_that_names_no_operation():
+    """`weak_crypto_primitive` covers `token_hash == hash_token(token)` in this
+    corpus -- a timing attack, naming no primitive. A signature there would drop
+    a true positive, so the type deliberately has none."""
+    assert "weak_crypto_primitive" not in evidence.SIGNATURES
+    case = _case("halka", "crypto-03-kusurlu")
+    report = contract.Report("halka/integrations/services.py", 52,
+                             "weak_crypto_primitive", "not constant time", 0.9)
+    assert evidence.resolve([report], case)[0].kept
+
+
+# --- stage [6]: a one-file excerpt cannot settle a two-file claim
+
+
+def test_a_cross_file_claim_cannot_be_refuted_from_one_file():
+    assert not challenge.settleable("crossfile_unit_mismatch")
+    assert not challenge.settleable("crossfile_ownership")
+
+
+def test_every_other_kind_of_claim_can_be():
+    for kind in ("sql_injection", "missing_lock", "F.2 Logic", "business_logic"):
+        assert challenge.settleable(kind)

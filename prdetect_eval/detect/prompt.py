@@ -307,6 +307,388 @@ TAXONOMIES = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES,
 TAXONOMIES_V3 = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES_V3,
                  "halka": HALKA_TYPES}
 
+# --- Deney A: temellendirme mi, genişlik mi? -------------------------------
+#
+# The same forty-one type names, defined the way a universal catalogue would
+# define them: from the class of defect, not from how this repository expresses
+# it. Written without consulting halka_bench. Where the grounded definition
+# names something local -- "weaker than its siblings use", "the repository
+# documents", "the repository's one-based page contract" -- the generic one
+# states the class instead.
+#
+# The question this answers: v3 doubled the primary metric by writing
+# definitions from the corpus's own examples. If generic wording scores the
+# same, that gain was about writing them *carefully*, and a shared catalogue
+# carries to any repository. If it scores worse, grounding is the thing that
+# worked and every deployment has to pay for its own.
+
+HALKA_TYPES_GENERIC = {
+    "missing_authz_check": "An endpoint or object access is not authorized, or the check it "
+                           "does is weaker than the operation it guards requires.",
+    "crossfile_ownership": "A query is not restricted to the tenant, account or owner whose "
+                           "data it is supposed to return.",
+    "crossfile_data_exposure": "Serialization sends fields to the client that were meant to "
+                               "stay internal.",
+    "crossfile_error_propagation": "A failure reported by a callee is swallowed by its caller "
+                                   "and reported as success.",
+    "crossfile_idempotency": "A retried or repeated operation is processed more than once "
+                             "because its duplicate guard never engages.",
+    "crossfile_ordering": "An ordering guarantee a consumer relies on is not provided by the "
+                          "producer.",
+    "crossfile_unit_mismatch": "A value crosses a boundary in a different unit or scale from "
+                               "the one the other side expects.",
+    "sql_injection": "Untrusted input reaches the text of an SQL statement instead of being "
+                     "bound as a parameter.",
+    "command_injection": "Untrusted input reaches the text of a shell command.",
+    "xss": "Untrusted input is written into an HTML response without escaping.",
+    "error_detail_disclosure": "An exception message or stack trace is returned to the client.",
+    "hardcoded_credential": "A password, key or token is written literally into the source.",
+    "weak_crypto_primitive": "A broken or unsuitable cryptographic choice: a weak digest, "
+                             "predictable randomness, or a secret compared in variable time.",
+    "unvalidated_passthrough": "Request data is forwarded unchecked into a call that expects "
+                               "validated input.",
+    "wrong_argument": "A call receives arguments in the wrong order, or the wrong value in a "
+                      "position.",
+    "wrong_data_source": "A value is read from a source that can be stale or wrong when an "
+                         "authoritative one exists.",
+    "wrong_state_check": "A state is compared against a value the state machine cannot hold.",
+    "silent_overwrite": "A write replaces existing data that should have been merged or "
+                        "preserved.",
+    "unreachable_code": "Statements that control flow can never reach.",
+    "unused_symbol": "A symbol is defined and never referenced.",
+    "misleading_name": "A name describes behaviour the code does not have, so callers read it "
+                       "wrongly.",
+    "duplicated_block": "A block of logic is copied where the existing one could be reused.",
+    "duplicated_config": "A configuration value is written in a second place, so the two can "
+                         "drift apart.",
+    "duplicated_test_block": "A test block is copied rather than shared, so a change has to be "
+                             "remembered twice.",
+    "broad_except": "An exception clause catches far more than the failure being handled.",
+    "swallowed_exception": "An exception is caught and neither logged nor re-raised.",
+    "unclosed_resource": "A file, socket or handle is opened and not reliably closed.",
+    "redundant_work": "The same expensive computation is performed more than once where one "
+                      "result would do.",
+    "work_in_loop": "A query or call is issued per iteration where a batch form exists.",
+    "removed_dependency": "A package the code imports at runtime is no longer among its runtime "
+                          "dependencies.",
+    "removed_network_config": "A host, endpoint or credential the code still uses is no longer "
+                              "present in configuration.",
+    "missing_assertion": "A test exercises code without asserting anything about the result.",
+    "hardcoded_endpoint": "A test hardcodes a URL or path instead of resolving it the way the "
+                          "application does.",
+    "null_deref": "A value that can be absent is used without checking for it.",
+    "off_by_one": "An index, bound or offset is out by one.",
+    "unguarded_dict_access": "A key from outside the program is used to index a mapping without "
+                             "handling its absence.",
+    "missing_lock": "A read-modify-write runs without the mutual exclusion its invariant needs.",
+    "secret_in_log": "A credential or token is written to a log.",
+    "ssrf_unvalidated_fetch": "A request is made to an address the caller controls, without "
+                              "restricting where it may point.",
+    "unsafe_deserialization": "Untrusted data is handed to a decoder that can construct or "
+                              "execute arbitrary objects.",
+    "divergent_change": "One module is repeatedly changed for unrelated reasons.",
+}
+
+# --- Deney B: katalog uzunluğu zarar veriyor mu? ---------------------------
+#
+# Every type of all three corpora at once: fifty-four names, of which thirteen
+# cannot occur in halka_bench at all. A shared catalogue would look like this
+# from any single repository's point of view -- mostly irrelevant. Measured
+# against the forty-one, the difference is what breadth costs by itself,
+# separately from how the definitions are worded.
+
+HALKA_TYPES_WIDE = {**HALKA_TYPES, **DEMO_REPO_TYPES, **SWRBENCH_TYPES_V3}
+
+TAXONOMIES_GENERIC = {**TAXONOMIES_V3, "halka": HALKA_TYPES_GENERIC}
+
+# --- Deney C: repo-agnostik kelimeler, kanıt talep eden şekil ---------------
+#
+# Deney A wrote the same forty-one types the way a catalogue describes a class,
+# and tripled the false alarms while leaving localization and naming untouched.
+# Reading the two catalogues against each other suggested why: the definitions
+# that won name **a comparison the reviewer has to go and find** -- "weaker than
+# its siblings use", "documented as able to go stale", "the one-based page
+# contract" -- and none of them names this repository. The generic ones assert a
+# property, which a model can claim from the accused line alone.
+#
+# So this catalogue keeps the evidence and drops the locality: every definition
+# says what would establish it, in words that belong to no particular codebase.
+# If it lands near the grounded numbers, a shared catalogue is possible and the
+# per-deployment cost is writing tests rather than descriptions. If it lands
+# near the generic ones, demanding evidence is not enough and grounding really
+# does require knowing the repository.
+
+HALKA_TYPES_EVIDENCE = {
+    "missing_authz_check": "The check guarding this operation is weaker than the one its "
+                           "sibling operations of the same kind apply.",
+    "crossfile_ownership": "A query does not apply the tenant or owner scoping that the "
+                           "sibling queries around it apply.",
+    "crossfile_data_exposure": "Serialization emits fields that the field list used by the "
+                               "sibling serializers excludes.",
+    "crossfile_error_propagation": "The callee reports a failure and the caller reports "
+                                   "success; the two disagree about what happened.",
+    "crossfile_idempotency": "The key the duplicate guard is keyed on is not stable across "
+                             "runs, so the guard it feeds can never match.",
+    "crossfile_ordering": "The consumer depends on an order the producer no longer "
+                          "establishes.",
+    "crossfile_unit_mismatch": "The value passed is in a different unit from the one the "
+                               "callee's name, signature or docstring declares.",
+    "sql_injection": "A runtime value is placed in the query text rather than in the "
+                     "parameters the driver binds.",
+    "command_injection": "A runtime value is placed in the command text rather than in an "
+                         "element of an argument list.",
+    "xss": "A value reaches the response unescaped where the same value is escaped on the "
+           "other paths that render it.",
+    "error_detail_disclosure": "The response carries exception text or a trace where sibling "
+                               "handlers return a code alone.",
+    "hardcoded_credential": "A secret is a literal here where its neighbours read the same "
+                            "kind of value from configuration.",
+    "weak_crypto_primitive": "The primitive chosen is weaker than the one used elsewhere for "
+                             "the same purpose: a broken digest, ordinary randomness for a "
+                             "secret, or a comparison that returns early.",
+    "unvalidated_passthrough": "Request data reaches a call that its other call sites reach "
+                               "only after validating.",
+    "wrong_argument": "The arguments do not match the order or the roles the callee's "
+                      "signature declares.",
+    "wrong_data_source": "The value is read from a source that can lag, while the "
+                         "authoritative one is used for the same value elsewhere.",
+    "wrong_state_check": "A state is compared against a value nothing in the code ever "
+                         "assigns to it.",
+    "silent_overwrite": "A write replaces a structure whose other writers merge into it.",
+    "unreachable_code": "The control flow above these statements always leaves before them.",
+    "unused_symbol": "The symbol is defined and nothing that can see it refers to it.",
+    "misleading_name": "The name says something the body does not do, judged against the "
+                       "naming convention its neighbours follow.",
+    "duplicated_block": "The same logic already exists elsewhere and this is a second copy "
+                        "rather than a use of it.",
+    "duplicated_config": "The value is defined a second time, so the two definitions can "
+                         "disagree and only one is documented as the source.",
+    "duplicated_test_block": "The assertions already exist in another test, so one contract "
+                             "now has to be remembered in two places.",
+    "broad_except": "The clause catches a type wider than anything the body it guards can "
+                    "raise.",
+    "swallowed_exception": "The handler neither logs nor re-raises, where sibling handlers "
+                           "do one or the other.",
+    "unclosed_resource": "The resource is opened without the closing form its sibling opens "
+                         "use.",
+    "redundant_work": "The same value is computed twice in one flow where the first result "
+                      "is still in scope.",
+    "work_in_loop": "A call is made per iteration although a form that takes the whole set "
+                    "exists and is used elsewhere.",
+    "removed_dependency": "A package is gone from the runtime requirements while an import "
+                          "of it remains.",
+    "removed_network_config": "A target is gone from configuration while a use of it remains.",
+    "missing_assertion": "The test runs the code and asserts nothing about the result, where "
+                         "its sibling tests assert.",
+    "hardcoded_endpoint": "The test writes a path literally instead of resolving it the way "
+                          "the application does.",
+    "null_deref": "The result of a call that can be absent is used without the check its "
+                  "other call sites make.",
+    "off_by_one": "The index or offset is one away from the convention its other call sites "
+                  "follow.",
+    "unguarded_dict_access": "A key from outside indexes a mapping without the guard sibling "
+                             "lookups use.",
+    "missing_lock": "A read-modify-write runs without the mutual exclusion that sibling "
+                    "mutations of the same state take.",
+    "secret_in_log": "A value obtained as a secret is written to a log in clear.",
+    "ssrf_unvalidated_fetch": "An address the caller controls is fetched without the "
+                              "restriction applied at the other fetch sites.",
+    "unsafe_deserialization": "Untrusted data reaches a decoder that can construct objects, "
+                              "where a safe decoder is used for the same job elsewhere.",
+    "divergent_change": "One module is changed for reasons that have nothing to do with each "
+                        "other.",
+}
+
+TAXONOMIES_EVIDENCE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_EVIDENCE}
+
+# --- Deney D: referansı yapısal olarak adlandır -----------------------------
+#
+# Deney C recovered every true positive and every naming decision with wording
+# that names no repository, and stopped one gap short: nine false alarms against
+# the grounded catalogue's four, all six of the extra ones on clean cases and all
+# of them under the comparative types.
+#
+# Reading them gave the reason. C says "weaker than its siblings use" without
+# saying which siblings, so on a clean pull request the model finds *some*
+# neighbour that differs and calls it a violation. The grounded catalogue was
+# tighter because it named a reference that can be looked up and therefore
+# failed to be found: "documented as able to go stale", "the one-based page
+# contract".
+#
+# So D keeps C's demand for a comparison and adds the missing half: the
+# comparison must be against something the model was actually shown, named by
+# where it is. Not "its siblings" -- "the other endpoints in this same file".
+# That is still repository-agnostic; it is a location, not a convention.
+
+HALKA_TYPES_LOCATED = {
+    "missing_authz_check": "The check guarding this operation is weaker than the check the "
+                           "other operations of the same kind in this same file apply.",
+    "crossfile_ownership": "A query omits the tenant or owner scoping that the other queries "
+                           "in the same module apply to the same table.",
+    "crossfile_data_exposure": "Serialization emits a field that the explicit field list "
+                               "shown for this same object leaves out.",
+    "crossfile_error_propagation": "A callee shown in this change reports failure, and its "
+                                   "caller shown here returns success anyway.",
+    "crossfile_idempotency": "The value the duplicate guard is keyed on is computed fresh at "
+                             "the call, so two runs of the same work produce two keys.",
+    "crossfile_ordering": "A consumer shown in this change reads in an order that the "
+                          "producer shown here does not establish.",
+    "crossfile_unit_mismatch": "The value passed is in a different unit from the one the "
+                               "callee's parameter name, signature or docstring declares.",
+    "sql_injection": "A runtime value is placed in the query text rather than in the "
+                     "parameter sequence passed alongside it.",
+    "command_injection": "A runtime value is placed in the command text rather than in an "
+                         "element of the argument list passed alongside it.",
+    "xss": "A value reaches the response unescaped on one path where another path shown for "
+           "the same value escapes it.",
+    "error_detail_disclosure": "The response body carries exception text or a trace, where "
+                               "another handler in this same file returns a status alone.",
+    "hardcoded_credential": "A secret appears as a literal, where another value of the same "
+                            "kind in this same file is read from configuration.",
+    "weak_crypto_primitive": "The primitive used here is weaker than the one used for the "
+                             "same purpose at another site in this change: a broken digest, "
+                             "ordinary randomness for a secret, or a comparison that can "
+                             "return early.",
+    "unvalidated_passthrough": "Request data reaches a call that another call site of the "
+                               "same function, shown here, reaches only after validating.",
+    "wrong_argument": "The arguments do not match the order or the roles the callee's "
+                      "signature, shown in this change, declares.",
+    "wrong_data_source": "The value is read from a field this change also writes as a cached "
+                         "copy, while the computation it caches is available at this point.",
+    "wrong_state_check": "A state is compared against a value that no assignment in this "
+                         "change ever gives it.",
+    "silent_overwrite": "A write replaces a structure that another write to the same "
+                        "structure, shown here, merges into.",
+    "unreachable_code": "Every path through the lines above these ones returns or raises "
+                        "before reaching them.",
+    "unused_symbol": "The symbol is defined here and no line shown in this change refers "
+                     "to it.",
+    "misleading_name": "The name follows a pattern that other names in this same file use "
+                       "for different behaviour from this body's.",
+    "duplicated_block": "This block repeats, statement for statement, a block that already "
+                        "exists at another place shown in this change.",
+    "duplicated_config": "This defines a value that another line shown in this change "
+                         "already defines, and only one of the two can be the source.",
+    "duplicated_test_block": "These assertions repeat, statement for statement, assertions "
+                             "that another test in this same file already makes.",
+    "broad_except": "The clause names an exception type wider than any the statements it "
+                    "guards can raise.",
+    "swallowed_exception": "The handler neither logs nor re-raises, where another handler in "
+                           "this same file does one or the other.",
+    "unclosed_resource": "The resource is opened without the `with` or `close` that another "
+                         "open of the same kind in this same file uses.",
+    "redundant_work": "The same call with the same arguments is made twice in one flow, with "
+                      "the first result still in scope at the second.",
+    "work_in_loop": "A call is made once per item although a form taking the whole collection "
+                    "is defined or used at another site in this change.",
+    "removed_dependency": "A package is removed from the runtime requirements shown here "
+                          "while an import of it remains in the code shown here.",
+    "removed_network_config": "A target is removed from the configuration shown here while a "
+                              "use of it remains in the code shown here.",
+    "missing_assertion": "The test calls the code and makes no assertion, where another test "
+                         "in this same file asserts on its result.",
+    "hardcoded_endpoint": "The test writes a path as a literal where the application code "
+                          "shown in this change resolves the same path through a map.",
+    "null_deref": "The result of a call is used without the check that another call site of "
+                  "the same function, shown here, makes on it.",
+    "off_by_one": "The index or offset differs by one from the convention another call site "
+                  "of the same function, shown here, follows.",
+    "unguarded_dict_access": "A key from outside indexes a mapping without the guard another "
+                             "lookup in this same file uses.",
+    "missing_lock": "A read-modify-write runs without the lock that another mutation of the "
+                    "same state, shown in this change, takes.",
+    "secret_in_log": "A value this change obtains as a secret is passed to a logging call in "
+                     "clear.",
+    "ssrf_unvalidated_fetch": "An address the caller controls is fetched without the "
+                              "restriction that another fetch shown in this change applies.",
+    "unsafe_deserialization": "Untrusted data reaches a decoder that can construct objects, "
+                              "where another decode shown in this change uses a safe one.",
+    "divergent_change": "This change edits one module for two reasons that share nothing.",
+}
+
+TAXONOMIES_LOCATED = {**TAXONOMIES_V3, "halka": HALKA_TYPES_LOCATED}
+
+# --- Deney E: yer adlandırılmış ama diff'e kilitli değil --------------------
+#
+# D named the reference and clawed back two false alarms, and lost three true
+# positives doing it. All three name a reference that lives in code the pull
+# request does not touch -- the original of a duplicated block, the batch
+# selector a loop should have used -- and D had written "shown in this change",
+# which excludes them by construction. Thirty-three of this corpus's forty-nine
+# defects are grounded that way, so the restriction was aimed at two thirds of
+# the answer key.
+#
+# E is D with exactly that phrase lifted and nothing else changed, so the
+# difference between the two runs is the diff restriction alone. The reference
+# is still a place -- "another place in this codebase", "the callee's signature"
+# -- and still names no repository.
+
+_UNRESTRICT = (
+    (", shown in this change,", ""),
+    (", shown here,", ""),
+    (" shown in this change", " in this codebase"),
+    (" shown here", " in this codebase"),
+    (" shown for this same object", " for this same object"),
+    ("at another site in this change", "at another site in this codebase"),
+    ("another test in this same file", "another test in this codebase"),
+)
+
+
+def _unrestrict(text: str) -> str:
+    for before, after in _UNRESTRICT:
+        text = text.replace(before, after)
+    return text
+
+
+HALKA_TYPES_REACHABLE = {name: _unrestrict(text)
+                         for name, text in HALKA_TYPES_LOCATED.items()}
+
+TAXONOMIES_REACHABLE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_REACHABLE}
+
+# --- Deney F: C disiplini ikinci bir korpusta -------------------------------
+#
+# C beat the other agnostic variants on halka_bench, and the obvious objection is
+# that its author knows halka_bench. The wording can be checked -- no definition
+# names the repository, and a test asserts it -- but the *choices* cannot: "the
+# check its other call sites make" may have been picked because that is how this
+# corpus happens to work.
+#
+# demo_repo is the control. Its eight definitions have not been touched since
+# review/v1, so they are a grounded baseline nobody has been tuning, and its
+# cases were never read while writing what follows. If the discipline carries,
+# the gap here should look like the gap there.
+
+DEMO_REPO_TYPES_EVIDENCE = {
+    "authz": "The check guarding this operation is weaker than the check the other "
+             "operations of the same kind apply, or there is none where they have one.",
+    "business_logic": "A value is computed, converted or reset in a way that contradicts the "
+                      "rule the surrounding code states for it -- a unit, a default, a bound "
+                      "another line declares.",
+    "data_exposure": "Serialization emits a field that the explicit list of fields for this "
+                     "same object leaves out.",
+    "error_handling": "A callee reports a failure and its caller reports success, or the "
+                      "handler neither logs nor re-raises where another handler does one of "
+                      "the two.",
+    "idempotency": "The value the duplicate guard is keyed on is computed fresh at the call, "
+                   "so two runs of the same work produce two keys and the guard never "
+                   "matches.",
+    "injection": "A runtime value is placed in the text of a query or command rather than in "
+                 "the parameter or argument sequence passed alongside it.",
+    "race_condition": "A read-modify-write runs without the mutual exclusion that another "
+                      "mutation of the same state takes.",
+    "secrets": "A value obtained as a credential is written where it can be read back -- a "
+               "log call, a response, a literal in the source -- while the same kind of value "
+               "is read from configuration on another line.",
+}
+
+TAXONOMIES_DEMO_EVIDENCE = {**TAXONOMIES_V3, "demo_repo": DEMO_REPO_TYPES_EVIDENCE}
+
+
+
+
+TAXONOMIES_WIDE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_WIDE}
+
+
 # Two clauses of the shared instructions contradict what the SWRBench labels
 # actually are, and both suppress a category the model then never uses.
 #
@@ -543,11 +925,20 @@ VERSIONS = {
     "review/v6": (INSTRUCTIONS_V6, TAXONOMIES_V3),
     "review/v7": (INSTRUCTIONS_V7, TAXONOMIES_V3),
     "review/v8": (INSTRUCTIONS_V8, TAXONOMIES_V3),
+    "review/v6-generic": (INSTRUCTIONS_V6, TAXONOMIES_GENERIC),
+    "review/v6-wide": (INSTRUCTIONS_V6, TAXONOMIES_WIDE),
+    "review/v6-evidence": (INSTRUCTIONS_V6, TAXONOMIES_EVIDENCE),
+    "review/v6-located": (INSTRUCTIONS_V6, TAXONOMIES_LOCATED),
+    "review/v6-reachable": (INSTRUCTIONS_V6, TAXONOMIES_REACHABLE),
+    "review/v6-demo-evidence": (INSTRUCTIONS_V6, TAXONOMIES_DEMO_EVIDENCE),
 }
 
 # Which versions ask for the quote, so the schema and the filter agree without
 # either of them guessing from the version string.
-QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/v8"})
+QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/v8",
+                    "review/v6-generic", "review/v6-wide", "review/v6-evidence",
+                    "review/v6-located", "review/v6-reachable",
+                    "review/v6-demo-evidence"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.
@@ -555,10 +946,17 @@ EVIDENCE_FIRST = frozenset({"review/v7"})
 CLAIM_FIRST = frozenset({"review/v8"})
 
 
-def types(dataset: str) -> list[str]:
+def types(dataset: str, version: str | None = None) -> list[str]:
+    """The names the schema constrains the answer to.
+
+    Version-aware: two experiments change the *names*, not only their wording,
+    and a schema built from the default map would let the model answer with a
+    type the prompt never listed.
+    """
     if dataset not in TAXONOMIES:
         raise KeyError(f"unknown dataset {dataset!r}; have {', '.join(TAXONOMIES)}")
-    return list(TAXONOMIES[dataset])
+    taxonomies = VERSIONS[version][1] if version in VERSIONS else TAXONOMIES
+    return list(taxonomies[dataset])
 
 
 def system(dataset: str, version: str = PROMPT_VERSION) -> str:

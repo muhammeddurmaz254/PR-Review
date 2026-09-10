@@ -26,6 +26,7 @@ from typing import Sequence
 
 from adapters import load_cases, write_predictions
 from detect import anchor as anchor_module
+from detect import evidence as evidence_module
 from detect import client as client_module
 from detect import contract, pack, prompt
 from schema import Case, Prediction, Span
@@ -123,6 +124,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="shorthand for --context '*'")
     parser.add_argument("--max-pack-lines", type=int, default=0,
                         help="split a pull request larger than this into excerpts; 0 never splits")
+    parser.add_argument("--evidence-gate", action=argparse.BooleanOptionalAction, default=True,
+                        help="drop a finding whose type names an operation the accused "
+                             "statement does not perform (stage [5b])")
     parser.add_argument("--max-findings", type=int, default=3,
                         help="most confident N per pull request; 0 keeps them all")
     parser.add_argument("--limit", type=int, help="first N cases only, for a smoke run")
@@ -149,7 +153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if problem:
             raise SystemExit(f"{args.base_url}: {problem}")
 
-    types = prompt.types(args.dataset)
+    types = prompt.types(args.dataset, args.prompt_version)
     quoted = args.prompt_version in prompt.QUOTED
     order = contract.LEGACY_ORDER
     if args.prompt_version in prompt.EVIDENCE_FIRST:
@@ -207,9 +211,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     predictions: list[Prediction] = []
     anchored: list[Prediction] = []
     decisions: list[dict] = []
+    signatures: list[dict] = []
     responses: list[client_module.Response] = []
     rejects: list[dict] = []
     failures = 0
+    off_operation = 0
     dropped = 0
     by_case = {case.case_id: case for case in cases}
     # Reports are gathered per pull request and capped once, not per excerpt:
@@ -260,6 +266,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         for case_id, found in harvest.items():
             kept = contract.cap(contract.dedupe(found), args.max_findings)
             dropped += len(found) - len(kept)
+            if args.evidence_gate:
+                # Stage [5b] runs before the quote gate: both refuse a report for
+                # pointing at the wrong place, and neither reads a label, so the
+                # order only decides which reason is recorded first.
+                calls = evidence_module.resolve(kept, by_case[case_id])
+                off_operation += sum(1 for call in calls if not call.kept)
+                signatures.extend({
+                    "case_id": case_id, "file": call.report.file, "line": call.report.line,
+                    "type": call.report.type, "verdict": call.verdict,
+                    "detail": call.detail, "title": call.report.title,
+                } for call in calls)
+                kept = evidence_module.apply(calls)
             predictions.extend(to_predictions(case_id, kept))
             if quoted:
                 verdicts = anchor_module.resolve(kept, by_case[case_id], context=context)
@@ -272,6 +290,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 } for v in verdicts)
 
     write_predictions(run_dir / "predictions.jsonl", predictions)
+    if args.evidence_gate:
+        (run_dir / "signatures.jsonl").write_text(
+            "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in signatures),
+            encoding="utf-8", newline="\n")
     if quoted:
         # Both files are kept so the prompt change and the filter can be scored
         # apart: one asks whether requesting a quote moved the model, the other
@@ -296,6 +318,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "quantization": None, "context_tokens": args.num_ctx,
         "prompt_version": args.prompt_version, "types": types,
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
+        "evidence_gate": bool(args.evidence_gate),
+        "dropped_off_operation": off_operation,
         "field_order": list(order),
         "max_pack_lines": args.max_pack_lines, "packs": len(packs),
         "context": list(context), "reused_answers": len(done),
@@ -330,6 +354,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"reused {len(done)} answer(s) already on disk")
         if dropped:
             print(f"dropped over the {args.max_findings}-per-PR cap: {dropped}")
+        if args.evidence_gate and off_operation:
+            print(f"dropped for naming an operation the statement does not perform: {off_operation}")
         if quoted:
             counts = Counter(row["verdict"] for row in decisions)
             print("anchors: " + "  ".join(f"{name}={n}" for name, n in counts.most_common())
