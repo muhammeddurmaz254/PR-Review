@@ -1,0 +1,560 @@
+{
+  "version": 1,
+  "description": "The product's defect vocabulary. Every corpus's taxonomy.json is a subset of `types`, and no corpus may add a name here without adding it for all of them. `family` is the source for schema.FAMILY_BY_TYPE; `corpora` records which corpora have a positive example, and an empty list is deliberate -- a name the detector can report but no corpus can confirm still costs precision.",
+  "families": {
+    "authz": "Who is allowed to reach the object or the mutation.",
+    "injection": "Untrusted text reaching an interpreter -- SQL, shell, markup.",
+    "ssrf": "The address of an outbound request coming from outside.",
+    "deserialization": "Untrusted bytes handed to a loader that can execute.",
+    "secrets": "Credential material in the source, the log or the response.",
+    "crypto": "Choice and use of cryptographic primitives.",
+    "disclosure": "Internal detail leaving the process in a response or a payload.",
+    "correctness": "The code does something other than what it says it does.",
+    "edge_cases": "The boundary, the empty case, the absent value.",
+    "error_handling": "What happens on the failure path.",
+    "concurrency": "Ordering, atomicity and repeated delivery.",
+    "data_layer": "How stored data is read and written.",
+    "resource_perf": "Work done, and handles held, per unit of input.",
+    "maintainability": "Structure a later reader has to pay for.",
+    "test_quality": "Whether a test can fail for the reason it names.",
+    "config": "Values that change behaviour without changing code."
+  },
+  "escape_rule_ids": {
+    "ids": [
+      "static.generic.unclassified",
+      "security.generic.unclassified",
+      "crossfile.generic.unclassified"
+    ],
+    "note": "Never a match target. A prediction under one of these is scored as a miss."
+  },
+  "rule_ids": [
+    "crossfile.contract.data-exposure",
+    "crossfile.contract.error-propagation",
+    "crossfile.contract.idempotency",
+    "crossfile.contract.ordering",
+    "crossfile.contract.ownership",
+    "crossfile.contract.unit-mismatch",
+    "security.authz.missing-check",
+    "security.crypto.weak-primitive",
+    "security.disclosure.error-detail",
+    "security.injection.command",
+    "security.injection.sql",
+    "security.injection.xss",
+    "security.secret.hardcoded-credential",
+    "static.api-misuse.unvalidated-passthrough",
+    "static.api-misuse.wrong-argument",
+    "static.config.contradictory-setting",
+    "static.config.removed-dependency",
+    "static.config.removed-key",
+    "static.config.removed-network",
+    "static.config.unsafe-default",
+    "static.correctness.silent-overwrite",
+    "static.correctness.unhandled-edge-case",
+    "static.correctness.wrong-data-source",
+    "static.correctness.wrong-state-check",
+    "static.dead-code.unreachable",
+    "static.dead-code.unused-symbol",
+    "static.duplication.repeated-block",
+    "static.duplication.repeated-config",
+    "static.duplication.repeated-test-block",
+    "static.error-handling.broad-except",
+    "static.error-handling.swallowed-exception",
+    "static.maintainability.divergent-change",
+    "static.naming.misleading-name",
+    "static.performance.redundant-work",
+    "static.performance.work-in-loop",
+    "static.resource.unclosed-resource",
+    "static.test-quality.hardcoded-endpoint",
+    "static.test-quality.leaky-state",
+    "static.test-quality.missing-assertion",
+    "static.test-quality.wrong-assertion-target"
+  ],
+  "types": {
+    "broad_except": {
+      "rule_ids": [
+        "static.error-handling.broad-except"
+      ],
+      "family": "error_handling",
+      "definition": "Cok genis istisna turu yakalaniyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "command_injection": {
+      "rule_ids": [
+        "security.injection.command"
+      ],
+      "family": "injection",
+      "definition": "Kullanici verisi kabuk komut metnine birlestiriliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "contradictory_setting": {
+      "rule_ids": [
+        "static.config.contradictory-setting"
+      ],
+      "family": "config",
+      "definition": "Two settings that are read together state incompatible things, so one of them cannot take effect.",
+      "corpora": [],
+      "match_class": "bire_bir"
+    },
+    "crossfile_data_exposure": {
+      "rule_ids": [
+        "crossfile.contract.data-exposure"
+      ],
+      "family": "disclosure",
+      "definition": "Serilestirme kapali alan listesini atlayarak hassas kolonlari disari veriyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "crossfile_error_propagation": {
+      "rule_ids": [
+        "crossfile.contract.error-propagation"
+      ],
+      "family": "error_handling",
+      "definition": "Cagrilan tarafin bildirdigi basarisizlik cagiran tarafindan yutulup basari olarak raporlaniyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "crossfile_idempotency": {
+      "rule_ids": [
+        "crossfile.contract.idempotency"
+      ],
+      "family": "concurrency",
+      "definition": "Idempotens anahtari her calistirmada degistigi icin tekrar korumasi hicbir zaman devreye girmiyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "crossfile_ordering": {
+      "rule_ids": [
+        "crossfile.contract.ordering"
+      ],
+      "family": "concurrency",
+      "definition": "Tuketicinin bagli oldugu siralama garantisi uretici tarafta kaldirilmis.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "crossfile_ownership": {
+      "rule_ids": [
+        "crossfile.contract.ownership"
+      ],
+      "family": "authz",
+      "definition": "Sorgu kiracı kapsamini uygulamiyor; kapsam sozlesmesi cagiran ile sorgu arasinda paylasilmis.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "crossfile_unit_mismatch": {
+      "rule_ids": [
+        "crossfile.contract.unit-mismatch"
+      ],
+      "family": "data_layer",
+      "definition": "Cagrilan tarafin bekledigi birimden farkli bir birimde deger geciriliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "divergent_change": {
+      "rule_ids": [
+        "static.maintainability.divergent-change"
+      ],
+      "family": "maintainability",
+      "definition": "Bir modul birbiriyle ilgisiz sebeplerle degistiriliyor. Sinirlari tartismali oldugu icin bu korpusta VAKASI YOKTUR.",
+      "corpora": [],
+      "match_class": "bire_bir"
+    },
+    "duplicated_block": {
+      "rule_ids": [
+        "static.duplication.repeated-block"
+      ],
+      "family": "maintainability",
+      "definition": "Depoda zaten var olan bir blogun kopyasi.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "duplicated_config": {
+      "rule_ids": [
+        "static.duplication.repeated-config"
+      ],
+      "family": "config",
+      "definition": "Tek kaynak olarak belgelenmis yapilandirma degerinin ikinci kopyasi.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "duplicated_test_block": {
+      "rule_ids": [
+        "static.duplication.repeated-test-block"
+      ],
+      "family": "test_quality",
+      "definition": "Var olan bir test blogunun kopyasi.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "error_detail_disclosure": {
+      "rule_ids": [
+        "security.disclosure.error-detail"
+      ],
+      "family": "disclosure",
+      "definition": "Istisna metni veya yigin izi istemci yanitina konuyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "hardcoded_credential": {
+      "rule_ids": [
+        "security.secret.hardcoded-credential"
+      ],
+      "family": "secrets",
+      "definition": "Sir degeri kaynak koda yazilmis.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "hardcoded_endpoint": {
+      "rule_ids": [
+        "static.test-quality.hardcoded-endpoint"
+      ],
+      "family": "test_quality",
+      "definition": "Test, URL haritasi yerine sabit yol metni kullaniyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "leaky_test_state": {
+      "rule_ids": [
+        "static.test-quality.leaky-state"
+      ],
+      "family": "test_quality",
+      "definition": "A test leaves process state behind, or depends on state another test left, so the result depends on which tests ran before it.",
+      "corpora": [],
+      "match_class": "bire_bir"
+    },
+    "misleading_name": {
+      "rule_ids": [
+        "static.naming.misleading-name"
+      ],
+      "family": "maintainability",
+      "definition": "Ad, deponun adlandirma sozlesmesine gore davranisi yanlis anlatiyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "missing_assertion": {
+      "rule_ids": [
+        "static.test-quality.missing-assertion"
+      ],
+      "family": "test_quality",
+      "definition": "Test hicbir sey dogrulamiyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "missing_authz_check": {
+      "rule_ids": [
+        "security.authz.missing-check"
+      ],
+      "family": "authz",
+      "definition": "Mutasyon veya nesne erisimi, kardeslerinin uyguladigi yetki yukleminden daha zayif bir yuklemle korunuyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "missing_lock": {
+      "rule_ids": [],
+      "family": "concurrency",
+      "definition": "Oku-degistir-yaz dizisi, deponun kilit sozlesmesi olmadan calistiriliyor. Urunun bugun bu turu ifade eden kimligi yok.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "karsiliksiz"
+    },
+    "null_deref": {
+      "rule_ids": [
+        "static.correctness.unhandled-edge-case"
+      ],
+      "family": "edge_cases",
+      "definition": "None donebilen bir cagrinin sonucu kontrolsuz kullaniliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "paylasimli"
+    },
+    "off_by_one": {
+      "rule_ids": [
+        "static.correctness.unhandled-edge-case"
+      ],
+      "family": "edge_cases",
+      "definition": "Sayfalama offset'i 1 tabanli sayfa sozlesmesini bozuyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "paylasimli"
+    },
+    "redundant_work": {
+      "rule_ids": [
+        "static.performance.redundant-work"
+      ],
+      "family": "resource_perf",
+      "definition": "Ayni pahali hesap ayni akista birden fazla kez yapiliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "removed_config_key": {
+      "rule_ids": [
+        "static.config.removed-key"
+      ],
+      "family": "config",
+      "definition": "A configuration key is deleted while code that reads it stays, so the reader falls back to a value nobody chose.",
+      "corpora": [],
+      "match_class": "bire_bir"
+    },
+    "removed_dependency": {
+      "rule_ids": [
+        "static.config.removed-dependency"
+      ],
+      "family": "config",
+      "definition": "Calisma zamaninda import edilen paket calisma zamani bagimlilik listesinden cikarilmis.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "removed_network_config": {
+      "rule_ids": [
+        "static.config.removed-network"
+      ],
+      "family": "config",
+      "definition": "Kodun hala kullandigi bir ag hedefi yapilandirmadan cikarilmis.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "secret_in_log": {
+      "rule_ids": [],
+      "family": "secrets",
+      "definition": "Ham sir gunluk akisina duz metin olarak yaziliyor. Urunun bugun bu turu ifade eden kimligi yok.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "karsiliksiz"
+    },
+    "silent_overwrite": {
+      "rule_ids": [
+        "static.correctness.silent-overwrite"
+      ],
+      "family": "data_layer",
+      "definition": "Yazma islemi var olan alanlari birlestirmeden eziyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "sql_injection": {
+      "rule_ids": [
+        "security.injection.sql"
+      ],
+      "family": "injection",
+      "definition": "Kullanici verisi SQL metnine birlestiriliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "ssrf_unvalidated_fetch": {
+      "rule_ids": [],
+      "family": "ssrf",
+      "definition": "Kullanici kontrollu adres, beyaz liste kapisi atlanarak indiriliyor. Urunun bugun bu turu ifade eden kimligi yok.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "karsiliksiz"
+    },
+    "swallowed_exception": {
+      "rule_ids": [
+        "static.error-handling.swallowed-exception"
+      ],
+      "family": "error_handling",
+      "definition": "Istisna yakalanip ne loglaniyor ne de cagirana bildiriliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "unclosed_resource": {
+      "rule_ids": [
+        "static.resource.unclosed-resource"
+      ],
+      "family": "resource_perf",
+      "definition": "Acilan kaynak `with` blogu veya `close` ile kapatilmiyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "unguarded_dict_access": {
+      "rule_ids": [
+        "static.correctness.unhandled-edge-case"
+      ],
+      "family": "edge_cases",
+      "definition": "Dis dunyadan gelen anahtarla korumasiz sozluk erisimi.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "paylasimli"
+    },
+    "unreachable_code": {
+      "rule_ids": [
+        "static.dead-code.unreachable"
+      ],
+      "family": "maintainability",
+      "definition": "Kontrol akisinin hicbir zaman ulasamayacagi ifadeler.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "unsafe_default": {
+      "rule_ids": [
+        "static.config.unsafe-default"
+      ],
+      "family": "config",
+      "definition": "A default value turns a protection off or removes a bound -- verification skipped, a timeout unlimited, a debug path left on -- where the same setting is explicit elsewhere.",
+      "corpora": [],
+      "match_class": "bire_bir"
+    },
+    "unsafe_deserialization": {
+      "rule_ids": [],
+      "family": "deserialization",
+      "definition": "Guvenilmeyen veri, kod calistirabilen bir cozucuye veriliyor. Urunun bugun bu turu ifade eden kimligi yok.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "karsiliksiz"
+    },
+    "unused_symbol": {
+      "rule_ids": [
+        "static.dead-code.unused-symbol"
+      ],
+      "family": "maintainability",
+      "definition": "Tanimlanip hicbir yerden referans verilmeyen sembol.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "unvalidated_passthrough": {
+      "rule_ids": [
+        "static.api-misuse.unvalidated-passthrough"
+      ],
+      "family": "correctness",
+      "definition": "Istek verisi, dogrulanmis girdi bekleyen bir cagriya oldugu gibi aktariliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "weak_crypto_primitive": {
+      "rule_ids": [
+        "security.crypto.weak-primitive"
+      ],
+      "family": "crypto",
+      "definition": "Kirik ozet, tahmin edilebilir rasgelelik ya da sabit olmayan zamanli sir karsilastirmasi.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "work_in_loop": {
+      "rule_ids": [
+        "static.performance.work-in-loop"
+      ],
+      "family": "resource_perf",
+      "definition": "Toplu alternatifi bulunan sorgu dongu icinde tek tek calistiriliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "wrong_argument": {
+      "rule_ids": [
+        "static.api-misuse.wrong-argument"
+      ],
+      "family": "correctness",
+      "definition": "Cagriya argumanlar yanlis sirada veya yanlis rolde geciriliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "wrong_assertion_target": {
+      "rule_ids": [
+        "static.test-quality.wrong-assertion-target"
+      ],
+      "family": "test_quality",
+      "definition": "A test asserts on something other than the effect it names -- the input it just built, a mock's own return, or a value the code under test never writes -- so it passes whatever that code does.",
+      "corpora": [],
+      "match_class": "bire_bir"
+    },
+    "wrong_data_source": {
+      "rule_ids": [
+        "static.correctness.wrong-data-source"
+      ],
+      "family": "data_layer",
+      "definition": "Deger, bayatlayabilecegi belgelenmis onbellekten okunuyor; guvenilir kaynak baska.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "wrong_state_check": {
+      "rule_ids": [
+        "static.correctness.wrong-state-check"
+      ],
+      "family": "correctness",
+      "definition": "Durum karsilastirmasi, durum makinesinde bulunmayan bir degere yapiliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    },
+    "xss": {
+      "rule_ids": [
+        "security.injection.xss"
+      ],
+      "family": "injection",
+      "definition": "Kullanici verisi kacissiz olarak HTML yanitina yaziliyor.",
+      "corpora": [
+        "halka"
+      ],
+      "match_class": "bire_bir"
+    }
+  }
+}

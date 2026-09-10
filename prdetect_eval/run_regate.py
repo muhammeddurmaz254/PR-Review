@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from adapters import load_cases
+from adapters import load_cases, eval_path
 from detect import challenge as challenge_module
 from detect import contract
 from detect import consequence as consequence_module
@@ -60,7 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     source = args.out / args.run
     manifest = json.loads((source / "config.json").read_text(encoding="utf-8"))
     dataset = args.dataset or manifest.get("dataset")
-    cases = {c.case_id: c for c in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
+    cases = {c.case_id: c for c in load_cases(eval_path(dataset, DATASETS))}
     claims = [json.loads(l) for l in (source / "predictions.jsonl").read_text().splitlines() if l.strip()]
 
     counts = {"claims": len(claims), "named_no_harm": 0, "claimed_harm_without_a_run": 0,

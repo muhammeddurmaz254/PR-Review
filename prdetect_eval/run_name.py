@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from adapters import load_cases
+from adapters import load_cases, eval_path
 from detect import client as client_module
 from detect import naming
 
@@ -56,7 +56,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     source = args.out / args.run
     manifest = json.loads((source / "config.json").read_text(encoding="utf-8"))
     dataset = args.dataset or manifest.get("dataset")
-    cases = {case.case_id: case for case in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
+    cases = {case.case_id: case for case in load_cases(eval_path(dataset, DATASETS))}
     # A prediction row calls the finding's own words `message`, and does not
     # carry the quoted line at all -- that is in the anchors the detect run
     # wrote. Both are the query this stage searches with, so a mapping that

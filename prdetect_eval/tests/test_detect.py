@@ -72,11 +72,17 @@ def test_every_prompt_version_renders_for_every_dataset():
             assert "{format}" not in text and text.strip()
 
 
-# Two versions change the type *names* on purpose: they are the experiments that
+# Four versions change the type *names* on purpose: they are the experiments that
 # ask what a shared catalogue would cost. Every other version may reword a
 # definition but must leave the names alone, because the schema enum and every
 # stored label are built from them.
-NAME_CHANGING = {"review/v6-wide", "review/v6-wide-evidence", "review/v6-broad"}
+#
+# ``review/v6-shared`` is the portability run: both corpora are handed the whole
+# product catalogue, so halka gains the five names zincir_bench introduced and
+# has no positives for. That is the point of it -- the catalogue a deployment
+# ships is not the list of defects the repository in front of it contains.
+NAME_CHANGING = {"review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
+                 "review/v6-shared"}
 
 
 def test_the_type_names_never_move_between_versions():

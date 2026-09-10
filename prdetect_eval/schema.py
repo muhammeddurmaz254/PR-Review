@@ -8,10 +8,46 @@ Lines are one-based and ranges include both endpoints, matching the corpus.
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Iterable, Literal
 
 TypeMode = Literal["exact", "family", "none"]
+
+CATALOG_PATH = Path(__file__).resolve().parent / "catalog" / "product_catalog.json"
+
+
+def _load_catalog() -> dict:
+    """The product's shared defect vocabulary, or an empty one if it is absent.
+
+    The catalogue is what makes two corpora comparable at all: both draw their
+    type names from it, so "does the taxonomy travel?" is a question about the
+    same names in a different repository rather than about two private tables.
+    """
+    if not CATALOG_PATH.exists():
+        return {"types": {}, "families": {}}
+    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+
+
+CATALOG = _load_catalog()
+
+
+def catalog_types() -> frozenset[str]:
+    """Every type the product can name, whether or not a corpus has one.
+
+    A deployed analyser ships names for defects a given repository may never
+    contain. Section 0.4: a report under such a name is a false alarm and has to
+    be counted as one, which cannot happen while the set of scorable types is
+    derived from the loaded labels.
+    """
+    return frozenset(CATALOG.get("types", {}))
+
+
+def catalog_family(defect_type: str) -> str:
+    row = CATALOG.get("types", {}).get(defect_type)
+    return row.get("family", "") if row else ""
+
 
 def in_scope_types(cases: Iterable["Case"]) -> frozenset[str]:
     """Which defect types the loaded corpus actually scores.
@@ -21,6 +57,17 @@ def in_scope_types(cases: Iterable["Case"]) -> frozenset[str]:
     vulnerability classes, the other names change categories.
     """
     return frozenset(label.type for case in cases for label in case.labels if label.in_scope)
+
+
+def scorable_types(cases: Iterable["Case"]) -> frozenset[str]:
+    """The types a report may land under and be counted.
+
+    The corpus's own positives plus the whole product catalogue. The union, not
+    either half: SWRBench's change categories are not in the catalogue and must
+    still score, and a catalogue name with no positive anywhere must still be
+    able to produce a false alarm.
+    """
+    return in_scope_types(cases) | catalog_types()
 
 FAMILY_BY_TYPE = {
     "authz": "authorization", "authn_bypass": "authorization", "mass_assignment": "authorization",
@@ -37,6 +84,8 @@ FAMILY_BY_TYPE = {
     # type missing from it silently makes the family rung unreachable.
     "business_logic": "business_logic",
     "data_exposure": "data_exposure", "secrets": "data_exposure",
+    # demo_repo files three cases under the coarse name, beside the precise ones.
+    "injection": "injection", "authz": "authorization", "concurrency": "concurrency",
     "error_handling": "correctness", "idempotency": "concurrency",
     # SWRBench keeps its own taxonomy: these name kinds of change, not kinds of
     # vulnerability, and collapsing them into the security families above would
@@ -44,6 +93,16 @@ FAMILY_BY_TYPE = {
     "F.1 Interface": "interface", "F.2 Logic": "logic", "F.3 Resource": "resource",
     "F.4 Check": "check", "F.5 Support": "support",
 }
+
+# Section 0.3: the table above knew five of halka_bench's thirty-nine in-scope
+# types, and a type it does not know resolves to family "" -- which matches
+# nothing, so the whole ``file+family`` rung scored 2 TP against 52 FP. The fix
+# is not more literals here. The family belongs beside the rule id in the shared
+# catalogue, where the corpus that introduces a type also declares its family,
+# and the harness reads it. The literals above stay for the two corpora that
+# predate the catalogue and name kinds of change rather than kinds of defect.
+FAMILY_BY_TYPE.update({name: row["family"] for name, row in CATALOG.get("types", {}).items()
+                       if row.get("family")})
 
 
 @dataclass(frozen=True, order=True)
@@ -118,6 +177,33 @@ class Label:
     title: str = ""
     cross_file: bool = False
     pure_deletion: bool = False
+    # --- fields the corpora already wrote and the loader used to drop --------
+    #
+    # Section 0.1: ``build_halka.py`` has been emitting ``grounding``,
+    # ``rule_ids``, ``product_scope``, ``product_match_class`` and ``rationale``
+    # since it was written, and ``_label`` read none of them. Anything a corpus
+    # is asked to record has to arrive here, or asking for it is theatre.
+    #
+    # ``file_role`` is section 0.2. ``role`` above is the label's role in its
+    # case and already carries "primary"; the role of the *file* the defect
+    # lives in -- application, test, config -- is a different axis and needed a
+    # different name. It is written by the corpus, never guessed from the path:
+    # a defect in ``pipeline/settings.py`` is config by intent, and a defect in
+    # ``tests/factories.py`` is not a test defect just because of where it sits.
+    file_role: str = ""
+    # Which of the three grounds (a: visible in the file's own flow, b: known
+    # behaviour of the language or library, c: a convention the base branch
+    # establishes in more than one place) makes this a defect at all.
+    grounding: str = ""
+    rule_ids: tuple[str, ...] = ()
+    product_scope: bool = False
+    product_match_class: str = ""
+    rationale: str = ""
+
+    @property
+    def catalog_family(self) -> str:
+        """The family the shared catalogue gives this type, "" when unknown."""
+        return catalog_family(self.type)
 
     @property
     def span(self) -> Span:

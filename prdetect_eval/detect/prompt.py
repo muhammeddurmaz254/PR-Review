@@ -102,7 +102,7 @@ in the excerpt you are pointing at.
 """
 
 FORMATS = {"demo_repo": WHOLE_FILE_FORMAT, "swrbench": HUNK_FORMAT,
-           "halka": WHOLE_FILE_FORMAT}
+           "halka": WHOLE_FILE_FORMAT, "zincir": WHOLE_FILE_FORMAT}
 
 
 # v2 changes one thing: where the precision/recall trade-off is made. It was
@@ -302,10 +302,45 @@ HALKA_TYPES = {
     "divergent_change": "A module is changed for unrelated reasons.",
 }
 
+
+# --- Section 0.5: the catalogue is the product's, not the dataset's ----------
+#
+# ``TAXONOMIES_BROAD`` used to read ``{**TAXONOMIES_V3, "halka": ...}``: it
+# widened the catalogue for one corpus. Every other dataset fell through to v6's list,
+# byte for byte, so "review/v6-broad on demo_repo" was review/v6 under another
+# name and the question the experiment exists to answer -- does a catalogue that
+# helps on one repository still help on another -- was never asked.
+#
+# The catalogue is a property of the product. ``catalog/product_catalog.json``
+# holds it, both corpora draw their type names from it, and these five are the
+# names zincir_bench needed that halka_bench had no case for.
+SHARED_ADDITIONS = {
+    "wrong_assertion_target": "A test asserts on something other than the effect it names -- "
+                              "the input it just built, a mock's own return value, or a field "
+                              "the code under test never writes -- so it passes whatever that "
+                              "code does.",
+    "leaky_test_state": "A test leaves process state behind, or depends on state another test "
+                        "left, so its result depends on which tests ran before it.",
+    "unsafe_default": "A default value turns a protection off or removes a bound -- "
+                      "verification skipped, a timeout unlimited, a debug path left on -- "
+                      "where the same setting is stated explicitly elsewhere.",
+    "contradictory_setting": "Two settings that are read together state incompatible things, "
+                             "so one of them cannot take effect.",
+    "removed_config_key": "A configuration key is deleted while code that reads it stays, so "
+                          "the reader silently falls back to a value nobody chose.",
+}
+
+# The whole product vocabulary, one definition per name. halka keeps its own
+# forty-one entry list so the two dozen measurements already taken against it
+# stay byte-identical; ``review/v6-shared`` below is where the two corpora are
+# handed the *same* catalogue, which is the only way the portability question
+# has an answer rather than an assumption.
+SHARED_TYPES = {**HALKA_TYPES, **SHARED_ADDITIONS}
+
 TAXONOMIES = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES,
-              "halka": HALKA_TYPES}
+              "halka": HALKA_TYPES, "zincir": SHARED_TYPES}
 TAXONOMIES_V3 = {"demo_repo": DEMO_REPO_TYPES, "swrbench": SWRBENCH_TYPES_V3,
-                 "halka": HALKA_TYPES}
+                 "halka": HALKA_TYPES, "zincir": SHARED_TYPES}
 
 # --- Deney A: temellendirme mi, genişlik mi? -------------------------------
 #
@@ -399,7 +434,8 @@ HALKA_TYPES_GENERIC = {
 
 HALKA_TYPES_WIDE = {**HALKA_TYPES, **DEMO_REPO_TYPES, **SWRBENCH_TYPES_V3}
 
-TAXONOMIES_GENERIC = {**TAXONOMIES_V3, "halka": HALKA_TYPES_GENERIC}
+TAXONOMIES_GENERIC = {**TAXONOMIES_V3, "halka": HALKA_TYPES_GENERIC,
+                      "zincir": {**HALKA_TYPES_GENERIC, **SHARED_ADDITIONS}}
 
 # --- Deney C: repo-agnostik kelimeler, kanıt talep eden şekil ---------------
 #
@@ -499,7 +535,8 @@ HALKA_TYPES_EVIDENCE = {
                         "other.",
 }
 
-TAXONOMIES_EVIDENCE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_EVIDENCE}
+TAXONOMIES_EVIDENCE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_EVIDENCE,
+                      "zincir": {**HALKA_TYPES_EVIDENCE, **SHARED_ADDITIONS}}
 
 # --- Deney D: referansı yapısal olarak adlandır -----------------------------
 #
@@ -606,7 +643,8 @@ HALKA_TYPES_LOCATED = {
     "divergent_change": "This change edits one module for two reasons that share nothing.",
 }
 
-TAXONOMIES_LOCATED = {**TAXONOMIES_V3, "halka": HALKA_TYPES_LOCATED}
+TAXONOMIES_LOCATED = {**TAXONOMIES_V3, "halka": HALKA_TYPES_LOCATED,
+                      "zincir": {**HALKA_TYPES_LOCATED, **SHARED_ADDITIONS}}
 
 # --- Deney E: yer adlandırılmış ama diff'e kilitli değil --------------------
 #
@@ -643,7 +681,8 @@ def _unrestrict(text: str) -> str:
 HALKA_TYPES_REACHABLE = {name: _unrestrict(text)
                          for name, text in HALKA_TYPES_LOCATED.items()}
 
-TAXONOMIES_REACHABLE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_REACHABLE}
+TAXONOMIES_REACHABLE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_REACHABLE,
+                      "zincir": {**HALKA_TYPES_REACHABLE, **SHARED_ADDITIONS}}
 
 # --- Deney F: C disiplini ikinci bir korpusta -------------------------------
 #
@@ -717,7 +756,8 @@ SWRBENCH_TYPES_EVIDENCE = {
 HALKA_TYPES_WIDE_EVIDENCE = {**HALKA_TYPES_EVIDENCE, **DEMO_REPO_TYPES_EVIDENCE,
                              **SWRBENCH_TYPES_EVIDENCE}
 
-TAXONOMIES_WIDE_EVIDENCE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_WIDE_EVIDENCE}
+TAXONOMIES_WIDE_EVIDENCE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_WIDE_EVIDENCE,
+                            "zincir": {**HALKA_TYPES_WIDE_EVIDENCE, **SHARED_ADDITIONS}}
 
 # --- Deney H: tekilleştirilmiş ve genişletilmiş katalog ---------------------
 #
@@ -772,14 +812,29 @@ BEYOND_CORPUS = {
 # plus twelve classes it cannot contain.
 HALKA_TYPES_BROAD = {**HALKA_TYPES_EVIDENCE, **BEYOND_CORPUS}
 
-TAXONOMIES_BROAD = {**TAXONOMIES_V3, "halka": HALKA_TYPES_BROAD}
+TAXONOMIES_BROAD = {**TAXONOMIES_V3, "halka": HALKA_TYPES_BROAD,
+                    "zincir": {**HALKA_TYPES_BROAD, **SHARED_ADDITIONS}}
 
 
 
 
 
 
-TAXONOMIES_WIDE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_WIDE}
+TAXONOMIES_WIDE = {**TAXONOMIES_V3, "halka": HALKA_TYPES_WIDE,
+                      "zincir": {**HALKA_TYPES_WIDE, **SHARED_ADDITIONS}}
+
+
+# --- The portability run ----------------------------------------------------
+#
+# The same catalogue, the same words, on both corpora: forty-six names, of which
+# halka has positives for thirty-nine and zincir for eight. Everything else in
+# the two runs differs -- domain, architecture, conventions, file layout -- so a
+# gap between them is a gap in the catalogue's reach and not in its wording.
+#
+# The names each corpus has no case for are not slack. Section 0.4 makes a
+# report under one of them a false alarm, which is what a deployed analyser's
+# extra names actually cost.
+TAXONOMIES_SHARED = {**TAXONOMIES_V3, "halka": SHARED_TYPES, "zincir": SHARED_TYPES}
 
 
 # Two clauses of the shared instructions contradict what the SWRBench labels
@@ -1107,6 +1162,7 @@ VERSIONS = {
     "review/hybrid": (INSTRUCTIONS_HYBRID, TAXONOMIES_V3),
     "review/v6-wide-evidence": (INSTRUCTIONS_V6, TAXONOMIES_WIDE_EVIDENCE),
     "review/v6-broad": (INSTRUCTIONS_V6, TAXONOMIES_BROAD),
+    "review/v6-shared": (INSTRUCTIONS_V6, TAXONOMIES_SHARED),
 }
 
 # Versions that carry no catalogue: the detector says what is wrong in its own
@@ -1123,7 +1179,7 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-generic", "review/v6-wide", "review/v6-evidence",
                     "review/v6-located", "review/v6-reachable",
                     "review/v6-demo-evidence", "review/v6-wide-evidence",
-                    "review/v6-broad"})
+                    "review/v6-broad", "review/v6-shared"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.
@@ -1141,6 +1197,12 @@ def types(dataset: str, version: str | None = None) -> list[str]:
     if dataset not in TAXONOMIES:
         raise KeyError(f"unknown dataset {dataset!r}; have {', '.join(TAXONOMIES)}")
     taxonomies = VERSIONS[version][1] if version in VERSIONS else TAXONOMIES
+    if dataset not in taxonomies:
+        # Section 0.5. A variant that covers one corpus and silently hands every
+        # other the default list is the failure this check exists to stop: the
+        # run is labelled with the variant's name and is the default underneath.
+        raise KeyError(f"prompt version {version!r} defines no catalogue for {dataset!r}; "
+                       f"it covers {', '.join(sorted(taxonomies))}")
     return list(taxonomies[dataset])
 
 
@@ -1155,6 +1217,9 @@ def system(dataset: str, version: str = PROMPT_VERSION) -> str:
         # is somebody else's call, so listing kinds here would put the breadth
         # back in the one prompt it was taken out of.
         return f"{head.format(format=FORMATS[dataset])}## How to look{tail}"
+    if dataset not in taxonomies:
+        raise KeyError(f"prompt version {version!r} defines no catalogue for {dataset!r}; "
+                       f"it covers {', '.join(sorted(taxonomies))}")
     catalogue = "\n".join(f"- `{name}` -- {text}" for name, text in taxonomies[dataset].items())
     return (
         f"{head.format(format=FORMATS[dataset])}"

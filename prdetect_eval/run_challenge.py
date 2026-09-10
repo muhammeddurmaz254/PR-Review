@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from adapters import load_cases
+from adapters import load_cases, eval_path
 from detect import challenge as challenge_module
 from detect import client as client_module
 from detect import consequence as consequence_module
@@ -68,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     dataset = args.dataset or manifest.get("dataset")
     if not dataset:
         raise SystemExit(f"{source}/config.json names no dataset; pass --dataset")
-    cases = {case.case_id: case for case in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
+    cases = {case.case_id: case for case in load_cases(eval_path(dataset, DATASETS))}
     claims = [json.loads(line) for line in (source / "predictions.jsonl").read_text().splitlines() if line]
 
     detector = None

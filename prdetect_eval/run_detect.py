@@ -144,7 +144,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
-    eval_path = args.eval or DATASETS / f"{args.dataset}.eval.jsonl"
+    # zincir_bench ships two files, and only one of them is open. A run that
+    # names the dataset and not the file gets `dev`; reaching `holdout` has to
+    # be typed out, counted, and written down in the corpus README (B9).
+    default_eval = DATASETS / ("zincir_dev.eval.jsonl" if args.dataset == "zincir"
+                               else f"{args.dataset}.eval.jsonl")
+    eval_path = args.eval or default_eval
     cases: list[Case] = load_cases(eval_path)
     if args.case:
         wanted = set(args.case)

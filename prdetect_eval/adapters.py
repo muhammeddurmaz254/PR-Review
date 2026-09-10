@@ -10,9 +10,22 @@ import json
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from schema import FAMILY_BY_TYPE, Case, Distractor, Label, Prediction, Span
+from schema import FAMILY_BY_TYPE, Case, Distractor, Label, Prediction, Span, catalog_family
 
 DEFAULT_EVAL = Path(__file__).resolve().parent / "datasets" / "demo_repo.eval.jsonl"
+def eval_path(dataset: str, datasets_dir: Path) -> Path:
+    """The eval file a dataset name refers to.
+
+    `zincir_bench` ships two of them and only one is open (B9). Naming the
+    dataset and not the file gets `dev`; reaching `holdout` has to be typed out
+    and written down in the corpus README. That rule lived in `run_detect.py`
+    alone, so `run_challenge.py` and `run_regate.py` went looking for a
+    `zincir.eval.jsonl` that does not exist -- one stage of the pipeline knew
+    about the split and the next two did not.
+    """
+    if dataset == "zincir":
+        return datasets_dir / "zincir_dev.eval.jsonl"
+    return datasets_dir / f"{dataset}.eval.jsonl"
 
 
 def _read_jsonl(path: Path) -> Iterator[dict]:
@@ -36,12 +49,29 @@ def _label(row: dict, case_id: str) -> Label:
         focus = Span(row["file"], int(row["focus_start"]), int(row.get("focus_end") or row["focus_start"]))
     return Label(
         finding_id=row["finding_id"], case_id=case_id, type=row["type"],
-        family=row.get("family") or FAMILY_BY_TYPE.get(row["type"], ""),
+        # The catalogue wins when it knows the type. Both sides of a family
+        # match have to speak one vocabulary: the prediction's family comes from
+        # ``FAMILY_BY_TYPE``, so a label carrying its *case's* family instead --
+        # halka files three data-layer types under "correctness" that way --
+        # makes the rung disagree with itself. Corpora outside the catalogue
+        # (demo_repo, SWRBench) keep the family they ship.
+        family=catalog_family(row["type"]) or row.get("family") or FAMILY_BY_TYPE.get(row["type"], ""),
         in_scope=bool(row["in_scope"]), required=bool(row["required"]), role=row.get("role", ""),
         spans=tuple(spans), anchor_rule=row.get("anchor_rule", ""), anchor_text=row.get("anchor_text", ""),
         in_diff=bool(row.get("in_diff", True)), severity=row.get("severity", ""), cwe=row.get("cwe", ""),
         focus=focus, title=row.get("title", ""),
         cross_file=bool(row.get("cross_file")), pure_deletion=bool(row.get("pure_deletion")),
+        # Section 0.1. These five were written by the exporters and dropped
+        # here, which made every measurement that needed them -- grounding
+        # class, product-facing scope, the rule-id join -- impossible to run
+        # from the loaded corpus. ``file_role`` is section 0.2: read it, never
+        # infer it from the path.
+        file_role=row.get("file_role", ""),
+        grounding=row.get("grounding", ""),
+        rule_ids=tuple(row.get("rule_ids", ())),
+        product_scope=bool(row.get("product_scope")),
+        product_match_class=row.get("product_match_class", ""),
+        rationale=row.get("rationale", ""),
     )
 
 

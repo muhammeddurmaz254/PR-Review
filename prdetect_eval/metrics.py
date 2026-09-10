@@ -18,7 +18,7 @@ from statistics import mean
 from typing import Sequence
 
 from matching import MatchResult, match_all
-from schema import CASCADE, Case, MatchConfig, Prediction, in_scope_types
+from schema import CASCADE, Case, MatchConfig, Prediction, scorable_types
 
 DEFAULT_THRESHOLDS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
 
@@ -139,9 +139,18 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
     real-world corpus makes necessary -- SWRBench calls a pull request clean
     when no reviewer objected to it, not when the code is correct, so a
     hand-confirmed defect nobody commented on must not be scored either way.
+
+    Section 0.4: which reports count as a flag is the product catalogue plus the
+    corpus's own positives, not the positives alone. Deriving it from the loaded
+    labels made a whole class of false alarm invisible -- report a catalogue type
+    the corpus happens to have no example of, on a clean pull request, and the
+    case was scored a true negative. zincir_bench is built to contain such types
+    on purpose (a closed taxonomy that is narrower than the product's would not
+    be the product's), so the specificity column is wrong until this reads the
+    catalogue.
     """
     card = DetectionCard()
-    scored_types = in_scope_types(cases)
+    scored_types = scorable_types(cases)
     for case in cases:
         result = results[case.case_id]
         if scope == "in_scope":

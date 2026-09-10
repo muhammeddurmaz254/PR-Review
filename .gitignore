@@ -7,3 +7,5 @@ halka_bench/
 *.ipynb
 
 prdetect_eval/datasets/*.eval.jsonl
+zincir_bench/
+analysis
