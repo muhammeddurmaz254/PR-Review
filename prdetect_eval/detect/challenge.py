@@ -180,3 +180,28 @@ def honours(quote: str, rows: Sequence[str]) -> bool:
         return False
     haystack = _normalise(" ".join(row.split("| ", 1)[-1] for row in rows))
     return needle in haystack
+
+
+def settleable(claim_type: str) -> bool:
+    """Whether a one-file excerpt could contradict a claim of this kind at all.
+
+    The stage's own instruction is that "stands" is the answer whenever the
+    excerpt is merely insufficient. For a type whose name is `crossfile_*` the
+    excerpt is insufficient by construction: the claim asserts a mismatch between
+    two files and the excerpt shows one, so no reading of it can settle the
+    question. Enforcing that mechanically is the same move as `honours` -- the
+    prompt already says it, and the model is not reliably held to it.
+
+    Measured: `data-03-kusurlu` reports that `from_minor(...)` hands major units
+    to a callee documented, in the *other* file of the same pull request, to take
+    minor units. The challenger saw only `billing/services.py`, read the
+    conversion as deliberate, and refuted a true positive on a reason that ended
+    "a callee that likely expects major units". Across the five stored halka
+    challenge runs this gate spares six findings, all of them true positives, and
+    costs two false alarms. It is inert on the other two corpora, whose
+    taxonomies name no cross-file type.
+
+    The better fix is to widen the excerpt so the challenger can actually answer;
+    that costs a GPU run, and this gate is what the stored artefacts support.
+    """
+    return not claim_type.startswith("crossfile_")

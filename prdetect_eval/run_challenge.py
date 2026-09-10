@@ -83,7 +83,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         verdict, quote, reason = challenge_module.parse(response.text)
         # A refutation that quotes nothing in the excerpt is the same failure this
         # stage exists to catch, so it does not remove the finding.
-        honoured = verdict == "refuted" and challenge_module.honours(quote, rows)
+        quoted = challenge_module.honours(quote, rows)
+        settleable = challenge_module.settleable(claim["type"])
+        honoured = verdict == "refuted" and quoted and settleable
         if not honoured:
             survivors.append(claim)
         verdicts.append({
@@ -91,7 +93,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "type": claim["type"], "title": claim["message"],
             "verdict": "refuted" if honoured else "stands",
             "claimed_verdict": verdict, "quote": quote, "reason": reason,
-            "quote_found_in_excerpt": challenge_module.honours(quote, rows),
+            "quote_found_in_excerpt": quoted,
+            "excerpt_settles_the_kind": settleable,
             "excerpt_lines": len(rows), "error": response.error,
         })
         if not args.quiet:
@@ -110,12 +113,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     refuted = len(claims) - len(survivors)
     unhonoured = sum(1 for v in verdicts if v.get("claimed_verdict") == "refuted"
                      and not v.get("quote_found_in_excerpt"))
+    unsettleable = sum(1 for v in verdicts if v.get("claimed_verdict") == "refuted"
+                       and v.get("quote_found_in_excerpt")
+                       and not v.get("excerpt_settles_the_kind"))
     (run_dir / "config.json").write_text(json.dumps({
         **manifest, "run_id": run_id, "stage": "challenge",
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "challenged_run": args.run, "dataset": dataset,
         "claims": len(claims), "refuted": refuted, "survivors": len(survivors),
         "refutations_without_a_quote": unhonoured,
+        "refutations_of_a_cross_file_claim": unsettleable,
         "radius": args.radius,
         "model": None if detector is None else detector.name,
         "python": platform.python_version(),
@@ -124,7 +131,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if not args.quiet:
         print(f"\nclaims {len(claims)}  refuted {refuted}  survivors {len(survivors)}"
-              f"  (refutations rejected for quoting nothing: {unhonoured})")
+              f"  (rejected: {unhonoured} quoted nothing, {unsettleable} cross-file)")
         print(f"artefacts: {run_dir}")
     return 0
 
