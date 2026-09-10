@@ -502,6 +502,7 @@ def test_client_speaks_the_ollama_api(fake_server):
     assert sent["messages"][0]["content"] == "SYSTEM"
     assert sent["options"]["temperature"] == 0.0
     assert response.prompt_tokens == 1234
+    assert response.thinking == ""
     reports, rejects = contract.parse(response.text)
     assert not rejects and reports[0].line == 5
 
@@ -1303,3 +1304,23 @@ def test_the_families_name_no_repository_and_no_type():
 def test_the_hybrid_answers_without_a_type():
     assert "review/hybrid" in prompt.OPEN
     assert '"type"' not in prompt.system("halka", "review/hybrid")
+
+
+def test_the_client_keeps_the_thinking_it_is_given(fake_server):
+    """Thinking was off from the first model run on the belief that a schema
+    cannot constrain it. Ollama returns it in its own field and the answer stays
+    clean, so the belief was wrong -- and the reasoning is worth storing: it is
+    the artefact to read when a finding looks unexplainable."""
+    class _Thinker(_FakeOllama):
+        def do_POST(self) -> None:
+            self._send({"message": {"content": contract.render([]), "thinking": "step one"},
+                        "prompt_eval_count": 5, "done": True})
+
+    server = HTTPServer(("127.0.0.1", 0), _Thinker)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    client = client_module.OllamaClient(
+        model="test-model", base_url=f"http://127.0.0.1:{server.server_port}")
+    response = client.complete("s", "u", contract.response_schema(["authz"]))
+    server.shutdown()
+    assert response.thinking == "step one"
+    assert contract.parse(response.text) == ([], [])

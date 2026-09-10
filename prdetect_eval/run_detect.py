@@ -233,7 +233,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     reports, bad = contract.parse(stored["text"])
                     harvest[item.case_id].extend(reports)
                     responses.append(client_module.Response(
-                        text=stored["text"],
+                        text=stored["text"], thinking=stored.get("thinking", ""),
                         prompt_tokens=int(stored.get("prompt_tokens", 0)),
                         completion_tokens=int(stored.get("completion_tokens", 0)),
                         duration_ms=int(stored.get("duration_ms", 0)),
@@ -250,7 +250,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 } for reject in bad)
                 handle.write(json.dumps({
                     "case_id": item.case_id, "part": item.part, "parts": item.parts,
-                    "text": response.text, "error": response.error,
+                    "text": response.text, "thinking": response.thinking,
+                    "error": response.error,
                     "prompt_tokens": response.prompt_tokens,
                     "completion_tokens": response.completion_tokens,
                     "duration_ms": response.duration_ms,

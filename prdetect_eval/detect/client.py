@@ -36,6 +36,10 @@ class Response:
     """
 
     text: str
+    # What the model produced before the answer, when thinking is on. Ollama
+    # returns it in its own field, so a schema still constrains the answer --
+    # the reason this was disabled from the first model run onward was wrong.
+    thinking: str = ""
     prompt_tokens: int = 0
     completion_tokens: int = 0
     duration_ms: int = 0
@@ -118,8 +122,10 @@ class OllamaClient:
                 if attempt < self.retries:
                     time.sleep(2 ** attempt)
                 continue
+            message = document.get("message", {})
             return Response(
-                text=document.get("message", {}).get("content", ""),
+                text=message.get("content", ""),
+                thinking=message.get("thinking", "") or "",
                 prompt_tokens=int(document.get("prompt_eval_count", 0)),
                 completion_tokens=int(document.get("eval_count", 0)),
                 duration_ms=int((time.monotonic() - started) * 1000),
