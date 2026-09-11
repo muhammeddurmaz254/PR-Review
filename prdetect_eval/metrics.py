@@ -124,7 +124,8 @@ class DetectionCard:
         }
 
 
-def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str = "in_scope") -> DetectionCard:
+def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str = "in_scope",
+             published: Sequence[str] = ()) -> DetectionCard:
     """Flagging accuracy.
 
     ``in_scope`` restricts positives to cases carrying a required in-scope label
@@ -148,9 +149,14 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
     on purpose (a closed taxonomy that is narrower than the product's would not
     be the product's), so the specificity column is wrong until this reads the
     catalogue.
+
+    ``published`` is the taxonomy the run offered the model, read from its
+    manifest. The catalogue alone was one level short: a prompt that widens it
+    -- `review/v6-broad` does, by twelve names -- could be wrong under a word
+    the scorer had never heard of.
     """
     card = DetectionCard()
-    scored_types = scorable_types(cases)
+    scored_types = scorable_types(cases, published)
     for case in cases:
         result = results[case.case_id]
         if scope == "in_scope":
@@ -441,6 +447,7 @@ def false_alarm_rows(cases: Sequence[Case], results: dict[str, MatchResult]) -> 
 
 def evaluate(
     cases: Sequence[Case], predictions: Sequence[Prediction], config: MatchConfig, threshold: float = 0.0,
+    published: Sequence[str] = (),
 ) -> dict:
     """The full metric set for one prediction source."""
     results = match_all(cases, predictions, config, threshold)
@@ -457,8 +464,8 @@ def evaluate(
             **score(cases, results).as_dict(),
         },
         "cascade": {name: card.as_dict() for name, card in cascade(cases, predictions, threshold).items()},
-        "pr_level_in_scope": pr_level(cases, results, "in_scope").as_dict(),
-        "pr_level_all": pr_level(cases, results, "all").as_dict(),
+        "pr_level_in_scope": pr_level(cases, results, "in_scope", published).as_dict(),
+        "pr_level_all": pr_level(cases, results, "all", published).as_dict(),
         "pairwise_in_scope": pairwise_accuracy(cases, results, "in_scope"),
         "pairwise_all": pairwise_accuracy(cases, results, "all"),
         "false_alarms": false_alarms(cases, results),

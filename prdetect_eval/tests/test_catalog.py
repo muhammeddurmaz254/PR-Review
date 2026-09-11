@@ -146,6 +146,50 @@ def test_a_report_under_a_name_no_catalogue_knows_still_does_not_count():
     prediction = Prediction("clean-02", Span("zincir/pipeline/worker.py", 1, 1), "vibes")
     results = match_all([case], [prediction], schema.PRIMARY)
     assert metrics.pr_level([case], results).true_negative == 1
+    # Publishing a taxonomy does not make every word a flag -- only its own.
+    assert metrics.pr_level([case], results, published=("path_traversal",)).true_negative == 1
+
+
+# --- a name the run published is a name it can be wrong under ---------------
+
+def test_the_broad_taxonomy_reaches_past_the_catalogue():
+    """Why the catalogue alone was one level short.
+
+    `review/v6-broad` offers halka the catalogue's words plus
+    `prompt.BEYOND_CORPUS`, and none of those twelve is in the catalogue. A
+    scorer that reads only the catalogue cannot see a false alarm under them.
+    """
+    assert prompt.BEYOND_CORPUS
+    assert not set(prompt.BEYOND_CORPUS) & schema.catalog_types()
+
+
+def test_a_report_under_a_name_only_the_prompt_published_is_a_false_alarm():
+    """The fault: halka-noise scored `path_traversal` on `inj-02-temiz` and
+    `float_money` on `corr-01-temiz` as true negatives, because neither name is
+    in the catalogue or among halka's positives -- only in the prompt."""
+    absent = "path_traversal"
+    case = _clean_case("clean-03")
+    assert absent not in schema.scorable_types([case])
+    assert absent in schema.scorable_types([case], published=prompt.BEYOND_CORPUS)
+
+    prediction = Prediction("clean-03", Span("zincir/pipeline/worker.py", 1, 1), absent)
+    results = match_all([case], [prediction], schema.PRIMARY)
+    assert metrics.pr_level([case], results).true_negative == 1, "the fault, documented"
+    card = metrics.pr_level([case], results, published=tuple(prompt.BEYOND_CORPUS))
+    assert card.false_positive == 1 and card.true_negative == 0
+
+
+def test_the_scorer_reads_the_published_taxonomy_from_the_run_it_scores(tmp_path):
+    """From the manifest beside the predictions, not from a flag to keep in step."""
+    import run_eval
+    run = tmp_path / "some-run"
+    run.mkdir()
+    (run / "predictions.jsonl").write_text("", encoding="utf-8")
+    assert run_eval.published_types(run / "predictions.jsonl") == ()
+    (run / "config.json").write_text(json.dumps({"types": ["path_traversal", "xss"]}),
+                                     encoding="utf-8")
+    assert run_eval.published_types(run / "predictions.jsonl") == ("path_traversal", "xss")
+    assert run_eval.published_types(None) == ()
 
 
 # --- 0.5 a prompt variant covers every corpus, or says so --------------------

@@ -59,15 +59,24 @@ def in_scope_types(cases: Iterable["Case"]) -> frozenset[str]:
     return frozenset(label.type for case in cases for label in case.labels if label.in_scope)
 
 
-def scorable_types(cases: Iterable["Case"]) -> frozenset[str]:
+def scorable_types(cases: Iterable["Case"], published: Iterable[str] = ()) -> frozenset[str]:
     """The types a report may land under and be counted.
 
-    The corpus's own positives plus the whole product catalogue. The union, not
-    either half: SWRBench's change categories are not in the catalogue and must
-    still score, and a catalogue name with no positive anywhere must still be
-    able to produce a false alarm.
+    The corpus's own positives, the whole product catalogue, and every name the
+    run itself published. The union, not any one part: SWRBench's change
+    categories are not in the catalogue and must still score, and a catalogue
+    name with no positive anywhere must still be able to produce a false alarm.
+
+    ``published`` closes the same hole one level up. `review/v6-broad` hands
+    halka fifty-three names -- the catalogue's words plus twelve from
+    `prompt.BEYOND_CORPUS` that no catalogue carries -- and a report under one
+    of those twelve on a clean pull request was scored a true negative. On
+    halka-noise that hid `path_traversal` on `inj-02-temiz` and `float_money`
+    on `corr-01-temiz`, and put balanced accuracy at 87.2% where it is 85.5%.
+    A name the model was offered is a name it can be wrong under. A name
+    nothing offered it still does not count.
     """
-    return in_scope_types(cases) | catalog_types()
+    return in_scope_types(cases) | catalog_types() | frozenset(published)
 
 FAMILY_BY_TYPE = {
     "authz": "authorization", "authn_bypass": "authorization", "mass_assignment": "authorization",

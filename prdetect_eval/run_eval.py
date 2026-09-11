@@ -68,6 +68,23 @@ def resolve_predictions(args: argparse.Namespace, cases: Sequence[Case]) -> tupl
     return [], "empty"
 
 
+def published_types(predictions: Path | None) -> tuple[str, ...]:
+    """The taxonomy the scored run offered the model, from its own manifest.
+
+    Every run that writes predictions writes a ``config.json`` beside them with
+    the ``types`` it published; a regate copies them through. Read from there
+    rather than taken as a flag, for the reason the challenger reads its
+    source's deletions: a separate argument is one more thing to keep in step,
+    and the failure it would hide is a silent one.
+    """
+    if predictions is None:
+        return ()
+    manifest = Path(predictions).parent / "config.json"
+    if not manifest.exists():
+        return ()
+    return tuple(json.loads(manifest.read_text(encoding="utf-8")).get("types") or ())
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Score PR defect predictions against the corpus.")
     parser.add_argument("--eval", type=Path, default=DEFAULT_EVAL, help="corpus JSON Lines file")
@@ -104,7 +121,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     run_dir = args.out / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    result = metrics.evaluate(cases, predictions, config, args.threshold)
+    published = published_types(args.predictions)
+    result = metrics.evaluate(cases, predictions, config, args.threshold, published)
     trivial = None if args.no_baselines else baseline_summary(cases, config)
 
     manifest = {
@@ -127,6 +145,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         # ambiguous about what produced it.
         "model": None, "quantization": None, "context_tokens": None,
         "prompt_version": None, "detectors": [], "sampling": None,
+        # How many names the scored run offered the model. Zero means the
+        # predictions came without a manifest, and the PR-level columns fall
+        # back to catalogue plus positives -- say so rather than guess.
+        "published_types": len(published),
     }
     (run_dir / "config.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
