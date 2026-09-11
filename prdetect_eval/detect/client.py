@@ -133,6 +133,44 @@ class OllamaClient:
             )
         return Response(text="", error=last)
 
+    def chat(self, messages: list[dict], tools: list | None = None, schema: dict | None = None) -> dict:
+        """One turn of a conversation, with tools offered or a schema imposed.
+
+        The agent loop in `detect/agent.py` needs the raw message back -- a
+        tool call is not text -- so this returns the document Ollama sent,
+        or ``{"error": ...}`` after the same retries ``complete`` makes.
+        """
+        payload: dict[str, Any] = {
+            "model": self.model, "messages": messages, "stream": False, "keep_alive": self.keep_alive,
+            "options": {"temperature": self.temperature, "seed": self.seed, "num_ctx": self.num_ctx},
+        }
+        if tools:
+            payload["tools"] = tools
+        if schema is not None:
+            payload["format"] = schema
+        if self.think is not None:
+            payload["think"] = self.think
+        request = urllib.request.Request(f"{self.base_url.rstrip('/')}/api/chat",
+                                         data=json.dumps(payload).encode("utf-8"),
+                                         headers=self._headers(), method="POST")
+        last = ""
+        for attempt in range(self.retries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as handle:
+                    return json.loads(handle.read().decode("utf-8"))
+            except urllib.error.HTTPError as error:
+                # The body says why: a 500 from a failed tool-call parse and one
+                # from an exhausted card look identical without it.
+                body = error.read().decode("utf-8", "replace")[:500]
+                last = f"HTTPError {error.code}: {body}"
+                if attempt < self.retries:
+                    time.sleep(2 ** attempt)
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as error:
+                last = f"{type(error).__name__}: {error}"
+                if attempt < self.retries:
+                    time.sleep(2 ** attempt)
+        return {"error": last}
+
     def build(self) -> str:
         """The served model's digest and quantization, or "" if unknown.
 
