@@ -79,3 +79,119 @@ def within(reports: Sequence[contract.Report], remaining: Sequence[str]) -> list
     """
     allowed = set(remaining)
     return [report for report in reports if report.file in allowed]
+
+
+# --- the role question -------------------------------------------------------
+#
+# Stage [4b] measured that pointing the model at the unread files is not
+# enough: in six of seven calls it looked at a test file or a module of
+# defaults under the general question and saw nothing. So the question itself
+# changes, and only for files whose role can be read off the file without a
+# label. Two can. A test file, by the convention every Python test runner
+# uses. A module of constants, where every top-level statement is an
+# UPPER_CASE assignment -- no threshold, so nothing here was fitted to where
+# the labels sit. "Configuration" in general could not be read off a file:
+# zincir's `settings.py` is a function building a dict, structurally closer to
+# its `deadletter.py` than to its `defaults.py`, and a rule that caught one
+# without the other would have been drawn around the answers.
+#
+# MEASURED, AND IT LOST -- which is why `--mode role` is not the default.
+# Against the best chain (deletions, [4b], snap): zincir_dev 8/3/8 became
+# 8/6/8 and 8/5/8 on two runs of the same command; halka stayed 44/9/4 on
+# twelve calls and twelve empty answers. Thirty-four zincir calls, six of the
+# eight remaining misses in reach, and not one found. What the question did
+# produce was the same accusation on both twins: `wrong_assertion_target` on
+# `tests/test_transport.py` in `bus-01-temiz`, where it is false, in both runs,
+# and in `bus-01-kusurlu` one line off the label in one run and not at all in
+# the other. A question that raises the same flag on the defective file and
+# its clean twin has not learned the defect; it has lowered the bar for the
+# file. Pull-request balanced accuracy fell from 91.0% to 85.4%.
+#
+# Those two calls are also where two runs of one command first disagreed:
+# identical prompts, identical order, temperature 0, seed 7, and two of
+# thirty-four answers differ. The detector's own call has repeated exactly
+# every time it was checked; this one does not, so a single role run is not a
+# measurement of it.
+
+import ast
+import re
+
+_UPPER = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
+def is_test_file(path: str) -> bool:
+    name = path.rsplit("/", 1)[-1]
+    return name.startswith("test_") or name.endswith("_test.py") or name == "conftest.py"
+
+
+def is_constants_module(source: str) -> bool:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return False
+    body = [node for node in tree.body
+            if not isinstance(node, (ast.Import, ast.ImportFrom))
+            and not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant))]
+
+    def constant(node: ast.stmt) -> bool:
+        targets = (node.targets if isinstance(node, ast.Assign)
+                   else [node.target] if isinstance(node, ast.AnnAssign) else [])
+        return bool(targets) and all(isinstance(t, ast.Name) and _UPPER.match(t.id) for t in targets)
+
+    return len(body) >= 3 and all(constant(node) for node in body)
+
+
+def role_targets(case: Case) -> list[tuple[str, str]]:
+    """Every changed code file whose role can be read off it, with that role."""
+    out = []
+    for name in sorted(case.head_files):
+        if not pack_module.is_code(name):
+            continue
+        if is_test_file(name):
+            out.append((name, "test"))
+        elif is_constants_module(case.head_files[name]):
+            out.append((name, "constants"))
+    return out
+
+
+QUESTIONS = {
+    "test": ("It is a test file, and a test is judged by what it proves. A test is "
+             "defective when it would still pass if the behaviour it names were broken, "
+             "when it checks something other than what its name promises, or when it "
+             "leaves state behind that another test will read. Ask that of each test "
+             "this change touches, including an assertion or a reset the change removed."),
+    "constants": ("It is a module of constants, and a constant is judged by the code that "
+                  "reads it. A constant is defective when its value is unsafe for that "
+                  "code, when it contradicts another value it has to agree with, or when "
+                  "this change removed or renamed a name that code still reads. Ask that "
+                  "of each value this change touches."),
+}
+
+
+def focus(path: str, role: str, reported: Sequence[dict]) -> str:
+    """What follows the pack: what is recorded, then one file and its question."""
+    done = [f"- `{c['file']}`:{c['line']} {c['type']} -- {c.get('message') or c.get('title', '')}"
+            for c in reported]
+    head = (["# ALREADY REPORTED", "",
+             "A first review of this pull request reported the findings below. They "
+             "are recorded; do not report them again.", "", *done, ""] if done else [])
+    return "\n".join([
+        *head,
+        "# FOCUS",
+        "",
+        f"Review only `{path}`. {QUESTIONS[role]}",
+        "",
+        "Report a defect in this file the way the instructions above describe, or "
+        "return an empty `findings` list.",
+    ])
+
+
+def fresh(reports: Sequence[contract.Report], claimed: Iterable[tuple[str, int]]) -> list[contract.Report]:
+    """Reports on a line nothing has claimed yet -- one comment per line, as `dedupe` rules."""
+    taken = set(claimed)
+    out = []
+    for report in reports:
+        if (report.file, report.line) not in taken:
+            taken.add((report.file, report.line))
+            out.append(report)
+    return out

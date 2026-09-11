@@ -63,3 +63,35 @@ def test_the_verify_stages_read_the_claims_the_quote_gate_let_through(tmp_path):
     # Both readers go through the one function, so they cannot disagree.
     import run_challenge, run_regate
     assert run_challenge.claims_path is claims_path and run_regate.claims_path is claims_path
+
+
+# --- the role question --------------------------------------------------------
+
+def test_a_test_file_is_known_by_the_runners_convention_not_its_directory():
+    assert continuation.is_test_file("tests/test_worker.py")
+    assert continuation.is_test_file("pkg/worker_test.py")
+    assert continuation.is_test_file("tests/conftest.py")
+    assert not continuation.is_test_file("tests/factories.py"), "a helper is not a test"
+
+
+def test_a_constants_module_is_all_constants_with_no_threshold():
+    assert continuation.is_constants_module('"""doc"""\nimport os\nA = 1\nB = "x"\nC: int = 3\n')
+    assert not continuation.is_constants_module("A = 1\nB = 2\nC = 3\ndef f():\n    return A\n")
+    assert not continuation.is_constants_module("A = 1\nlower = 2\nC = 3\n")
+    assert not continuation.is_constants_module("A = 1\n"), "too little to call a module of anything"
+
+
+def test_the_role_question_names_one_file_and_adds_no_prior():
+    text = continuation.focus("tests/test_x.py", "test",
+                              [{"file": "a.py", "line": 3, "type": "x", "message": "m"}])
+    assert "Review only `tests/test_x.py`." in text and "`a.py`:3" in text
+    assert "empty `findings` list" in text
+    for word in ("probably", "likely", "usually", "most"):
+        assert word not in continuation.QUESTIONS["test"] + continuation.QUESTIONS["constants"]
+
+
+def test_a_line_already_claimed_is_not_claimed_twice():
+    reports = [contract.Report("a.py", 1, "x", "t", 0.9), contract.Report("a.py", 2, "y", "t", 0.8),
+               contract.Report("a.py", 2, "z", "t", 0.7)]
+    kept = continuation.fresh(reports, {("a.py", 1)})
+    assert [(r.line, r.type) for r in kept] == [(2, "y")]

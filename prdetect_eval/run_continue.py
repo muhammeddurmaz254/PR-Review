@@ -65,6 +65,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--timeout", type=float, default=300.0)
     parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument("--mode", choices=("unreported", "role"), default="unreported",
+                        help="unreported: stage [4b]; role: ask each test file and constants "
+                             "module its own question (see detect/continuation.py)")
+    parser.add_argument("--cap", action=argparse.BooleanOptionalAction, default=True,
+                        help="hold the pull request to the source run's max_findings")
     parser.add_argument("--dry-run", action="store_true", help="write the prompts and stop")
     parser.add_argument("--run-id", help="defaults to <run>-cont")
     parser.add_argument("--out", type=Path, default=RUNS)
@@ -104,19 +109,31 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     added, added_anchored, trace, responses = [], [], [], []
     counts = defaultdict(int)
-    for case_id in sorted(by_case):
+    if args.mode == "role":
+        jobs = [(cid, [path], role) for cid, case in sorted(cases.items()) if case.reviewable
+                for path, role in continuation.role_targets(case)]
+    else:
+        jobs = [(cid, continuation.targets(cases[cid], {c["file"] for c in by_case[cid]}), None)
+                for cid in sorted(by_case)]
+        jobs = [job for job in jobs if job[1]]
+    claimed: dict[str, set] = defaultdict(set)
+    for claim in claims:
+        claimed[claim["case_id"]].add((claim["file"], claim["line"]))
+    for case_id, remaining, role in jobs:
         case = cases[case_id]
-        remaining = continuation.targets(case, {c["file"] for c in by_case[case_id]})
-        if not remaining:
-            continue
         item = pack.build(case, dataset, version, context, facts, deletions)
-        user = item.user + "\n" + continuation.trailer(by_case[case_id], remaining)
+        reported = by_case.get(case_id, [])
+        tail = (continuation.focus(remaining[0], role, reported) if role
+                else continuation.trailer(reported, remaining))
+        user = item.user + "\n" + tail
         counts["calls"] += 1
         if detector is None:
-            trace.append({"case_id": case_id, "remaining": remaining, "user": user})
+            trace.append({"case_id": case_id, "remaining": remaining, "role": role,
+                          "spoke_before": bool(reported), "user": user})
             continue
         response = detector.complete(item.system, user, schema)
-        responses.append({"case_id": case_id, "text": response.text, "error": response.error,
+        responses.append({"case_id": case_id, "files": remaining, "role": role,
+                          "text": response.text, "error": response.error,
                           "prompt_tokens": response.prompt_tokens,
                           "completion_tokens": response.completion_tokens,
                           "duration_ms": response.duration_ms})
@@ -124,9 +141,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         counts["raw"] += len(reports)
         inside = continuation.within(reports, remaining)
         counts["outside_remaining"] += len(reports) - len(inside)
-        room = max(0, limit - len(by_case[case_id]))
-        kept = contract.cap(contract.dedupe(inside), room)
-        counts["dropped_over_cap"] += len(inside) - len(kept)
+        new_ones = continuation.fresh(contract.dedupe(inside), claimed[case_id])
+        counts["already_claimed"] += len(inside) - len(new_ones)
+        room = max(0, limit - len(reported) - sum(1 for a in added if a["case_id"] == case_id))
+        kept = contract.cap(new_ones, room) if args.cap else list(new_ones)
+        counts["dropped_over_cap"] += len(new_ones) - len(kept)
+        claimed[case_id].update((r.file, r.line) for r in kept)
         placements = scope_module.resolve(kept, case)
         counts["out_of_scope"] += sum(1 for p in placements if not p.kept)
         kept = scope_module.apply(placements)
@@ -139,11 +159,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             added_anchored.extend(_row(case_id, r) for r in anchor_module.apply(verdicts))
         else:
             added_anchored.extend(_row(case_id, r) for r in kept)
-        trace.append({"case_id": case_id, "remaining": remaining,
+        trace.append({"case_id": case_id, "remaining": remaining, "role": role,
+                      "spoke_before": bool(reported),
                       "reported": [(r.file, r.line, r.type) for r in reports],
                       "kept": [(r.file, r.line, r.type) for r in kept]})
         if not args.quiet:
-            print(f"[{counts['calls']}] {case_id}: {len(reports)} raw, {len(kept)} kept"
+            print(f"[{counts['calls']}] {case_id} {remaining}: {len(reports)} raw, {len(kept)} kept"
                   + (f"  ERROR {response.error}" if response.error else ""), file=sys.stderr, flush=True)
 
     def write(name: str, rows: list[dict]) -> None:
@@ -158,7 +179,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     (run_dir / "config.json").write_text(json.dumps({
         **manifest, "run_id": run_dir.name, "stage": "continue",
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "continued_run": args.run, "harness_commit": harness_commit(),
+        "continued_run": args.run, "continuation_mode": args.mode, "continuation_cap": args.cap,
+        "harness_commit": harness_commit(),
         "continuation": dict(counts), "added": len(added),
         "complete": detector is not None and not any(r["error"] for r in responses),
         "python": platform.python_version(),
