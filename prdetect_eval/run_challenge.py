@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from adapters import load_cases, eval_path
+from adapters import claims_path, eval_path, load_cases
 from detect import challenge as challenge_module
 from detect import client as client_module
 from detect import consequence as consequence_module
@@ -69,7 +69,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not dataset:
         raise SystemExit(f"{source}/config.json names no dataset; pass --dataset")
     cases = {case.case_id: case for case in load_cases(eval_path(dataset, DATASETS))}
-    claims = [json.loads(line) for line in (source / "predictions.jsonl").read_text().splitlines() if line]
+    claims_file = claims_path(source)
+    claims = [json.loads(line) for line in claims_file.read_text().splitlines() if line]
     # Read from the source run rather than taken as a flag: a challenger shown a
     # different pack than the detector refutes true positives, and nothing in a
     # separate flag would keep the two in step.
@@ -198,7 +199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     (run_dir / "config.json").write_text(json.dumps({
         **manifest, "run_id": run_id, "stage": f"verify:{args.stage}",
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "challenged_run": args.run, "dataset": dataset,
+        "challenged_run": args.run, "claims_from": claims_file.name, "dataset": dataset,
         "verify_stage": args.stage,
         "strict_consequence": bool(args.strict_consequence),
         "claims": len(claims), "removed": removed, "survivors": len(survivors),

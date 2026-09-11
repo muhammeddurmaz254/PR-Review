@@ -50,3 +50,16 @@ def test_the_trailer_records_what_is_done_and_names_only_what_is_left():
 def test_a_report_outside_the_files_asked_about_is_dropped():
     reports = [contract.Report("a.py", 1, "x", "t", 0.9), contract.Report("b.py", 2, "x", "t", 0.9)]
     assert [r.file for r in continuation.within(reports, ["b.py"])] == ["b.py"]
+
+
+def test_the_verify_stages_read_the_claims_the_quote_gate_let_through(tmp_path):
+    """The gate's corrections must reach the chain: `ckpt-01-kusurlu` was scored
+    at line 60 after the gate had moved it to 61, where the corpus anchors it."""
+    from adapters import claims_path
+    (tmp_path / "predictions.jsonl").write_text("", encoding="utf-8")
+    assert claims_path(tmp_path).name == "predictions.jsonl"
+    (tmp_path / "predictions.anchored.jsonl").write_text("", encoding="utf-8")
+    assert claims_path(tmp_path).name == "predictions.anchored.jsonl"
+    # Both readers go through the one function, so they cannot disagree.
+    import run_challenge, run_regate
+    assert run_challenge.claims_path is claims_path and run_regate.claims_path is claims_path

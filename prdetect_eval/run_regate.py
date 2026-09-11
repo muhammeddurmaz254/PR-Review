@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from adapters import load_cases, eval_path
+from adapters import claims_path, eval_path, load_cases
 from detect import challenge as challenge_module
 from detect import contract
 from detect import consequence as consequence_module
@@ -61,7 +61,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     manifest = json.loads((source / "config.json").read_text(encoding="utf-8"))
     dataset = args.dataset or manifest.get("dataset")
     cases = {c.case_id: c for c in load_cases(eval_path(dataset, DATASETS))}
-    claims = [json.loads(l) for l in (source / "predictions.jsonl").read_text().splitlines() if l.strip()]
+    claims_file = claims_path(source)
+    claims = [json.loads(l) for l in claims_file.read_text().splitlines() if l.strip()]
 
     counts = {"claims": len(claims), "named_no_harm": 0, "claimed_harm_without_a_run": 0,
               "out_of_scope": 0, "off_operation": 0, "refuted": 0,
@@ -162,7 +163,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8", newline="\n")
     (run_dir / "config.json").write_text(json.dumps({
         **manifest, "run_id": run_dir.name, "stage": "regate",
-        "regated_run": args.run, "challenge_run": args.challenge,
+        "regated_run": args.run, "claims_from": claims_file.name, "challenge_run": args.challenge,
         "consequence_run": args.consequence,
         "strict_consequence": bool(args.strict_consequence), "dataset": dataset,
         "scope_gate": bool(args.scope_gate),

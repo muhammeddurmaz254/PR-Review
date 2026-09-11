@@ -28,6 +28,28 @@ def eval_path(dataset: str, datasets_dir: Path) -> Path:
     return datasets_dir / f"{dataset}.eval.jsonl"
 
 
+def claims_path(run_dir: Path) -> Path:
+    """The claims a verify stage reads from a finished run: the gated ones.
+
+    A detector run writes two prediction files on purpose -- before the quote
+    gate and after it -- so the prompt change and the filter can be scored
+    apart. The challenger and the regate read the first, so every correction
+    the quote gate made stopped at the file it was written to. Measured on
+    `ckpt-01-kusurlu`: the gate moved a deleted-line finding from line 60 to
+    61, where the corpus anchors it, and the scored chain still carried 60 --
+    one true positive scored as a miss and a false alarm at once. Across every
+    stored run the gate has made that correction three times and refused a
+    quote never, so feeding the chain from its output changes nothing that was
+    measured before it.
+
+    One function for both readers, for the reason ``eval_path`` is one: two
+    stages that must read the same file and look it up separately will, one
+    day, not.
+    """
+    anchored = run_dir / "predictions.anchored.jsonl"
+    return anchored if anchored.exists() else run_dir / "predictions.jsonl"
+
+
 def _read_jsonl(path: Path) -> Iterator[dict]:
     with path.open(encoding="utf-8") as handle:
         for number, line in enumerate(handle, start=1):
