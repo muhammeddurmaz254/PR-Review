@@ -1143,6 +1143,131 @@ INSTRUCTIONS_HYBRID = INSTRUCTIONS_OPEN.replace(
     "## How to look", FAMILIES + "\n## How to look", 1
 )
 
+# review/v9-pr: the evidence boundary is the pull request.
+#
+# The broad catalogue stays -- it names defects a repository may not contain,
+# on purpose -- but every definition is rewritten so that it can be decided
+# from the code the model is shown. The v6-broad definitions compare against
+# what the pack does not carry: "weaker than its siblings", "used elsewhere",
+# "the convention its neighbours follow". Measured on the best chain, nine of
+# its eleven remaining false alarms were claims whose truth hangs on such an
+# unseen comparison, and two model families flagged the same eight halka
+# spots. A real repository has no clean twin to calibrate against and no
+# promise that the sibling is in the diff. So where a comparison is part of a
+# kind, the other side of it has to be in this change too.
+#
+# MEASURED: halka lost, zincir gained, so it does not pass. Same chain, same
+# build, same names as v6-broad. halka 44/9/4 became 40/14/8, F1 0.871 to
+# 0.784. zincir 7/6/9 became 7/5/9, F1 0.483 to 0.500 -- still under v6-shared's
+# 8/3/8. On halka the five false alarms whose truth hung on an unseen rule did
+# go (conc-01, conc-02, conc-03, corr-01, err-01), and three of those clean
+# twins were flagged again at the same place under another name: conc-01-temiz
+# line 77 as wrong_state_check, conc-02-temiz as missing_authz_check, err-01-temiz
+# as unvalidated_passthrough. The definitions decide what the model calls the
+# spot; they do not decide whether it speaks there. Four labels were lost, and
+# not only ones resting on a repository rule: grounding c, a, b and c.
+PR_BOUNDARY = """\
+Judge only from what you are shown: the title and the code this pull request changed. A defect has to be established by those lines. If deciding it would need something you are not shown -- how other modules do it, what the rest of the repository treats as a rule, what a caller outside the change passes -- you cannot establish it, so do not report it.
+"""
+
+
+def _pr_instructions() -> str:
+    text = INSTRUCTIONS_V6
+    edits = (
+        ("Read the change against what the title says it does.\n\n",
+         "Read the change against what the title says it does.\n\n" + PR_BOUNDARY + "\n"),
+        ("a value copied away from the single source that documents it, a block duplicated",
+         "a value defined a second time, a block duplicated"),
+        ("or one query per row where a batch call already exists;",
+         "or one query per row inside a loop;"),
+        ("it is named against the repository's own convention, so callers read it wrongly",
+         "its name says something its body does not do, so callers read it wrongly"),
+        ("- Anything you would raise as a preference rather than a defect -- but a rule this "
+         "repository already follows in several places is not a preference, it is a contract. "
+         "A guard is not a preference: a check the change applies on one path and not on its "
+         "sibling,",
+         "- Anything you would raise as a preference rather than a defect. A guard is not a "
+         "preference: a check the change applies on one path and leaves off another path in "
+         "the same change,"),
+    )
+    for old, new in edits:
+        if text.count(old) != 1:
+            raise AssertionError(f"v9-pr edit does not apply exactly once: {old[:60]!r}")
+        text = text.replace(old, new, 1)
+    return text
+
+
+INSTRUCTIONS_PR = _pr_instructions()
+
+PR_TYPES_HALKA = {
+    "missing_authz_check": "An operation that changes or reveals data is reachable without any permission check, or the change checks permission on one path it adds and not on another path it adds for the same operation.",
+    "crossfile_ownership": "A query in the change reads or writes rows without restricting them to the tenant or owner the request belongs to, although that tenant or owner is in scope where the query is built.",
+    "crossfile_data_exposure": "A response built in the change includes a field that is sensitive by nature -- a password hash, a token, a secret, internal notes -- or serializes a whole stored object instead of choosing its fields.",
+    "crossfile_error_propagation": "A failure raised or returned by a call in the change is caught or ignored, and the caller goes on to report success.",
+    "crossfile_idempotency": "The key a duplicate guard uses includes something that changes on every run -- an attempt count, a timestamp, a random value -- so the same event never matches itself.",
+    "crossfile_ordering": "Code in the change consumes items as if they arrive in a particular order, and nothing in the code shown establishes that order.",
+    "crossfile_unit_mismatch": "A value is passed in one unit where the receiving code shown uses it in another -- seconds for milliseconds, minor units for major, bytes for kilobytes.",
+    "sql_injection": "A runtime value is placed in the query text rather than in the parameters the driver binds.",
+    "command_injection": "A runtime value is placed in the command text rather than in an element of an argument list.",
+    "xss": "A value from a request or a user reaches an HTML response without escaping.",
+    "error_detail_disclosure": "An exception message or a stack trace is placed into a response sent to the client.",
+    "hardcoded_credential": "A password, key, token or other secret is written as a literal in the source.",
+    "weak_crypto_primitive": "A broken or unsuitable primitive is used for a security purpose: a broken digest for passwords or signatures, ordinary randomness for a secret, or a comparison of secrets that returns early.",
+    "unvalidated_passthrough": "Request data is handed to a call that stores, executes or forwards it, with no validation or restriction applied to it in the code shown.",
+    "wrong_argument": "Arguments are passed in an order or a role that does not match the parameters of the callee shown.",
+    "wrong_data_source": "A value that has to be current is read from a copy that can lag -- a cache, a snapshot, a denormalized field -- while the authoritative value is available in the same code.",
+    "wrong_state_check": "A state is compared against a value the code shown never assigns to it, so the branch is never taken or always taken.",
+    "silent_overwrite": "A write replaces a whole stored structure where the code meant to change part of it, discarding the fields it did not set.",
+    "unreachable_code": "The control flow above these statements always leaves before them.",
+    "unused_symbol": "The change defines a local variable, a module-private name or an import that nothing uses.",
+    "misleading_name": "The name says something the body does not do -- it promises one item and returns a list, says it checks and it modifies, says it is safe and it is not.",
+    "duplicated_block": "The change adds a block whose logic repeats another block in the code shown, instead of calling it.",
+    "duplicated_config": "The change defines the same configuration value in two places in the code shown, so the two can drift apart.",
+    "duplicated_test_block": "The change adds test assertions that repeat another test's assertions in the code shown, instead of sharing them.",
+    "broad_except": "The clause catches a type wider than anything the body it guards can raise.",
+    "swallowed_exception": "An exception is caught and then neither logged, re-raised nor reported to the caller.",
+    "unclosed_resource": "A file, connection or similar resource is opened without a `with` block or a `close` on every path.",
+    "redundant_work": "The same value is computed twice in one flow where the first result is still in scope.",
+    "work_in_loop": "A query or remote call is made once per item inside a loop over a collection that could be fetched in one call.",
+    "removed_dependency": "A package is removed from the runtime requirements while code in the change still imports it.",
+    "removed_network_config": "A host, URL or endpoint is removed from configuration while code in the change still uses it.",
+    "missing_assertion": "A test runs the code under test and asserts nothing about its result, or asserts only something that holds whatever the code does.",
+    "hardcoded_endpoint": "A test writes a request path as a literal string instead of building it with the framework's URL resolution.",
+    "null_deref": "The result of a call that can return None is used without a check.",
+    "off_by_one": "An index, bound or page offset is one away from what it should be -- a range that skips the first or last item, a limit that allows one too many.",
+    "unguarded_dict_access": "A key that comes from outside -- a request, a payload, a file -- indexes a mapping directly, so a missing key raises.",
+    "missing_lock": "Shared state is read, changed and written back without a lock or a transaction, so two concurrent runs can lose an update.",
+    "secret_in_log": "A value obtained as a secret is written to a log in clear.",
+    "ssrf_unvalidated_fetch": "A URL or host taken from the request is fetched by the server without restricting where it may point.",
+    "unsafe_deserialization": "Data from outside is decoded with a loader that can construct arbitrary objects -- pickle, unsafe YAML, eval.",
+    "divergent_change": "One module is changed for reasons that have nothing to do with each other.",
+    "path_traversal": "A file path is built from a value the caller controls and opened without checking that it stays inside the intended directory.",
+    "open_redirect": "A redirect is sent to a location taken from the request without restricting it to trusted targets.",
+    "mass_assignment": "A request body is bound wholesale onto a stored object, so fields that should not be writable from outside can be set.",
+    "insecure_default": "A default turns a protection off -- verification skipped, debug left on, a permissive origin.",
+    "unbounded_resource": "A response, file or query result is read whole into memory with no size limit.",
+    "float_money": "A monetary amount is held or computed in a floating-point type.",
+    "naive_datetime": "A timestamp is created or compared without a timezone.",
+    "blocking_call_in_async": "A call that blocks -- a socket, a file, a sleep -- runs inside a coroutine.",
+    "mutable_default_argument": "A parameter defaults to a mutable object, so the value outlives the call and is shared by every later one.",
+    "regex_denial_of_service": "A pattern with nested or overlapping repetition is matched against input from outside, where the time it takes grows faster than the input does.",
+    "breaking_public_api": "A name callers outside this change may depend on -- an exported symbol, a flag, an attribute a subclass overrides -- is removed, renamed or narrowed.",
+    "missing_migration": "A stored model's fields are changed and the change contains no migration for it.",
+}
+PR_ADDITIONS = {
+    "wrong_assertion_target": "A test asserts on something other than the effect it names -- the input it just built, a mock's own return value, or a field the code under test never writes -- so it passes whatever that code does.",
+    "leaky_test_state": "A test leaves process state behind, or depends on state another test left, so its result depends on which tests ran before it.",
+    "unsafe_default": "A default value turns a protection off or removes a bound -- verification skipped, a timeout unlimited, a debug path left on.",
+    "contradictory_setting": "Two settings that are read together state incompatible things, so one of them cannot take effect.",
+    "removed_config_key": "A configuration key is deleted while code in the change still reads it, so the reader falls back to a value nobody chose.",
+}
+# Same names, same order as v6-broad on each corpus: only the definitions move.
+PR_TYPES_HALKA = {name: PR_TYPES_HALKA[name] for name in HALKA_TYPES_BROAD}
+_PR_ZINCIR = {**PR_TYPES_HALKA, **PR_ADDITIONS}
+TAXONOMIES_PR = {**TAXONOMIES_V3, "halka": PR_TYPES_HALKA,
+                 "zincir": {name: _PR_ZINCIR[name] for name in TAXONOMIES_BROAD["zincir"]}}
+
+
 # The typed versions: each file is read by its role. Section D14 found the
 # pack "shows every file the same way and asks all of them one question" while
 # the model's power to tell a defective file from its clean twin differs sharply
@@ -1215,6 +1340,7 @@ VERSIONS = {
     "review/v6-shared": (INSTRUCTIONS_V6, TAXONOMIES_SHARED),
     "review/v6-broad-typed": (INSTRUCTIONS_V6_TYPED, TAXONOMIES_BROAD),
     "review/v6-shared-typed": (INSTRUCTIONS_V6_TYPED, TAXONOMIES_SHARED),
+    "review/v9-pr": (INSTRUCTIONS_PR, TAXONOMIES_PR),
 }
 
 # Which versions print each file's role under its header; the pack reads this.
@@ -1235,7 +1361,7 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-located", "review/v6-reachable",
                     "review/v6-demo-evidence", "review/v6-wide-evidence",
                     "review/v6-broad", "review/v6-shared",
-                    "review/v6-broad-typed", "review/v6-shared-typed"})
+                    "review/v6-broad-typed", "review/v6-shared-typed", "review/v9-pr"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.

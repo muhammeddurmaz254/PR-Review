@@ -9,3 +9,4 @@ halka_bench/
 prdetect_eval/datasets/*.eval.jsonl
 zincir_bench/
 analysis
+colab_a100_ollama.py

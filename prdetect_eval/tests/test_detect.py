@@ -88,7 +88,8 @@ def test_every_prompt_version_renders_for_every_dataset():
 # has no positives for. That is the point of it -- the catalogue a deployment
 # ships is not the list of defects the repository in front of it contains.
 NAME_CHANGING = {"review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
-                 "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed"}
+                 "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed",
+                 "review/v9-pr"}
 
 
 def test_the_type_names_never_move_between_versions():
@@ -1611,3 +1612,24 @@ def test_only_a_typed_pack_says_what_each_file_is():
             assert rows[index + 1].startswith("Role: ")
             if path.rsplit("/", 1)[-1].startswith("test_"):
                 assert rows[index + 1] == "Role: test file."
+
+
+# --- review/v9-pr: the evidence boundary is the pull request -------------------
+
+def test_the_pr_bounded_version_keeps_the_broad_list_and_moves_only_definitions():
+    for dataset in ("halka", "zincir"):
+        assert prompt.types(dataset, "review/v9-pr") == prompt.types(dataset, "review/v6-broad")
+
+
+def test_no_pr_bounded_definition_leans_on_code_the_model_is_not_shown():
+    """A real repository gives no promise that the sibling is in the diff."""
+    unseen = re.compile(r"sibling|elsewhere|neighbour|this codebase|repository|convention|"
+                        r"surrounding code|other call sites|documented", re.I)
+    _, taxonomies = prompt.VERSIONS["review/v9-pr"]
+    for dataset in ("halka", "zincir"):
+        leaning = [name for name, text in taxonomies[dataset].items() if unseen.search(text)]
+        assert not leaning, (dataset, leaning)
+    text = prompt.system("halka", "review/v9-pr")
+    assert "Judge only from what you are shown" in text
+    assert "a rule this repository already follows" not in text
+    assert "## How to answer" in text and "Report each defect once." in text
