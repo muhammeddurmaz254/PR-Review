@@ -8,6 +8,7 @@ instead of counting them.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import threading
 from statistics import median
@@ -674,6 +675,95 @@ def test_a_deleted_line_can_be_quoted_but_not_anchored():
     decision = anchor.resolve(
         [contract.Report(filename, 117, "x", "t", 0.9, quote=deleted[filename][0])], case)[0]
     assert decision.verdict in {"deleted-line", "anchored"} and decision.kept
+
+
+def test_a_line_that_comes_back_is_not_a_removal():
+    """Half of zincir_dev's deleted lines are a settings table reordered.
+
+    Rendering a moved line as a removal hands the model a "this is gone"
+    candidate for something still there -- and on `ckpt-01-kusurlu` it would
+    have handed it six, in the one case whose real defect is a key that is gone.
+    """
+    case = _case("halka", "authz-01-kusurlu")
+    moved = [text for rows in pack.removed_lines(case).values() for _, text in rows]
+    added = {line[1:].strip() for line in case.diff.split("\n")
+             if line.startswith("+") and not line.startswith("+++")}
+    assert moved, "this case is chosen because it deletes something"
+    assert not [t for t in moved if t.strip() in added]
+
+
+def test_the_whole_file_pack_prints_what_the_change_deleted():
+    """The prompt has always asked for removals; only the hunk path answered it.
+
+    `review/v6-shared` says a removal "has no `+` line at all" and tells the
+    model to quote the deleted line. On a corpus that ships whole files there
+    was no deleted line in the pack to quote, so the instruction was
+    unsatisfiable -- the same shape of gap as a response contract asking for a
+    line number against a raw diff.
+    """
+    case = _case("halka", "authz-01-kusurlu")
+    lean = pack.build(case, "halka")
+    full = pack.build(case, "halka", with_deletions=True)
+    assert not re.search(r"^\s+- \| ", lean.user, re.M), "off by default"
+    assert re.search(r"^\s+- \| ", full.user, re.M)
+    assert "Lines marked `-` were deleted" in full.user
+    # Removals carry no line number, so they join no budget and no anchor.
+    assert full.shown_lines == lean.shown_lines
+
+
+def test_a_removal_is_quotable_only_when_the_pack_printed_it():
+    """The gate must be told what the pack was told; otherwise it invents room.
+
+    `deleted-line` accepts a quote that matches no numbered line. Granting it
+    against a pack that printed no removals would admit a quote the model was
+    never shown -- the gate would stop being a check on the pack.
+    """
+    case = _case("halka", "authz-01-kusurlu")
+    _, deleted = pack.shown_lines(case, with_deletions=True)
+    filename = next(iter(deleted))
+    report = contract.Report(filename, 1, "x", "t", 0.9, quote=deleted[filename][0])
+    assert not pack.shown_lines(case)[1], "silent unless asked"
+    assert anchor.resolve([report], case)[0].verdict == "unsupported"
+    assert anchor.resolve([report], case, with_deletions=True)[0].verdict == "deleted-line"
+
+
+def test_the_challenger_is_shown_the_same_removals_as_the_detector():
+    """A challenger blind to a deletion refutes the finding that read it.
+
+    Measured on `log-01-kusurlu`: the detector reported the leak at the
+    surviving `counters.reset()`, exactly the line the corpus labels, and the
+    challenger -- shown head lines only -- answered that the fixture "explicitly
+    resets the state" and refuted it. Same shape as the `conf-03` failure that
+    put the counted facts into `challenge.build`.
+    """
+    case = _case("halka", "authz-01-kusurlu")
+    filename, rows = next(iter(pack.removed_lines(case).items()))
+    at = rows[0][0]
+    lean = challenge.excerpt(case, filename, at, radius=12)
+    full = challenge.excerpt(case, filename, at, radius=12, with_deletions=True)
+    assert not [r for r in lean if r[:5].strip() == "" and r.lstrip().startswith("-")]
+    assert [r for r in full if r[:5].strip() == "" and r.lstrip().startswith("-")]
+    # The window is chosen by printed number; a removal must not push a
+    # numbered line out of it.
+    assert {r[:5].strip() for r in lean} <= {r[:5].strip() for r in full}
+
+
+def test_a_removal_is_anchored_where_it_was_removed_from():
+    """A deleted line has no number, so the model cannot name the right one.
+
+    On `ckpt-01-kusurlu` it named the line above the gap and the corpus anchors
+    the line below it: the same defect, scored at tolerance 0 as a miss and a
+    false alarm at once. The pack knows where the removal sat, so the gate
+    corrects it, as `snapped` already does for a quote found at another number.
+    """
+    case = _case("halka", "authz-01-kusurlu")
+    filename, rows = next(iter(pack.removed_lines(case).items()))
+    at, text = rows[0]
+    report = contract.Report(filename, at + 4, "x", "t", 0.9, quote=text)
+    decision = anchor.resolve([report], case, with_deletions=True)[0]
+    assert decision.verdict == "deleted-line" and decision.kept
+    assert decision.line == at, "the gate knows the position; the model cannot"
+    assert anchor.apply([decision])[0].line == at
 
 
 def test_an_absent_quote_is_never_used_to_drop_a_finding(dataset):

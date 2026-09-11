@@ -21,6 +21,7 @@ neither existed, so the instruction was unsatisfiable for half the corpus.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from typing import Sequence
@@ -44,6 +45,92 @@ CODE_SUFFIXES = (".py",)
 
 def is_code(filename: str) -> bool:
     return filename.endswith(CODE_SUFFIXES)
+
+
+# `diff --git a/x b/x`. Only the new-side path is needed; a rename would give a
+# different one, and no corpus in use renames a reviewed file.
+DIFF_FILE = re.compile(r"^diff --git a/.+ b/(.+)$")
+DIFF_SKIP = ("---", "+++", "index ", "new file", "deleted file",
+             "similarity ", "rename ")
+
+
+def removed_lines(case: Case) -> dict[str, list[tuple[int, str]]]:
+    """Lines the pull request deleted, keyed by file, anchored on the new side.
+
+    The hunk path has printed removals since it was written -- a defect can be
+    exactly what a change deleted -- but the whole-file path never did, because
+    a deleted line has no place in the file it prints. That asymmetry was
+    measured on zincir_dev: four of its sixteen labels sit on a line no `+`
+    marks, the model produced *no finding at all* for the three pull requests
+    holding them, and those three are also the whole of its pull-request-level
+    misses. halka cannot see the gap -- all forty-eight of its labels sit on an
+    added line, against a 19.9% base rate of added lines in its packs, so it
+    only ever asks whether an added line is wrong.
+
+    Lines that come back are not removals. Half of zincir_dev's twenty-nine
+    deleted lines are a settings table reordered, and rendering those as
+    removals would hand the model six spurious "this key is gone" candidates in
+    the one case whose real defect is a key that is gone. Content that reappears
+    as an added line in the same file is dropped; on `ckpt-01-kusurlu` that
+    takes eight candidates down to the two that are the defect.
+
+    The number returned is where the absence shows -- the new-side line the
+    removed text sat in front of -- not a line the removed text occupies. It
+    orders the rendering; it is never a line the model may cite, which is what
+    ``shown_lines`` keeps the removals separate for.
+    """
+    out: dict[str, list[tuple[int, str]]] = {}
+    added: dict[str, list[str]] = {}
+    filename = ""
+    number = 0
+    for line in case.diff.split("\n"):
+        match = DIFF_FILE.match(line)
+        if match:
+            filename = match.group(1).strip()
+            continue
+        hunk = HUNK.match(line)
+        if hunk:
+            number = int(hunk.group(1))
+            continue
+        if not filename or line.startswith(DIFF_SKIP):
+            continue
+        if line.startswith("+"):
+            added.setdefault(filename, []).append(line[1:].strip())
+            number += 1
+        elif line.startswith("-"):
+            out.setdefault(filename, []).append((number, line[1:]))
+        else:
+            number += 1
+    kept: dict[str, list[tuple[int, str]]] = {}
+    for name, rows in out.items():
+        pool = Counter(added.get(name, ()))
+        for where, text in rows:
+            if pool[text.strip()]:
+                pool[text.strip()] -= 1      # moved, not removed
+                continue
+            kept.setdefault(name, []).append((where, text))
+    return kept
+
+
+def _with_removals(rows: list[str], removals: Sequence[tuple[int, str]]) -> list[str]:
+    """``rows`` from ``_numbered``, with removed lines printed where they were.
+
+    The gutter matches the hunk path exactly -- blank number, `-` marker -- so
+    one filter reads both shapes and the model is never shown two spellings of
+    the same thing.
+    """
+    if not removals:
+        return rows
+    at: dict[int, list[str]] = {}
+    for where, text in removals:
+        at.setdefault(where, []).append(f"{'':5s} - | {text}")
+    out: list[str] = []
+    for index, row in enumerate(rows, start=1):
+        out += at.pop(index, [])
+        out.append(row)
+    for where in sorted(at):
+        out += at[where]
+    return out
 COMMIT = re.compile(r"^# commit ([0-9a-f]{7,40}) ?(.*)$")
 
 
@@ -212,7 +299,8 @@ def render_diff(text: str, max_lines: int = 1200) -> tuple[list[str], int]:
     return out, shown
 
 
-def shown_lines(case: Case, context: Sequence[str] = ()) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
+def shown_lines(case: Case, context: Sequence[str] = (),
+                with_deletions: bool = False) -> tuple[dict[str, dict[int, list[str]]], dict[str, list[str]]]:
     """Exactly what the pack prints, as ``(numbered, deleted)``.
 
     ``numbered`` maps file to line number to the texts printed at it. A list,
@@ -233,9 +321,14 @@ def shown_lines(case: Case, context: Sequence[str] = ()) -> tuple[dict[str, dict
             # unchanged files out would reject every quote taken from them.
             sources |= {name: text for name, text in case.context_files.items()
                         if any(fnmatch(name, pattern) for pattern in context)}
+        removals = removed_lines(case) if with_deletions else {}
         for filename, source in sources.items():
             rows, _ = _numbered(source, case.added_lines.get(filename, frozenset()))
             numbered[filename] = {int(row[:5]): [row.split("| ", 1)[-1]] for row in rows}
+            # Only files the pack prints. A removal in a file that was never
+            # shown is not a quote the model could have taken from the pack.
+            for _, text in removals.get(filename, ()):
+                deleted.setdefault(filename, []).append(text)
         return numbered, deleted
     for hunk in emitted_hunks(case.diff):
         if not is_code(hunk.filename):
@@ -262,10 +355,11 @@ def _preamble(case: Case, part: int, parts: int) -> list[str]:
 
 
 def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
-          context: Sequence[str] = (), with_facts: bool = False) -> Pack:
+          context: Sequence[str] = (), with_facts: bool = False,
+          with_deletions: bool = False) -> Pack:
     """The whole pull request in one call."""
     return split(case, dataset, version, max_lines=0, context=context,
-                 with_facts=with_facts)[0]
+                 with_facts=with_facts, with_deletions=with_deletions)[0]
 
 
 def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
@@ -300,7 +394,7 @@ def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
 
 def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
           max_lines: int = 0, context: Sequence[str] = (),
-          with_facts: bool = False) -> list[Pack]:
+          with_facts: bool = False, with_deletions: bool = False) -> list[Pack]:
     """The pull request as one pack, or as several when it is large.
 
     Measured on SWRBench: the model's output volume tracks the size of the pack
@@ -320,10 +414,24 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
         body = _preamble(case, 1, 1)
         shown = 0
         body += ["# WHAT THIS PULL REQUEST CHANGED", ""] if context else []
+        removals = removed_lines(case) if with_deletions else {}
+        if any(removals.values()):
+            # The system prompt already asks for removals -- "those have no `+`
+            # line at all", and the quote contract says to quote the deleted
+            # line. On a whole-file pack that instruction had nothing to answer
+            # it, the way the response contract had no line numbers to name
+            # before the hunks were renumbered. This sentence is what makes it
+            # answerable; the taxonomy and the prompt version are untouched.
+            body += ["Lines marked `-` were deleted by this pull request. They "
+                     "carry no line number because they are in no file any more; "
+                     "they are printed where they used to be.", ""]
         for filename in sorted(name for name in case.head_files if is_code(name)):
             added = case.added_lines.get(filename, frozenset())
             code, count = _numbered(case.head_files[filename], added)
+            # `shown` counts the changed-code budget, which removals do not join:
+            # they carry no line number, so nothing can be anchored to them.
             shown += count
+            code = _with_removals(code, removals.get(filename, ()))
             body += [f"# FILE {filename}", "", "```"] + code + ["```", ""]
         if with_facts:
             body += facts_module.render(facts_module.collect(case))

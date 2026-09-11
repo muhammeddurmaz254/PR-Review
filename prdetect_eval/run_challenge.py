@@ -70,6 +70,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit(f"{source}/config.json names no dataset; pass --dataset")
     cases = {case.case_id: case for case in load_cases(eval_path(dataset, DATASETS))}
     claims = [json.loads(line) for line in (source / "predictions.jsonl").read_text().splitlines() if line]
+    # Read from the source run rather than taken as a flag: a challenger shown a
+    # different pack than the detector refutes true positives, and nothing in a
+    # separate flag would keep the two in step.
+    source_deletions = bool(json.loads(
+        (source / "config.json").read_text(encoding="utf-8")).get("deletions"))
 
     detector = None
     if not args.dry_run:
@@ -93,7 +98,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     survivors, verdicts, harms = [], [], []
     for index, claim in enumerate(claims, start=1):
         case = cases[claim["case_id"]]
-        rows = challenge_module.excerpt(case, claim["file"], claim["line"], args.radius)
+        rows = challenge_module.excerpt(case, claim["file"], claim["line"], args.radius,
+                                        with_deletions=source_deletions)
         counted = [fact.render() for fact in facts_module.collect(case)]
         marks: list[str] = []
         refuted = removed = False

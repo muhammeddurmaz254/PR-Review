@@ -121,6 +121,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--facts", action="store_true",
                         help="state what the repository says about the names this change "
                              "defines; silent unless it has something discriminating to say")
+    parser.add_argument("--deletions", action="store_true",
+                        help="print the lines this pull request deleted, where they were; "
+                             "lines that come back elsewhere in the file are not removals")
     parser.add_argument("--context", action="append", default=[], metavar="GLOB",
                         help="carry unchanged files matching this pattern (repeatable). "
                              "Everything ('*') was measured and lost; narrow wins or nothing does")
@@ -178,7 +181,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     context = tuple(args.context) or (("*",) if args.with_repo else ())
     packs = [item for case in cases
              for item in pack.split(case, args.dataset, args.prompt_version,
-                                    args.max_pack_lines, context, args.facts)]
+                                    args.max_pack_lines, context, args.facts,
+                                    args.deletions)]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
@@ -307,7 +311,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 kept = evidence_module.apply(calls)
             predictions.extend(to_predictions(case_id, kept))
             if quoted:
-                verdicts = anchor_module.resolve(kept, by_case[case_id], context=context)
+                verdicts = anchor_module.resolve(kept, by_case[case_id], context=context,
+                                                 with_deletions=args.deletions)
                 anchored.extend(to_predictions(case_id, anchor_module.apply(verdicts)))
                 decisions.extend({
                     "case_id": case_id, "file": v.report.file,
@@ -351,7 +356,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "dropped_off_operation": off_operation,
         "field_order": list(order),
         "max_pack_lines": args.max_pack_lines, "packs": len(packs),
-        "context": list(context), "facts": args.facts, "reused_answers": len(done),
+        "context": list(context), "facts": args.facts, "deletions": args.deletions,
+        "reused_answers": len(done),
         # A run that lost its server two thirds of the way through still writes
         # every artefact, because that is what --resume reads. It must not also
         # look finished: the tunnel died at call 28 of 110 once and the run

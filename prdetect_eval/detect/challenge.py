@@ -95,16 +95,39 @@ VERDICT_SCHEMA: dict[str, Any] = {
 }
 
 
-def excerpt(case: Case, filename: str, line: int, radius: int = 12) -> list[str]:
-    """The lines around a claim, numbered exactly as the detector saw them."""
+def excerpt(case: Case, filename: str, line: int, radius: int = 12,
+            with_deletions: bool = False) -> list[str]:
+    """The lines around a claim, numbered exactly as the detector saw them.
+
+    ``with_deletions`` must match the pack the claim came from, and for the same
+    reason the facts are passed to ``build``: a challenger that cannot see what
+    the detector saw refutes true positives. Measured on `log-01-kusurlu` --
+    the detector read a deleted `olog.reset()` and reported the leak at the
+    surviving `counters.reset()`, exactly where the corpus puts it; the
+    challenger, shown only head lines, answered "the fixture explicitly resets
+    the state" and refuted it. The claim was right and the excerpt was missing
+    the only line that settles it.
+    """
     if case.head_files:
         source = case.head_files.get(filename)
         if source is None:
             return []
         added = case.added_lines.get(filename, frozenset())
         rows, _ = pack_module._numbered(source, added)
-        low = max(0, line - radius - 1)
-        return rows[low:line + radius]
+        if with_deletions:
+            rows = pack_module._with_removals(
+                rows, pack_module.removed_lines(case).get(filename, ()))
+        # Slice by printed number, not by index: a removal shifts every index
+        # after it, and it carries no number of its own, so it belongs to the
+        # window of the line it sits in front of.
+        low, high, out, seen = line - radius, line + radius, [], 0
+        for row in rows:
+            head = row[:5].strip()
+            if head.isdigit():
+                seen = int(head)
+            if low <= seen <= high:
+                out.append(row)
+        return out
     out: list[str] = []
     for hunk in pack_module.parse_diff(case.diff):
         if hunk.filename == filename and hunk.start - radius <= line <= hunk.end + radius:

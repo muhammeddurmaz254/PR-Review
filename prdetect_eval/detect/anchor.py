@@ -53,9 +53,15 @@ class Decision:
 
 
 def resolve(reports: Sequence[contract.Report], case: Case, min_quote: int = 4,
-            context: Sequence[str] = ()) -> list[Decision]:
-    """One decision per report, in order."""
-    numbered, deleted = pack_module.shown_lines(case, context)
+            context: Sequence[str] = (), with_deletions: bool = False) -> list[Decision]:
+    """One decision per report, in order.
+
+    ``with_deletions`` must match the pack the answers came from. The
+    `deleted-line` verdict accepts a quote that is in no numbered line, so
+    granting it against a pack that printed no removals would admit a quote the
+    model was never shown.
+    """
+    numbered, deleted = pack_module.shown_lines(case, context, with_deletions)
     decisions: list[Decision] = []
     for report in reports:
         quote = normalise(report.quote)
@@ -82,7 +88,18 @@ def resolve(reports: Sequence[contract.Report], case: Case, min_quote: int = 4,
             continue
         if any(quote in normalise(text) for text in deleted.get(report.file, ())):
             # The defect is the deletion; the quote is a line with no number.
-            decisions.append(Decision(report, "deleted-line", report.line, "quote is a removed line"))
+            # The model has to name one anyway, and nothing in the pack tells it
+            # which: measured on `ckpt-01-kusurlu`, it named the line above the
+            # gap and the corpus anchors the line below it -- the same defect,
+            # scored as a miss and a false alarm at tolerance 0. The pack does
+            # know, so the gate corrects it here, the way `snapped` already
+            # corrects a quote found at another number.
+            where = [at for at, text in pack_module.removed_lines(case).get(report.file, ())
+                     if quote in normalise(text)]
+            at = where[0] if where else report.line
+            decisions.append(Decision(report, "deleted-line", at,
+                                      "quote is a removed line"
+                                      + (f"; anchored at line {at}" if where else "")))
             continue
         decisions.append(Decision(report, "unsupported", report.line,
                                   "quote appears nowhere in the lines shown"))
