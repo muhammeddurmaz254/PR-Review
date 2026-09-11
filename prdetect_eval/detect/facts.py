@@ -184,3 +184,28 @@ def render(facts: Sequence[Fact]) -> list[str]:
         *(fact.render() for fact in facts),
         "",
     ]
+
+
+# --- facts about one claim: two were written for the verifier, measured, deleted
+#
+# A copy count for duplication claims -- the challenger had said it could not
+# see the function a claim called the original. Separation test, one row per
+# function: the two labelled real copies shared 1.0 and 0.71 of their
+# statements, names aside, with their closest other function; the clean-twin
+# false alarms shared 0.83, 0.80, 0.0 and 0.0. The two it was written for are
+# more alike than one of the real copies. Given to the verifier, the count
+# would have argued for them. Deleted before it cost a run.
+#
+# The other side of a deletion: what this change deleted the definition of, and
+# what still reads it. Given to the verifier over the best chain it reached
+# five zincir claims and one halka claim and moved none: 8/3/8 and 44/9/4
+# unchanged. The claim it was written for, dlq-01-k1, was refuted again, and
+# rightly -- the key is still there; what is missing is the table entry it now
+# reads from. The separation test, with definitions read off the revision
+# before the change rather than guessed from a deleted line, is no better: it
+# fires on both twins of dlq-01 and authz-01, on clean-ups of dead code, and
+# its "still read" half on one defective case already found (ckpt-01) and one
+# clean refactor (demo_repo's temiz-yeniden-duzenleme, whose dict keys are
+# built another way). Its first version took a keyword argument and a local
+# variable for definitions and `response.json()` for a read; a count that has
+# to be defended line by line is not a settled answer. Deleted.
