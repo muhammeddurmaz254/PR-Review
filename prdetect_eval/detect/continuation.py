@@ -113,32 +113,7 @@ def within(reports: Sequence[contract.Report], remaining: Sequence[str]) -> list
 # every time it was checked; this one does not, so a single role run is not a
 # measurement of it.
 
-import ast
-import re
-
-_UPPER = re.compile(r"^[A-Z][A-Z0-9_]*$")
-
-
-def is_test_file(path: str) -> bool:
-    name = path.rsplit("/", 1)[-1]
-    return name.startswith("test_") or name.endswith("_test.py") or name == "conftest.py"
-
-
-def is_constants_module(source: str) -> bool:
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return False
-    body = [node for node in tree.body
-            if not isinstance(node, (ast.Import, ast.ImportFrom))
-            and not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant))]
-
-    def constant(node: ast.stmt) -> bool:
-        targets = (node.targets if isinstance(node, ast.Assign)
-                   else [node.target] if isinstance(node, ast.AnnAssign) else [])
-        return bool(targets) and all(isinstance(t, ast.Name) and _UPPER.match(t.id) for t in targets)
-
-    return len(body) >= 3 and all(constant(node) for node in body)
+from .roles import is_constants_module, is_test_file
 
 
 def role_targets(case: Case) -> list[tuple[str, str]]:

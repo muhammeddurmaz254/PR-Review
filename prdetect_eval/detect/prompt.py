@@ -1143,6 +1143,56 @@ INSTRUCTIONS_HYBRID = INSTRUCTIONS_OPEN.replace(
     "## How to look", FAMILIES + "\n## How to look", 1
 )
 
+# The typed versions: each file is read by its role. Section D14 found the
+# pack "shows every file the same way and asks all of them one question" while
+# the model's power to tell a defective file from its clean twin differs sharply
+# by role; stage [4c] tried the obvious repair -- a second call per file, with a
+# role question -- and it lowered the bar on both twins alike. These keep the
+# single call and the whole pull request in view, and let the pack say what
+# each file is. Application code is told to read as before, so halka, which is
+# almost all application code, is moved as little as the idea allows: whatever
+# changes should change in test files and modules of constants.
+#
+# Each is its control plus one section and nothing else, so a difference in the
+# measurement is a difference this section made.
+#
+# MEASURED, AND BOTH LOST. Same chain as the controls (deletions, [4b], the
+# quote gate's output fed to challenge and regate). zincir_dev 8/3/8 became
+# 8/5/8, F1 0.593 to 0.552, balanced accuracy 91.0% to 85.4%: raw reports on
+# clean test files went from none to two, and they are the two [4c] produced
+# -- wrong_assertion_target on bus-01-temiz's test file, leaky_test_state on
+# clean-counters-many. halka 44/9/4 became 42/9/6, F1 0.871 to 0.849, losing
+# conf-03 and perf-02, both in application code, which the section tells the
+# model to read as before. Saying so did not hold it still: three hundred
+# tokens of role guidance moved the whole review, not the files it named.
+# Telling the model what a file is, in the call or after it, lowers its bar
+# for that kind of file on both twins; it does not teach it the defect.
+ROLE_SECTION = """\
+## Read each file by its role
+
+Every `# FILE` header is followed by a line naming the file's role. The rules in \
+this prompt apply to every file; the role says what a defect looks like in that \
+kind of file, and what does not count as one.
+
+- **Application code.** Read it exactly as the rest of this prompt describes.
+- **Test file.** A test is judged by what it proves about the code it exercises. \
+It is defective when it would still pass with that behaviour broken, when it \
+checks something other than what its name promises, or when it leaves state \
+behind that another test reads -- and a deleted assertion or reset counts. A \
+test that checks less than it could is not defective for that; the question is \
+whether what it does claim can fail.
+- **Module of constants.** A constant is judged by the code that reads it. It is \
+defective when its value is unsafe for that code, when it contradicts another \
+value it has to agree with, or when the change removed or renamed a name that \
+code still reads. A value you would merely have chosen differently is not a \
+defect: if you cannot name the code that reads it and what goes wrong there, \
+do not report it.
+
+"""
+
+INSTRUCTIONS_V6_TYPED = INSTRUCTIONS_V6.replace(
+    "## When not to report", ROLE_SECTION + "## When not to report", 1)
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -1163,7 +1213,12 @@ VERSIONS = {
     "review/v6-wide-evidence": (INSTRUCTIONS_V6, TAXONOMIES_WIDE_EVIDENCE),
     "review/v6-broad": (INSTRUCTIONS_V6, TAXONOMIES_BROAD),
     "review/v6-shared": (INSTRUCTIONS_V6, TAXONOMIES_SHARED),
+    "review/v6-broad-typed": (INSTRUCTIONS_V6_TYPED, TAXONOMIES_BROAD),
+    "review/v6-shared-typed": (INSTRUCTIONS_V6_TYPED, TAXONOMIES_SHARED),
 }
+
+# Which versions print each file's role under its header; the pack reads this.
+TYPED = frozenset({"review/v6-broad-typed", "review/v6-shared-typed"})
 
 # Versions that carry no catalogue: the detector says what is wrong in its own
 # words and stage [4b] maps that onto a name. Every measurement behind the
@@ -1179,7 +1234,8 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-generic", "review/v6-wide", "review/v6-evidence",
                     "review/v6-located", "review/v6-reachable",
                     "review/v6-demo-evidence", "review/v6-wide-evidence",
-                    "review/v6-broad", "review/v6-shared"})
+                    "review/v6-broad", "review/v6-shared",
+                    "review/v6-broad-typed", "review/v6-shared-typed"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.

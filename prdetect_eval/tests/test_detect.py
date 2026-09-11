@@ -60,6 +60,11 @@ def test_measured_prompts_are_unchanged():
         ("swrbench", "review/v4"): "3abe68a78ff83ab3",
         ("swrbench", "review/v5"): "368c076c6929b3e9",
         ("halka", "review/v5"): "55503f6cb42618d0",
+        # The controls every current number is measured against.
+        ("halka", "review/v6-broad"): "e7383866724470e5",
+        ("zincir", "review/v6-shared"): "95c80931b31fd4f3",
+        ("demo_repo", "review/v6"): "ba3bfe008e228f3b",
+        ("swrbench", "review/v6"): "161402784edbbeae",
     }
     for (dataset, version), digest in pinned.items():
         actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
@@ -83,7 +88,7 @@ def test_every_prompt_version_renders_for_every_dataset():
 # has no positives for. That is the point of it -- the catalogue a deployment
 # ships is not the list of defects the repository in front of it contains.
 NAME_CHANGING = {"review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
-                 "review/v6-shared"}
+                 "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed"}
 
 
 def test_the_type_names_never_move_between_versions():
@@ -1578,3 +1583,31 @@ def test_the_two_verify_nodes_are_asked_different_questions():
     # Same evidence, so a difference in the answers is a difference in the question.
     for payload in (consequence.build(claim, rows), challenge.build(claim, rows)):
         assert "f(x)" in payload and "wrong_argument" in payload
+
+
+# --- typed versions: the file's role, and nothing else ------------------------
+
+def test_a_typed_version_is_its_control_plus_the_role_section():
+    """A difference in the measurement must be a difference the section made."""
+    for dataset, typed, control in (("halka", "review/v6-broad-typed", "review/v6-broad"),
+                                     ("zincir", "review/v6-shared-typed", "review/v6-shared")):
+        text = prompt.system(dataset, typed)
+        assert prompt.ROLE_SECTION in text
+        assert text.replace(prompt.ROLE_SECTION, "", 1) == prompt.system(dataset, control)
+        assert prompt.types(dataset, typed) == prompt.types(dataset, control)
+
+
+def test_only_a_typed_pack_says_what_each_file_is():
+    case = next(c for c in load_cases(DATASETS / "zincir_dev.eval.jsonl")
+                if any(n.startswith("tests/test_") for n in c.head_files))
+    lean = pack.build(case, "zincir", "review/v6-shared").user
+    typed = pack.build(case, "zincir", "review/v6-shared-typed").user
+    assert "Role:" not in lean
+    rows = typed.split("\n")
+    for index, row in enumerate(rows):
+        if row.startswith("# FILE "):
+            path = row[len("# FILE "):]
+            assert " " not in path, "the header still carries the bare path"
+            assert rows[index + 1].startswith("Role: ")
+            if path.rsplit("/", 1)[-1].startswith("test_"):
+                assert rows[index + 1] == "Role: test file."
