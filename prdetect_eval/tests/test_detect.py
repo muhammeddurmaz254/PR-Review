@@ -91,7 +91,7 @@ def test_every_prompt_version_renders_for_every_dataset():
 # has no positives for. That is the point of it -- the catalogue a deployment
 # ships is not the list of defects the repository in front of it contains.
 NAME_CHANGING = {"review/v10-universal", "review/v11-universal",
-                 "review/v12-universal", "review/v13-universal",
+                 "review/v12-universal", "review/v13-universal", "review/v14-universal",
                  "review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
                  "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed",
                  "review/v9-pr"}
@@ -1683,3 +1683,14 @@ def test_v13_names_every_defect_without_a_precedent():
 
 def test_v13_keeps_v12s_names_and_changes_only_wording():
     assert prompt.types("halka", "review/v13-universal") == prompt.types("halka", "review/v12-universal")
+
+
+def test_v14_demands_the_failing_run_and_changes_nothing_else():
+    """The only detect-stage change: the claim has to come with the run that
+    produces it. Same names, same schema, same fields."""
+    v13 = prompt.system("halka", "review/v13-universal")
+    v14 = prompt.system("halka", "review/v14-universal")
+    assert prompt.types("halka", "review/v14-universal") == prompt.types("halka", "review/v13-universal")
+    assert "failing run in your head" in v14 and "failing run in your head" not in v13
+    assert "rest of the repository" in v14   # says it asks nothing of the neighbours
+    assert v14.count("findings") == v13.count("findings")

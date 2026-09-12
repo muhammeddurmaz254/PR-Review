@@ -1565,6 +1565,58 @@ UNIVERSAL_TYPES_V13 = {name: V13_INTRINSIC.get(name, text)
 TAXONOMIES_UNIVERSAL_V13 = {dataset: UNIVERSAL_TYPES_V13 for dataset in TAXONOMIES}
 
 
+# --- The failing run, demanded where the claim is made -----------------------
+#
+# D18 ended on a measurement: suppression has to happen where the claim is
+# made. D19 then measured the verifier three ways on the same claims -- plain,
+# precedent, mechanism -- and halka came out 43/14/5, 43/14/5, 41/11/7. Eleven
+# false alarms survive every question that stage can ask, because by then the
+# claim exists and the verifier's job is to check it, not to wonder whether it
+# was worth making.
+#
+# So the demand moves here. A reviewer who has to say what goes wrong -- which
+# input, which order, what the wrong outcome is -- drops the claims that only
+# look wrong, and the ones that survive arrive with their reasoning already
+# done. Nothing in it asks about the rest of the repository: the run either
+# exists in the code in front of you or it does not.
+#
+# Two edits, no third: the rule is added and `title` is redefined to carry the
+# failure instead of naming it. The schema is untouched, so every gate, the
+# anchor and the verifier read this run exactly as they read the others.
+# MEASURED (D20) and REJECTED. Full chain, --mechanism verifier, family rung,
+# against review/v13-universal in the same configuration:
+#
+#     halka      41/11/7 -> 41/16/7     zincir 7/2/9 -> 8/3/8
+#     demo_repo  13/3/4  -> 13/8/4      pooled F1 0.772 -> 0.729
+#
+# Not one extra true finding on any corpus, and claims went UP: halka 74 -> 91,
+# demo_repo 21 -> 25, zincir 14 -> 18. The rule was written as a filter and
+# works as a generator. Reading the nine new false alarms says how: each
+# arrives as a story -- "Repeated refund calls each insert a new ledger entry",
+# "Provider push failure rolls back the committed invoice issue". Asked for a
+# failing run, the model writes one, and having written it, it has justified
+# the claim to itself.
+#
+# This is the same shape as D18's result, now on the other side of the
+# pipeline: a reasoning step you demand can be satisfied by confabulation, and
+# then it argues FOR the claim. Neither stage suppresses by being asked to
+# think harder. Kept for the record; not used.
+FAILING_RUN = """
+Before you report a defect, write its failing run in your head: the input a caller can supply or the order two operations can run in, and what goes wrong at that line as a result. If you cannot name that input or that order from the code in front of you -- if the value cannot reach the line, the branch cannot be taken, the state cannot be built -- it is not a defect you have found, and it does not go in the list. This is not about how the rest of the repository does it; the run either exists here or it does not.
+"""
+
+INSTRUCTIONS_V14 = INSTRUCTIONS_V6.replace(
+    "Most pull requests contain no defect.",
+    FAILING_RUN.strip() + "\n\nMost pull requests contain no defect.", 1
+).replace(
+    "- `title` is one short clause naming the problem -- under twelve words, no "
+    "explanation, no suggested fix.",
+    "- `title` is one short clause carrying the failing run -- what makes it go wrong and what "
+    "goes wrong -- under fifteen words, no suggested fix.", 1)
+
+TAXONOMIES_UNIVERSAL_V14 = TAXONOMIES_UNIVERSAL_V13
+
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -1592,6 +1644,7 @@ VERSIONS = {
     "review/v11-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V11),
     "review/v12-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V12),
     "review/v13-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V13),
+    "review/v14-universal": (INSTRUCTIONS_V14, TAXONOMIES_UNIVERSAL_V14),
 }
 
 # Which versions print each file's role under its header; the pack reads this.
@@ -1614,7 +1667,8 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-broad", "review/v6-shared",
                     "review/v6-broad-typed", "review/v6-shared-typed", "review/v9-pr",
                     "review/v10-universal", "review/v11-universal",
-                    "review/v12-universal", "review/v13-universal"})
+                    "review/v12-universal", "review/v13-universal",
+                    "review/v14-universal"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.
