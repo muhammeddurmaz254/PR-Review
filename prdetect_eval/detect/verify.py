@@ -125,12 +125,52 @@ SYSTEM_PRECEDENT = SYSTEM_CONTRACT.replace(
     + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
 
 
-def system_for(contract: bool, precedent: bool) -> str:
-    """The verifier's system prompt. Precedent implies the contract clause: a
-    rule the repository writes down is exactly the kind of precedent this asks
-    the verifier to go and find."""
+# The precedent clause asks how the rest of the repository does the same thing,
+# and D18 measured what that is worth. It also has a defect no measurement on
+# our corpora shows: it defines a bug as a departure from the repository's own
+# standard, so a repository with no standard has no bugs. A service that locks
+# nothing anywhere still loses money to a double spend. Nothing that ships can
+# ask that question.
+#
+# This asks the opposite kind of question, and asks nothing of the repository:
+# write the failure out. A claim whose failing run cannot be written from the
+# code in front of you is not a finding, whatever its shape suggests -- and a
+# claim whose failing run CAN be written stands even if every file in the
+# repository has the same hole.
+MECHANISM_CLAUSE = """
+Before you decide, write the failure out: the input or the order of events that produces it, and the line where the wrong thing happens. Not what could go wrong in general -- what goes wrong here: a value a caller can actually supply, two requests that can actually overlap, a branch that can actually be taken. If the code you have seen does not let you write that run -- the value cannot reach that line, the branch cannot be taken, the state cannot be built -- the verdict is `contradicted`. A defect no run can reach is not a defect. If the code still lets it happen, the claim stands even where the rest of the repository does the same thing.
+"""
+
+# MEASURED (D19), on review/v13-universal's claims, family rung, against the
+# same claims through the plain verifier:
+#
+#     halka      43/14/5 -> 41/11/7     zincir 8/2/8 -> 7/2/9
+#     demo_repo  12/4/5  -> 13/3/4      pooled F1 0.768 -> 0.772, precision 0.759 -> 0.792
+#
+# It removes three of halka's false alarms and two of its true findings. The
+# same claims through the precedent clause gave halka 43/14/5 -- identical to
+# the plain verifier, which is the measurement that matters here: asking the
+# verifier a different question about the repository changed nothing, and
+# asking it to write the failing run changed a little. The intrinsic
+# catalogue's false alarms are made at detect time and are not removable by
+# rewording this stage.
+SYSTEM_MECHANISM = SYSTEM_CONTRACT.replace(
+    "A claim you cannot back with lines is `unsettled`, however plausible it sounds.",
+    MECHANISM_CLAUSE.strip()
+    + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
+
+
+def system_for(contract: bool, precedent: bool = False, mechanism: bool = False) -> str:
+    """The verifier's system prompt. Both added clauses imply the contract one:
+    a rule the repository writes down is evidence either way. They ask opposite
+    questions and are not combined -- one settles a claim by the repository's
+    habits, the other by whether the failure can be reached at all."""
+    if precedent and mechanism:
+        raise ValueError("--precedent and --mechanism ask different questions; choose one")
     if precedent:
         return SYSTEM_PRECEDENT
+    if mechanism:
+        return SYSTEM_MECHANISM
     return SYSTEM_CONTRACT if contract else SYSTEM
 
 

@@ -112,3 +112,21 @@ def test_measured_verifier_prompts_are_unchanged():
     for name, digest in pinned.items():
         actual = hashlib.sha256(getattr(verify, name).encode("utf-8")).hexdigest()
         assert actual.startswith(digest), f"{name} changed; re-measure or revert"
+
+
+def test_mechanism_asks_nothing_of_the_rest_of_the_repository():
+    """The point of it: a repository that locks nothing anywhere still loses
+    money to a double spend, so the verdict cannot depend on what the
+    neighbours do."""
+    system = verify.system_for(contract=True, mechanism=True)
+    assert system == verify.SYSTEM_MECHANISM
+    assert "write the failure out" in system
+    assert "even where the rest of the repository does the same thing" in system
+    assert "comparable place" not in system
+
+
+def test_the_two_clauses_are_not_combined():
+    import pytest
+    with pytest.raises(ValueError):
+        verify.system_for(contract=True, precedent=True, mechanism=True)
+    assert verify.system_for(contract=True) == verify.SYSTEM_CONTRACT
