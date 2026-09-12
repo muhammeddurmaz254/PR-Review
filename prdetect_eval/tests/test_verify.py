@@ -76,3 +76,12 @@ def test_the_contract_variant_adds_one_clause_and_nothing_else():
     assert verify.SYSTEM_CONTRACT.replace(verify.CONTRACT_CLAUSE, "", 1) == verify.SYSTEM
     assert "states in prose" in verify.CONTRACT_CLAUSE
     assert "Quote the prose the way you quote code." in verify.SYSTEM_CONTRACT
+
+
+def test_the_default_verify_stage_is_strict_with_the_contract_clause(tmp_path):
+    """Made the default after three corpora: precision up on all of them."""
+    import run_verify
+    parser_source = Path(run_verify.__file__).read_text(encoding="utf-8")
+    assert '"--policy"' in parser_source and 'default="strict"' in parser_source
+    assert "BooleanOptionalAction, default=True" in parser_source
+    assert "run_dir / \"predictions.jsonl\"" in parser_source, "the chosen policy is the run's own output"

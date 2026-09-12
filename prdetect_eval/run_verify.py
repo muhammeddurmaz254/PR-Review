@@ -4,6 +4,9 @@ Reads the gated claims (`adapters.claims_path`), verifies each one in a fresh
 context with tools, applies layer 3 to what it cites, and writes the verdicts
 plus one prediction file per policy -- `strict` (only established claims) and
 `lenient` (drop only contradicted ones) -- so both are scored from one pass.
+The chosen policy, `strict` by default, is also written as the run's own
+`predictions.jsonl`: this is the default verify stage of the pipeline, in
+place of `run_challenge.py`, measured over three corpora in `detect/verify.py`.
 """
 from __future__ import annotations
 
@@ -31,8 +34,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--max-tool-calls", type=int, default=4)
     parser.add_argument("--radius", type=int, default=12)
-    parser.add_argument("--contract-evidence", action="store_true",
-                        help="count a rule the repository states in prose as evidence")
+    parser.add_argument("--contract-evidence", action=argparse.BooleanOptionalAction, default=True,
+                        help="count a rule the repository states in prose as evidence (measured: it "
+                             "recovers a contract-backed claim on zincir and costs nothing on halka)")
+    parser.add_argument("--policy", choices=("strict", "lenient"), default="strict",
+                        help="which policy the run's own predictions.jsonl carries; both are always "
+                             "written under the run for comparison")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--resume", action="store_true",
                         help="reuse verdicts already written for this run id; a corpus pass is long "
@@ -99,20 +106,24 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for policy in ("strict", "lenient"):
         kept = [c for c, v in zip(claims, verdicts) if verify.keeps(v["verdict"], policy)]
+        body = "".join(json.dumps(c, ensure_ascii=False) + "\n" for c in kept)
         sub = run_dir / policy
         sub.mkdir(exist_ok=True)
-        (sub / "predictions.jsonl").write_text("".join(json.dumps(c, ensure_ascii=False) + "\n" for c in kept),
-                                               encoding="utf-8", newline="\n")
+        (sub / "predictions.jsonl").write_text(body, encoding="utf-8", newline="\n")
         (sub / "config.json").write_text(json.dumps({**manifest, "run_id": f"{args.run_id}/{policy}",
                                                      "stage": f"verify-agent:{policy}"}, indent=2,
                                                     ensure_ascii=False) + "\n", encoding="utf-8")
+        if policy == args.policy:
+            # The run's own predictions are the chosen policy's, so `run_eval.py`
+            # and anything else downstream reads this stage like any other.
+            (run_dir / "predictions.jsonl").write_text(body, encoding="utf-8", newline="\n")
     counts = {v: sum(1 for r in verdicts if r["verdict"] == v) for v in verify.VERDICTS}
     (run_dir / "config.json").write_text(json.dumps({
         **manifest, "run_id": args.run_id, "stage": "verify-agent", "verified_run": args.run,
         "claims_from": claims_file.name, "created_utc": datetime.now(timezone.utc).isoformat(),
         "verifier": {"model": client.name, "model_build": client.build(), "max_tool_calls": args.max_tool_calls,
                      "num_ctx": args.num_ctx, "contract_evidence": bool(args.contract_evidence)},
-        "claims": len(claims), "reused": len(done), "verdicts": counts,
+        "claims": len(claims), "reused": len(done), "policy": args.policy, "verdicts": counts,
         "claimed_verdicts": {v: sum(1 for r in verdicts if r["claimed_verdict"] == v) for v in verify.VERDICTS},
         "errors": sum(1 for r in verdicts if r["error"]),
         "python": platform.python_version(), "argv": list(argv if argv is not None else sys.argv[1:]),

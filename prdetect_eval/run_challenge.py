@@ -1,5 +1,10 @@
 """Run the verify stages over a finished detector run.
 
+Superseded as the default: `run_verify.py` asks one question per claim in a
+fresh context with tools and checks what it cites, and measured better on
+halka and demo_repo and more precisely on zincir. This stage is kept because
+every number before it was measured under it and has to stay reproducible.
+
 Reads the predictions a run already wrote and asks the model, once per claim,
 either of two questions:
 
