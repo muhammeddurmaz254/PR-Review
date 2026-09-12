@@ -64,3 +64,15 @@ def test_a_stopped_verification_resumes_from_what_it_wrote(tmp_path):
               for r in map(json.loads, (tmp_path / "verdicts.jsonl").read_text().splitlines())}
     assert ("c", "a.py", 3, "x") in stored
     assert "--resume" in Path(run_verify.__file__).read_text(encoding="utf-8")
+
+
+def test_the_measured_verifier_question_is_pinned():
+    """It has a published score now; a silent edit would invalidate it."""
+    import hashlib
+    assert hashlib.sha256(verify.SYSTEM.encode("utf-8")).hexdigest().startswith("7412248db7b354bb")
+
+
+def test_the_contract_variant_adds_one_clause_and_nothing_else():
+    assert verify.SYSTEM_CONTRACT.replace(verify.CONTRACT_CLAUSE, "", 1) == verify.SYSTEM
+    assert "states in prose" in verify.CONTRACT_CLAUSE
+    assert "Quote the prose the way you quote code." in verify.SYSTEM_CONTRACT

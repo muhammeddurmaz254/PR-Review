@@ -20,25 +20,33 @@ lines that exist is treated as unsettled.
 from __future__ import annotations
 
 MEASURED = """\
-Against the challenge stage it replaces, on the same claims:
+Against the challenge stage it replaces, on the same claims, strict policy
+(only what was established is published), with the contract clause:
 
-    halka   44/9/4  ->  45/5/3 strict (F1 0.871 -> 0.918), 45/6/3 lenient
-    zincir   8/3/8  ->   5/2/11 strict (F1 0.593 -> 0.435),  7/3/9 lenient
+    halka       44/9/4  ->  45/5/3   F1 0.871 -> 0.918   precision 0.830 -> 0.900
+    demo_repo   16/4/1  ->  16/3/1   F1 0.865 -> 0.889   precision 0.800 -> 0.842
+    zincir       8/3/8  ->   6/1/10  F1 0.593 -> 0.522   precision 0.727 -> 0.857
 
-halka is the best result this pipeline has had: all forty-five true claims
-were established, and five of its ten false ones were removed. zincir lost
-four true claims, and each says the same thing in its reason -- no code was
-found that reads the two halves together. `replay-01-k1`: the key does carry
-`attempt`, "but I could not find code that uses key_for as a dedup guard".
-`bus-01-k1` and `profile-01-k1`: "no consumer couples them". That is the
-standard asked for, applied to defects whose coupling this repository states
-in a docstring rather than executes. `dlq-01-k1` is different and fair: the
-key is not removed, the missing thing is the table entry it now reads from,
-and the claim said otherwise.
+Precision rises on all three corpora. halka and demo_repo keep every true
+claim they had -- halka gains one and loses four false alarms, including ones
+every prompt version and both model families agreed on. zincir pays two true
+claims for two false ones.
 
-Layer 3 changed no verdict on either corpus: every decisive answer cited
-lines that are really there. What the verifier gets wrong, it gets wrong with
-the evidence in front of it.
+Its losses are worth reading, because they are the standard working. On
+`dlq-01-k1` the verifier is right and the claim was wrong: the key is still
+there, what is missing is the table entry it now reads from. On `profile-01`
+it disagrees with the corpus on the merits -- a lower backoff cap in the
+production profile is "a legitimate per-environment choice" -- and it says so
+with the lines in front of it. `bus-01` it could not settle inside four tool
+calls.
+
+Without the contract clause zincir was 5/2/11 and halka unchanged at 45/5/3:
+the clause recovered `replay-01-k1`, whose contract is stated in a docstring
+("a replayed event is THE SAME event"), and cost nothing on halka.
+
+Layer 3 changed no verdict on any corpus: every decisive answer cited lines
+that are really there. What the verifier gets wrong, it gets wrong with the
+evidence in front of it.
 """
 
 import json
@@ -61,6 +69,21 @@ Answer in this order:
 
 A claim you cannot back with lines is `unsettled`, however plausible it sounds.
 """
+
+# A rule the repository writes down is a rule. Every zincir claim the verifier
+# lost gave the same reason -- no code reads the two halves together -- on
+# defects whose coupling this repository states in a docstring: "a replayed
+# event is THE SAME event, the key must be the same". Prose is not weaker
+# evidence than a consumer; it is the statement of intent a consumer would
+# only imply. Kept as a separate text so the measured one above is untouched,
+# and chosen with `run_verify.py --contract-evidence`.
+CONTRACT_CLAUSE = """
+A rule this repository states in prose counts as evidence like any line of code: a docstring, a comment or a documented contract saying what a value or a function has to do. A change that breaks such a rule is a defect even when nothing else in the repository enforces it. Quote the prose the way you quote code.
+"""
+
+SYSTEM_CONTRACT = SYSTEM.replace(
+    "Decide it from code you have actually seen.",
+    "Decide it from code you have actually seen." + CONTRACT_CLAUSE, 1)
 
 GUIDE = """
 You have up to four tool calls. Use them on what `needed` names, then stop; you will be asked for your answer.

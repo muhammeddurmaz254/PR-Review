@@ -31,6 +31,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--max-tool-calls", type=int, default=4)
     parser.add_argument("--radius", type=int, default=12)
+    parser.add_argument("--contract-evidence", action="store_true",
+                        help="count a rule the repository states in prose as evidence")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--resume", action="store_true",
                         help="reuse verdicts already written for this run id; a corpus pass is long "
@@ -75,7 +77,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         workspace = workspaces.setdefault(case.case_id, agent.Workspace(case))
         rows = challenge.excerpt(case, claim["file"], claim["line"], args.radius, with_deletions=deletions)
         user = verify.user_message(claim, definitions.get(claim["type"], ""), rows)
-        text, transcript, calls = agent.review(client.chat, verify.SYSTEM, user, workspace, verify.SCHEMA,
+        system = verify.SYSTEM_CONTRACT if args.contract_evidence else verify.SYSTEM
+        text, transcript, calls = agent.review(client.chat, system, user, workspace, verify.SCHEMA,
                                                args.max_tool_calls, guide=verify.GUIDE,
                                                final_ask=verify.FINAL_ASK)
         answer = verify.parse(text)
@@ -108,7 +111,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         **manifest, "run_id": args.run_id, "stage": "verify-agent", "verified_run": args.run,
         "claims_from": claims_file.name, "created_utc": datetime.now(timezone.utc).isoformat(),
         "verifier": {"model": client.name, "model_build": client.build(), "max_tool_calls": args.max_tool_calls,
-                     "num_ctx": args.num_ctx},
+                     "num_ctx": args.num_ctx, "contract_evidence": bool(args.contract_evidence)},
         "claims": len(claims), "reused": len(done), "verdicts": counts,
         "claimed_verdicts": {v: sum(1 for r in verdicts if r["claimed_verdict"] == v) for v in verify.VERDICTS},
         "errors": sum(1 for r in verdicts if r["error"]),
