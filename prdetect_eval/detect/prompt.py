@@ -1475,6 +1475,96 @@ UNIVERSAL_TYPES_V12 = {name: text for name, text in UNIVERSAL_TYPES_V11.items()
 TAXONOMIES_UNIVERSAL_V12 = {dataset: UNIVERSAL_TYPES_V12 for dataset in TAXONOMIES}
 
 
+# --- The catalogue with the precedent taken out ------------------------------
+#
+# D17 measured that twenty-nine of these definitions can only name a defect
+# where the repository already shows the right way, and that this is why a
+# general catalogue loses findings on a repository that shows nothing. It also
+# measured that the clause does a second job: taking it out of three names
+# raised halka's false alarms from four to nine.
+#
+# Naming and suppressing are separable, and only one of them belongs in a
+# prompt that reads a single pack. Here every definition names the defect from
+# the code in front of it, and the precedent question moves to the verifier,
+# which has tools, can search the repository for the comparable place, and can
+# read the revision before the change -- so a guard this pull request deleted
+# counts as the precedent, which no catalogue could have known.
+#
+# MEASURED (D18), with `run_verify.py --precedent`, family rung:
+#
+#     halka 43/14/5 (F1 0.819)   zincir 7/2/9 (0.560)   demo_repo 13/4/4 (0.765)
+#
+# against v12 behind the same verifier at 44/8/4, 7/1/9, 12/3/5. demo_repo
+# gains one finding and locates fifteen of seventeen -- the most this project
+# has located there without handing the corpus its own vocabulary -- and halka
+# pays six false alarms for it. Pooled F1 0.768 against 0.808.
+#
+# The experiment it was built for is answered and the answer is no: the
+# verifier cannot take over what the precedent clause was doing, because
+# suppressing a claim and confirming one use the same evidence. Kept, unused,
+# because the next idea for reaching repositories without precedent starts
+# here and not from the version that cannot name their defects at all.
+V13_INTRINSIC = {
+    "missing_authz_check": "An operation that reads or changes someone's data runs without a "
+                           "check that this caller may touch that particular record.",
+    "crossfile_ownership": "A query selects rows by identifier alone, with no tenant or owner "
+                           "condition, so a caller can name a row that is not theirs.",
+    "crossfile_data_exposure": "Serialization emits the object whole, including fields that "
+                               "carry credentials, internal identifiers or personal data.",
+    "xss": "A value that came from outside reaches the response as markup, unescaped.",
+    "error_detail_disclosure": "The response carries exception text, a stack trace or an "
+                               "internal identifier back to the caller.",
+    "weak_crypto_primitive": "The primitive chosen is broken for the job it is doing: a digest "
+                             "that is not collision-resistant used for signing or passwords, or "
+                             "a secret compared with an equality that returns early.",
+    "unvalidated_passthrough": "Request data is passed straight into a call that acts on it -- a "
+                               "query, a path, a command, a write -- with no check on the way.",
+    "wrong_data_source": "The value is read from a replica, a cache or a copy that can lag, "
+                         "where the decision made from it needs the current one.",
+    "misleading_name": "The name says something the body does not do -- a `get_` that writes, a "
+                       "`validate_` that returns without deciding anything.",
+    "swallowed_exception": "The handler catches and then neither logs nor re-raises, so the "
+                           "failure leaves no trace behind.",
+    "unclosed_resource": "A file, socket, cursor or lock is opened on a path that can leave "
+                         "without closing it -- no `with`, no `finally`.",
+    "work_in_loop": "A call that goes to the database, the network or the filesystem is made "
+                    "once per iteration of a loop over a set.",
+    "missing_assertion": "The test runs the code and asserts nothing about the result.",
+    "null_deref": "The result of a call that can be absent is used -- an attribute, an index, a "
+                  "call -- with no check that it is there.",
+    "off_by_one": "The index, slice or offset is one away from the range the operation needs: a "
+                  "boundary included that should be left out, or left out that should be in.",
+    "unguarded_dict_access": "A key that came from outside indexes a mapping directly, so a key "
+                             "that is not there raises instead of being handled.",
+    "missing_lock": "A read-modify-write of state that more than one caller can reach runs with "
+                    "nothing holding the value still between the read and the write.",
+    "ssrf_unvalidated_fetch": "An address the caller controls is fetched with no restriction on "
+                              "where it may point.",
+    "unsafe_deserialization": "Untrusted data reaches a decoder that can construct objects or "
+                              "run code -- `pickle`, `yaml.load`, `marshal`.",
+    "path_traversal": "A path is built from a value the caller controls and opened, with nothing "
+                      "keeping it inside the directory it is meant to stay in.",
+    "unbounded_resource": "A response, file or query result is read whole into memory with no "
+                          "limit on how large it may be.",
+    "float_money": "A monetary amount is held or computed in a binary floating type, so the "
+                   "rounding it introduces reaches a stored or charged value.",
+    "naive_datetime": "A timestamp is created or compared without a timezone, so what it means "
+                      "depends on where the code runs.",
+    "missing_migration": "A stored model's shape is changed with no accompanying migration.",
+    "unsafe_default": "A default value turns a protection off or removes a bound: verification "
+                      "skipped, a timeout unlimited, a debug path left on.",
+    "encoding_assumption": "Bytes are decoded, or text encoded, under an assumed encoding that "
+                           "the source does not promise.",
+    "stale_cache_write": "A write updates the store without invalidating or updating the cache "
+                         "that is read for the same value.",
+}
+
+UNIVERSAL_TYPES_V13 = {name: V13_INTRINSIC.get(name, text)
+                       for name, text in UNIVERSAL_TYPES_V12.items()}
+
+TAXONOMIES_UNIVERSAL_V13 = {dataset: UNIVERSAL_TYPES_V13 for dataset in TAXONOMIES}
+
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -1501,6 +1591,7 @@ VERSIONS = {
     "review/v10-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL),
     "review/v11-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V11),
     "review/v12-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V12),
+    "review/v13-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V13),
 }
 
 # Which versions print each file's role under its header; the pack reads this.
@@ -1523,7 +1614,7 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-broad", "review/v6-shared",
                     "review/v6-broad-typed", "review/v6-shared-typed", "review/v9-pr",
                     "review/v10-universal", "review/v11-universal",
-                    "review/v12-universal"})
+                    "review/v12-universal", "review/v13-universal"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.

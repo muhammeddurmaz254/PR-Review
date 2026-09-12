@@ -85,6 +85,55 @@ SYSTEM_CONTRACT = SYSTEM.replace(
     "Decide it from code you have actually seen.",
     "Decide it from code you have actually seen." + CONTRACT_CLAUSE, 1)
 
+# D17 asked what the catalogue's precedent clauses are for. Thirty of the
+# seventy-four definitions only name a defect where the repository already
+# shows the right way -- "the other call sites", "sibling mutations of the same
+# state" -- and taking those words out to make the catalogue general (v11, v12)
+# raised halka's false alarms from four to nine while recovering demo_repo's
+# unnameable findings. So the clause does two jobs at once: it names the defect
+# and it suppresses the claim. Naming has to happen in the catalogue. Checking
+# the precedent does not: this stage has the tools to go and look, and it can
+# read the revision before the change, which a detector reading one pack never
+# sees -- a guard this pull request deleted is a precedent the catalogue could
+# not have known about.
+PRECEDENT_CLAUSE = """
+A claim that something is missing -- a lock, a check, a guard, a timeout, a validation -- is settled by how this repository does the same thing elsewhere. Go and find the comparable place: another mutation of the same state that takes the lock, another call site that checks first, the same operation as it stood in the revision before this change. If you find it, the claim is established. If the comparable places do the same thing as the changed code, and nothing in the repository states the rule, the verdict is `contradicted`: what is missing there is missing everywhere, and this pull request did not introduce it.
+"""
+
+# MEASURED (D18). Family rung, same claims in, only this stage's prompt differs:
+#
+#     on v12 claims   halka 44/9/4 -> 44/8/4    zincir 7/2/9 -> 7/1/9   demo 12/3/5 unchanged
+#     on v10 claims   halka 44/4/4 -> 45/9/3    zincir 7/1/9 -> 8/1/8   demo  9/2/8 unchanged
+#
+# It moves recall up and precision down, and which way that lands depends on
+# the catalogue it runs behind: pooled F1 0.797 -> 0.808 on v12, 0.811 -> 0.800
+# on v10. It is not an independent improvement and is off by default.
+#
+# It does NOT pay for taking the precedent out of the catalogue. With every
+# definition made intrinsic (review/v13-universal) halka's false alarms went
+# 8 -> 14 with this clause on. Reading them says why: asked to find the
+# comparable place, the verifier finds one and uses it to CONFIRM. On
+# `authz-02-temiz` it reported that the new endpoint checks a list-level
+# permission "whereas the comparable single-record endpoint invoice_detail
+# checks the per-record permission" -- a precedent argument for the defect, on
+# a case the corpus calls clean. Four tool calls will find a comparable site
+# for almost any claim; what the catalogue's clause did was stop the claim
+# from being made at all. Suppression has to happen where the claim is made.
+SYSTEM_PRECEDENT = SYSTEM_CONTRACT.replace(
+    "A claim you cannot back with lines is `unsettled`, however plausible it sounds.",
+    PRECEDENT_CLAUSE.strip()
+    + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
+
+
+def system_for(contract: bool, precedent: bool) -> str:
+    """The verifier's system prompt. Precedent implies the contract clause: a
+    rule the repository writes down is exactly the kind of precedent this asks
+    the verifier to go and find."""
+    if precedent:
+        return SYSTEM_PRECEDENT
+    return SYSTEM_CONTRACT if contract else SYSTEM
+
+
 GUIDE = """
 You have up to four tool calls. Use them on what `needed` names, then stop; you will be asked for your answer.
 """

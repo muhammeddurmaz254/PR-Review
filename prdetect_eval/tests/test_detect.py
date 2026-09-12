@@ -91,7 +91,7 @@ def test_every_prompt_version_renders_for_every_dataset():
 # has no positives for. That is the point of it -- the catalogue a deployment
 # ships is not the list of defects the repository in front of it contains.
 NAME_CHANGING = {"review/v10-universal", "review/v11-universal",
-                 "review/v12-universal",
+                 "review/v12-universal", "review/v13-universal",
                  "review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
                  "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed",
                  "review/v9-pr"}
@@ -1667,3 +1667,19 @@ def test_every_universal_name_has_a_definition_and_asks_for_a_quote():
     _, taxonomies = prompt.VERSIONS["review/v10-universal"]
     assert all(text.strip() for text in taxonomies["halka"].values())
     assert "review/v10-universal" in prompt.QUOTED
+
+
+def test_v13_names_every_defect_without_a_precedent():
+    """The precedent question moved to the verifier (`run_verify --precedent`).
+    Duplication is the one kind whose definition needs the other copy: that is
+    what the word duplicate means."""
+    cues = ("elsewhere", "other call sites", "sibling", "convention",
+            "same purpose", "every other", "surrounding code", "this codebase")
+    _, taxonomies = prompt.VERSIONS["review/v13-universal"]
+    left = [name for name, text in taxonomies["halka"].items()
+            if any(cue in text.lower() for cue in cues)]
+    assert left == ["duplicated_block"]
+
+
+def test_v13_keeps_v12s_names_and_changes_only_wording():
+    assert prompt.types("halka", "review/v13-universal") == prompt.types("halka", "review/v12-universal")

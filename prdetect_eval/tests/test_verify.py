@@ -85,3 +85,30 @@ def test_the_default_verify_stage_is_strict_with_the_contract_clause(tmp_path):
     assert '"--policy"' in parser_source and 'default="strict"' in parser_source
     assert "BooleanOptionalAction, default=True" in parser_source
     assert "run_dir / \"predictions.jsonl\"" in parser_source, "the chosen policy is the run's own output"
+
+
+# --- The precedent moved from the catalogue to this stage --------------------
+
+def test_precedent_prompt_keeps_the_contract_clause_and_the_unsettled_rule():
+    system = verify.system_for(contract=False, precedent=True)
+    assert system == verify.SYSTEM_PRECEDENT
+    assert "states in prose counts as evidence" in system
+    assert system.rstrip().endswith("however plausible it sounds.")
+    assert "the revision before this change" in system
+
+
+def test_precedent_is_off_unless_asked_for():
+    assert verify.system_for(contract=True, precedent=False) == verify.SYSTEM_CONTRACT
+    assert verify.system_for(contract=False, precedent=False) == verify.SYSTEM
+    assert "missing there is missing everywhere" not in verify.SYSTEM_CONTRACT
+
+
+def test_measured_verifier_prompts_are_unchanged():
+    """Same rule as the detector's: a text a number was measured under is
+    pinned, and unpinned only by re-measuring."""
+    import hashlib
+    pinned = {"SYSTEM": "7412248db7b354bb",
+              "SYSTEM_CONTRACT": "975e1ee003b0cce7"}
+    for name, digest in pinned.items():
+        actual = hashlib.sha256(getattr(verify, name).encode("utf-8")).hexdigest()
+        assert actual.startswith(digest), f"{name} changed; re-measure or revert"

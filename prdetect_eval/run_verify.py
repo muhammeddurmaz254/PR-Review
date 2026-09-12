@@ -37,6 +37,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--contract-evidence", action=argparse.BooleanOptionalAction, default=True,
                         help="count a rule the repository states in prose as evidence (measured: it "
                              "recovers a contract-backed claim on zincir and costs nothing on halka)")
+    parser.add_argument("--precedent", action=argparse.BooleanOptionalAction, default=False,
+                        help="settle a claim that something is missing by looking for how the "
+                             "repository does the same thing elsewhere, including the revision "
+                             "before the change; implies --contract-evidence")
     parser.add_argument("--policy", choices=("strict", "lenient"), default="strict",
                         help="which policy the run's own predictions.jsonl carries; both are always "
                              "written under the run for comparison")
@@ -84,7 +88,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         workspace = workspaces.setdefault(case.case_id, agent.Workspace(case))
         rows = challenge.excerpt(case, claim["file"], claim["line"], args.radius, with_deletions=deletions)
         user = verify.user_message(claim, definitions.get(claim["type"], ""), rows)
-        system = verify.SYSTEM_CONTRACT if args.contract_evidence else verify.SYSTEM
+        system = verify.system_for(args.contract_evidence, args.precedent)
         text, transcript, calls = agent.review(client.chat, system, user, workspace, verify.SCHEMA,
                                                args.max_tool_calls, guide=verify.GUIDE,
                                                final_ask=verify.FINAL_ASK)
@@ -122,7 +126,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         **manifest, "run_id": args.run_id, "stage": "verify-agent", "verified_run": args.run,
         "claims_from": claims_file.name, "created_utc": datetime.now(timezone.utc).isoformat(),
         "verifier": {"model": client.name, "model_build": client.build(), "max_tool_calls": args.max_tool_calls,
-                     "num_ctx": args.num_ctx, "contract_evidence": bool(args.contract_evidence)},
+                     "num_ctx": args.num_ctx, "contract_evidence": bool(args.contract_evidence),
+                     "precedent": bool(args.precedent)},
         "claims": len(claims), "reused": len(done), "policy": args.policy, "verdicts": counts,
         "claimed_verdicts": {v: sum(1 for r in verdicts if r["claimed_verdict"] == v) for v in verify.VERDICTS},
         "errors": sum(1 for r in verdicts if r["error"]),
