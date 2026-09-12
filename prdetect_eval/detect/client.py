@@ -133,7 +133,8 @@ class OllamaClient:
             )
         return Response(text="", error=last)
 
-    def chat(self, messages: list[dict], tools: list | None = None, schema: dict | None = None) -> dict:
+    def chat(self, messages: list[dict], tools: list | None = None, schema: dict | None = None,
+             temperature: float | None = None, seed: int | None = None) -> dict:
         """One turn of a conversation, with tools offered or a schema imposed.
 
         The agent loop in `detect/agent.py` needs the raw message back -- a
@@ -142,7 +143,8 @@ class OllamaClient:
         """
         payload: dict[str, Any] = {
             "model": self.model, "messages": messages, "stream": False, "keep_alive": self.keep_alive,
-            "options": {"temperature": self.temperature, "seed": self.seed, "num_ctx": self.num_ctx},
+            "options": {"temperature": self.temperature if temperature is None else temperature,
+                        "seed": self.seed if seed is None else seed, "num_ctx": self.num_ctx},
         }
         if tools:
             payload["tools"] = tools

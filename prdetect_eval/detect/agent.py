@@ -216,15 +216,35 @@ class Workspace:
             return f"bad arguments for {name}: {error}"
 
 
+def _turn(chat: Callable[..., dict], messages: list[dict], transcript: list[dict]) -> dict:
+    """One tool-offering turn, resampled once if the model wrote a broken tool call.
+
+    Measured on the open reviewer: in 12 of 136 cases the model wrote a tool
+    call Ollama could not parse ("XML syntax error ... element <function>
+    closed by </parameter>") and the server answered 500. At temperature 0
+    the same prompt breaks the same way every time, so a plain retry is
+    useless; one resample at a small temperature is the least that can
+    change the outcome, and it is recorded.
+    """
+    reply = chat(messages, tools=TOOLS)
+    error = str(reply.get("error") or "")
+    if "XML syntax" in error or "HTTPError 500" in error:
+        transcript.append({"resampled": error[:200]})
+        reply = chat(messages, tools=TOOLS, temperature=0.3, seed=11)
+    return reply
+
+
 def review(chat: Callable[..., dict], system: str, user: str, workspace: Workspace, schema: dict,
-           max_calls: int = 12) -> tuple[str, list[dict], int]:
+           max_calls: int = 12, guide: str = TOOL_GUIDE,
+           final_ask: str = FINAL_ASK) -> tuple[str, list[dict], int]:
     """Run the look-then-answer loop. Returns (final text, transcript, tool calls made)."""
-    messages: list[dict] = [{"role": "system", "content": system + TOOL_GUIDE},
+    messages: list[dict] = [{"role": "system", "content": system + guide},
                             {"role": "user", "content": user}]
     transcript: list[dict] = []
     calls = 0
+    asked: set[str] = set()
     while calls < max_calls:
-        reply = chat(messages, tools=TOOLS)
+        reply = _turn(chat, messages, transcript)
         message = reply.get("message") or {}
         tool_calls = message.get("tool_calls") or []
         if reply.get("error") or not tool_calls:
@@ -239,12 +259,18 @@ def review(chat: Callable[..., dict], system: str, user: str, workspace: Workspa
                     arguments = json.loads(arguments)
                 except json.JSONDecodeError:
                     arguments = {}
-            result = workspace.call(function.get("name", ""), arguments)
+            signature = json.dumps([function.get("name", ""), arguments], sort_keys=True, default=str)
+            if signature in asked:
+                # Measured: one open review read the same file ten times running.
+                result = "You already made this exact call; its result is above. Do not repeat it."
+            else:
+                asked.add(signature)
+                result = workspace.call(function.get("name", ""), arguments)
             messages.append({"role": "tool", "content": result, "tool_name": function.get("name", "")})
             transcript.append({"tool": function.get("name"), "arguments": arguments,
                                "result": result[:600]})
             calls += 1
-    messages.append({"role": "user", "content": FINAL_ASK})
+    messages.append({"role": "user", "content": final_ask})
     final = chat(messages, schema=schema)
     transcript.append({"final": (final.get("message") or {}).get("content", ""), "error": final.get("error", "")})
     return (final.get("message") or {}).get("content", ""), transcript, calls
