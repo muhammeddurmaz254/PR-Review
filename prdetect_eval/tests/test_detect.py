@@ -65,6 +65,9 @@ def test_measured_prompts_are_unchanged():
         ("zincir", "review/v6-shared"): "95c80931b31fd4f3",
         ("demo_repo", "review/v6"): "ba3bfe008e228f3b",
         ("swrbench", "review/v6"): "161402784edbbeae",
+        # One catalogue for every repository; measured in D17.
+        ("halka", "review/v10-universal"): "b3ad4ea094c4c8df",
+        ("halka", "review/v11-universal"): "988b37a33227696f",
     }
     for (dataset, version), digest in pinned.items():
         actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
@@ -87,7 +90,9 @@ def test_every_prompt_version_renders_for_every_dataset():
 # product catalogue, so halka gains the five names zincir_bench introduced and
 # has no positives for. That is the point of it -- the catalogue a deployment
 # ships is not the list of defects the repository in front of it contains.
-NAME_CHANGING = {"review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
+NAME_CHANGING = {"review/v10-universal", "review/v11-universal",
+                 "review/v12-universal",
+                 "review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
                  "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed",
                  "review/v9-pr"}
 
@@ -1633,3 +1638,32 @@ def test_no_pr_bounded_definition_leans_on_code_the_model_is_not_shown():
     assert "Judge only from what you are shown" in text
     assert "a rule this repository already follows" not in text
     assert "## How to answer" in text and "Report each defect once." in text
+
+
+# --- review/v10-universal: one catalogue for every repository ----------------
+
+def test_every_dataset_is_handed_the_same_catalogue():
+    lists = [prompt.types(dataset, "review/v10-universal") for dataset in prompt.TAXONOMIES]
+    assert all(names == lists[0] for names in lists)
+    assert len(lists[0]) == len(set(lists[0])) == 74
+
+
+def test_the_universal_catalogue_drops_no_measured_name():
+    universal = set(prompt.types("halka", "review/v10-universal"))
+    assert set(prompt.types("halka", "review/v6-broad")) <= universal
+    assert set(prompt.types("zincir", "review/v6-broad")) <= universal
+    assert set(prompt.UNIVERSAL_ADDITIONS) <= universal
+
+
+def test_the_universal_catalogue_carries_no_synonym_of_a_name_it_has():
+    """A catalogue with synonyms was measured at -0.25 F1 (D10): demo_repo's
+    coarse names stay out and meet the fine ones at the family rung instead."""
+    universal = set(prompt.types("halka", "review/v10-universal"))
+    assert not universal & set(prompt.types("demo_repo", "review/v6"))
+    assert not universal & set(prompt.types("swrbench", "review/v6"))
+
+
+def test_every_universal_name_has_a_definition_and_asks_for_a_quote():
+    _, taxonomies = prompt.VERSIONS["review/v10-universal"]
+    assert all(text.strip() for text in taxonomies["halka"].values())
+    assert "review/v10-universal" in prompt.QUOTED

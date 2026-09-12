@@ -79,10 +79,11 @@ def scorable_types(cases: Iterable["Case"], published: Iterable[str] = ()) -> fr
     return in_scope_types(cases) | catalog_types() | frozenset(published)
 
 FAMILY_BY_TYPE = {
-    "authz": "authorization", "authn_bypass": "authorization", "mass_assignment": "authorization",
+    "authz": "authz", "authn_bypass": "authz", "mass_assignment": "authz",
+    "overly_permissive_permission": "authz",
     "sql_injection": "injection", "command_injection": "injection", "path_traversal": "injection",
     "ssrf": "injection", "unsafe_deserialization": "injection",
-    "secrets_exposure": "data_exposure", "sensitive_data_exposure": "data_exposure", "crypto_misuse": "data_exposure",
+    "secrets_exposure": "secrets", "sensitive_data_exposure": "disclosure", "crypto_misuse": "crypto",
     "race_condition": "concurrency", "missing_transaction": "concurrency", "non_idempotent_retry": "concurrency",
     "null_deref": "correctness", "inverted_condition": "correctness", "off_by_one": "correctness",
     "exception_swallowing": "correctness", "resource_leak": "correctness", "timezone_bug": "correctness",
@@ -92,16 +93,48 @@ FAMILY_BY_TYPE = {
     # demo_repo. Both sides of a match resolve family through this table, so a
     # type missing from it silently makes the family rung unreachable.
     "business_logic": "business_logic",
-    "data_exposure": "data_exposure", "secrets": "data_exposure",
+    "data_exposure": "disclosure", "secrets": "secrets",
     # demo_repo files three cases under the coarse name, beside the precise ones.
-    "injection": "injection", "authz": "authorization", "concurrency": "concurrency",
-    "error_handling": "correctness", "idempotency": "concurrency",
+    "injection": "injection", "concurrency": "concurrency",
+    "error_handling": "error_handling", "idempotency": "concurrency",
     # SWRBench keeps its own taxonomy: these name kinds of change, not kinds of
     # vulnerability, and collapsing them into the security families above would
     # invent a correspondence that does not exist.
     "F.1 Interface": "interface", "F.2 Logic": "logic", "F.3 Resource": "resource",
     "F.4 Check": "check", "F.5 Support": "support",
+    # The names outside the shared catalogue: the twelve a corpus cannot supply
+    # (prompt.BEYOND_CORPUS) and the sixteen the universal catalogue adds. They
+    # are here for the same reason as everything above -- a type with no family
+    # resolves to "", which matches nothing, so the family rung would be blind
+    # to exactly the names that exist to reach beyond the corpora.
+    "open_redirect": "injection", "insecure_default": "config",
+    "unbounded_resource": "resource_perf", "float_money": "correctness",
+    "naive_datetime": "correctness", "blocking_call_in_async": "concurrency",
+    "mutable_default_argument": "correctness", "regex_denial_of_service": "resource_perf",
+    "breaking_public_api": "maintainability", "missing_migration": "data_layer",
+    "missing_timeout": "resource_perf", "missing_transaction": "data_layer",
+    "retry_without_bound": "concurrency", "dynamic_code_execution": "injection",
+    "insecure_transport": "crypto", "unawaited_coroutine": "concurrency",
+    "disabled_test": "test_quality", "global_state_mutation": "concurrency",
+    "lossy_conversion": "correctness", "encoding_assumption": "correctness",
+    "unsafe_temp_file": "disclosure", "ignored_return_value": "error_handling",
+    "stale_cache_write": "data_layer", "overly_permissive_permission": "authz",
+    "insecure_randomness": "crypto", "loop_without_progress": "correctness",
+    "check_then_act_race": "concurrency", "missing_duplicate_guard": "concurrency",
+    "missing_validation": "correctness",
 }
+
+# Section D17: the coarse names demo_repo labels with used to resolve to a
+# vocabulary of their own -- "authorization" where the shared catalogue says
+# "authz", "data_exposure" where it says "secrets" or "disclosure",
+# "correctness" where it says "error_handling". Both sides of a match resolve
+# through this one table, so the two vocabularies never met and a fine-named
+# report could not match a coarse label at any rung. That is only visible once
+# a single catalogue is handed to every corpus, which is what makes demo_repo
+# scorable at all under review/v10-universal. The rows above now speak the
+# catalogue's vocabulary throughout. This moves the `file+family` rung for
+# earlier demo_repo runs; the exact-type rung, which every headline number in
+# PLAN.md is measured at, is untouched.
 
 # Section 0.3: the table above knew five of halka_bench's thirty-nine in-scope
 # types, and a type it does not know resolves to family "" -- which matches

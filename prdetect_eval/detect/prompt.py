@@ -1318,6 +1318,163 @@ do not report it.
 INSTRUCTIONS_V6_TYPED = INSTRUCTIONS_V6.replace(
     "## When not to report", ROLE_SECTION + "## When not to report", 1)
 
+# --- One catalogue for every repository -------------------------------------
+#
+# Until now each corpus was handed its own list: halka fifty-three names,
+# zincir those plus five, demo_repo eight coarse ones, SWRBench five classes of
+# reviewer intent. A deployed reviewer cannot do that. It meets a repository
+# nobody configured it for, whose defects nobody enumerated, and the list it
+# carries has to be the same one every time.
+#
+# This is that list. Nothing measured is touched: every name keeps the wording
+# it was measured under. On top of the fifty-eight comes sixteen kinds common
+# in Python services that none of the four corpora happens to contain -- so
+# sixteen names every corpus can only be wrong under. Section 0.4 counts a
+# report under a name the corpus has no case for as a false alarm, which is
+# exactly what the extra reach costs, and is the cost worth paying: a reviewer
+# that knows only the defects its corpora already have is of no use on the
+# repository it has not seen.
+#
+# The coarse names demo_repo labels with -- `authz`, `injection`,
+# `error_handling` -- are deliberately NOT added. They are synonyms of names
+# already here, and a catalogue carrying synonyms was measured at -0.25 F1
+# (D10). They meet the fine names one rung down instead, at `file+family`,
+# where `authz` and `missing_authz_check` are the same finding.
+UNIVERSAL_ADDITIONS = {
+    "missing_timeout": "A network call, a subprocess or a lock acquisition is made with no "
+                       "timeout, so a peer that never answers holds the caller for ever.",
+    "missing_transaction": "Two or more writes that only make sense together are made without "
+                           "a transaction, so a failure between them leaves the store "
+                           "half-written.",
+    "retry_without_bound": "A retry has no attempt limit or no wait between attempts, so a "
+                           "dependency that is failing is called again as fast as it can "
+                           "refuse.",
+    "dynamic_code_execution": "A value that came from outside reaches `eval`, `exec`, "
+                              "`pickle.loads` of an expression, or an import that runs what "
+                              "it names.",
+    "insecure_transport": "A request is made with certificate verification disabled, or over "
+                          "plain HTTP, where the data it carries is not public.",
+    "unawaited_coroutine": "A coroutine is called without being awaited or scheduled, so the "
+                           "work it describes never runs and its failure is never seen.",
+    "disabled_test": "A test is skipped unconditionally, or returns before its assertions, so "
+                     "it reports success without exercising anything.",
+    "global_state_mutation": "Module-level mutable state is written while handling a request "
+                             "or a task, so one caller sees what another left behind.",
+    "lossy_conversion": "A value is converted to a narrower type -- an integer from a "
+                        "fraction, a float from an exact decimal, a truncation -- where the "
+                        "part that is lost changes the result.",
+    "encoding_assumption": "Bytes are decoded, or text encoded, under an encoding the source "
+                           "does not promise, where the surrounding code states one.",
+    "unsafe_temp_file": "A temporary file or directory is created at a predictable path, or "
+                        "with default permissions, where another process can reach it.",
+    "ignored_return_value": "A call whose return value reports whether the work succeeded is "
+                            "made as a statement, so the failure it reports is dropped.",
+    "stale_cache_write": "A write updates the store without invalidating or updating the "
+                         "cache that is read for the same value elsewhere.",
+    "overly_permissive_permission": "A file mode, bucket policy or object ACL is set wider "
+                                    "than the code needs -- world-writable, publicly "
+                                    "readable -- where comparable resources are narrower.",
+    "insecure_randomness": "A token, key, password or identifier that has to be unguessable "
+                           "is drawn from a non-cryptographic random source.",
+    "loop_without_progress": "A loop's exit condition is not advanced on every path through "
+                             "its body, so an input exists for which it never ends.",
+}
+
+# Fifty-eight measured names plus sixteen the corpora cannot supply.
+UNIVERSAL_TYPES = {**HALKA_TYPES_BROAD, **SHARED_ADDITIONS, **UNIVERSAL_ADDITIONS}
+
+# The same list for every dataset -- that is the whole point of the version.
+TAXONOMIES_UNIVERSAL = {dataset: UNIVERSAL_TYPES for dataset in TAXONOMIES}
+
+
+# --- The same catalogue, with the overlaps taken out -------------------------
+#
+# review/v10-universal measured at halka 43/5/5 (family 44/4/4) against the
+# control's 45/5/3, zincir 6/2/10 against 6/1/10, and demo_repo 10 of 17
+# located against 16 of 17. Reading every changed line gave two causes, and
+# this version answers both.
+#
+# 1. Unioning the corpora put three pairs of synonyms in one list, which is the
+#    arrangement D10 measured at -0.25 F1. `unsafe_default` and
+#    `insecure_default` were almost the same sentence; `removed_config_key` and
+#    `removed_network_config` name one defect at two widths; and
+#    `weak_crypto_primitive` said "ordinary randomness for a secret", which is
+#    `insecure_randomness` in other words. Both halka losses were exactly this:
+#    the detector named conf-02 `removed_config_key` and the verifier then
+#    contradicted the claim, and it named crypto-02 `insecure_randomness`.
+#    Each pair is merged into the wider name here.
+#
+# 2. Thirty of the seventy-four definitions can only name a defect when the
+#    repository contains a precedent -- "the other call sites", "sibling
+#    mutations of the same state", "the convention elsewhere". halka_bench is
+#    built out of exactly that (grounding class c), which is why those words
+#    were measured to win there. On a repository with no precedent the defect
+#    has no name, and demo_repo shows what that costs: a read-check-write race
+#    with no locked sibling, a webhook processed twice with no duplicate guard
+#    anywhere, a refund amount used with no validating call site to compare
+#    against. Three names whose definitions ask for nothing but the code in
+#    front of them are added for those kinds. Loosening the other twenty-seven
+#    is a separate change: measured together, neither could be attributed.
+V11_ADDITIONS = {
+    "check_then_act_race": "A value is read, a decision is made from it, and the decision is "
+                           "acted on as though the value had not changed in between -- a "
+                           "balance checked then debited, stock checked then reserved, a row "
+                           "checked then inserted.",
+    "missing_duplicate_guard": "An operation that can arrive twice -- a webhook, a retried "
+                               "request, a queue message -- is carried out with nothing that "
+                               "recognises the repeat, so the second delivery does the work "
+                               "again.",
+    "missing_validation": "A value from outside is used in a decision, a calculation or a "
+                          "write with no check that it is in range or well formed -- an "
+                          "amount, a quantity, an index, an identifier.",
+}
+
+# The wider name of each merged pair keeps the pair's whole meaning.
+V11_REWORDED = {
+    "removed_config_key": "A configuration key or target -- a host, an endpoint, a queue, a "
+                          "credential name -- is deleted while code that reads it stays, so "
+                          "the reader silently falls back to a value nobody chose.",
+    "weak_crypto_primitive": "The primitive chosen is weaker than the one used elsewhere for "
+                             "the same purpose: a broken digest, or a comparison that returns "
+                             "early.",
+}
+
+V11_MERGED_AWAY = ("insecure_default", "removed_network_config")
+
+UNIVERSAL_TYPES_V11 = {name: V11_REWORDED.get(name, text)
+                       for name, text in UNIVERSAL_TYPES.items()
+                       if name not in V11_MERGED_AWAY}
+UNIVERSAL_TYPES_V11.update(V11_ADDITIONS)
+
+TAXONOMIES_UNIVERSAL_V11 = {dataset: UNIVERSAL_TYPES_V11 for dataset in TAXONOMIES}
+
+
+# --- The precedent-free names that paid for themselves -----------------------
+#
+# v11 measured each of its three additions separately by reading every line
+# they fired on:
+#
+#   check_then_act_race      demo +2 findings, one false alarm on halka
+#   missing_duplicate_guard  demo +1 finding, no false alarm anywhere
+#   missing_validation       demo +1 finding, SIX false alarms (halka 4,
+#                            zincir 1, demo 1)
+#
+# The first two are kept, the third is dropped. "A value from outside used with
+# no check that it is in range" is true of most lines in most code, which is
+# what the precedent clause in `unvalidated_passthrough` is for: it fires only
+# where the same call is reached elsewhere through a check, and the difference
+# is visible rather than a matter of taste. The kind of defect it cannot name
+# (a repository whose every call site is unvalidated) stays unnameable, and
+# that is the honest position until a definition exists that separates it from
+# ordinary code.
+V12_DROPPED = ("missing_validation",)
+
+UNIVERSAL_TYPES_V12 = {name: text for name, text in UNIVERSAL_TYPES_V11.items()
+                       if name not in V12_DROPPED}
+
+TAXONOMIES_UNIVERSAL_V12 = {dataset: UNIVERSAL_TYPES_V12 for dataset in TAXONOMIES}
+
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -1341,6 +1498,9 @@ VERSIONS = {
     "review/v6-broad-typed": (INSTRUCTIONS_V6_TYPED, TAXONOMIES_BROAD),
     "review/v6-shared-typed": (INSTRUCTIONS_V6_TYPED, TAXONOMIES_SHARED),
     "review/v9-pr": (INSTRUCTIONS_PR, TAXONOMIES_PR),
+    "review/v10-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL),
+    "review/v11-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V11),
+    "review/v12-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V12),
 }
 
 # Which versions print each file's role under its header; the pack reads this.
@@ -1361,7 +1521,9 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-located", "review/v6-reachable",
                     "review/v6-demo-evidence", "review/v6-wide-evidence",
                     "review/v6-broad", "review/v6-shared",
-                    "review/v6-broad-typed", "review/v6-shared-typed", "review/v9-pr"})
+                    "review/v6-broad-typed", "review/v6-shared-typed", "review/v9-pr",
+                    "review/v10-universal", "review/v11-universal",
+                    "review/v12-universal"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.
