@@ -80,6 +80,28 @@ def run_pyright(tree: str, pyright: str, python: str) -> list[Diagnostic]:
             for d in document.get("generalDiagnostics", []) if d.get("severity") in ("error", "warning")]
 
 
+# MEASURED (D21): what analyzer diagnostics are worth to the pipeline, on
+# halka (110 cases, 20 introduced diagnostics over 16 cases) and zincir_dev
+# (26 cases, 6 over 2), against review/v13-universal + --mechanism.
+#
+# As a signal they are precise and narrow: eight of halka's forty-one true
+# findings have a diagnostic within three lines, against one of its eleven
+# false alarms. Exact paths, and the ratio is the same at every slack from
+# zero to file-wide. Four ways to spend that were measured and none pays:
+#
+#   as a gate (drop a claim with no diagnostic, inside the types ruff speaks
+#       to) -- five true security findings have none (xss, two hardcoded
+#       credentials, an SSRF, a weak digest) and the one false alarm has one;
+#   as a resurrector (restore what the verifier dropped when a diagnostic
+#       agrees) -- one of twenty-two dropped claims, and that one on a clean
+#       case;
+#   as a confidence boost -- every corroborated claim is already above 0.8;
+#   as findings of their own (union) -- halka gains two labels and pays eight
+#       unlabelled diagnostics, zincir gains none and pays four.
+#
+# The layer stays because it is cheap, deterministic and says something true;
+# nothing downstream should be built on it expecting recall or suppression.
+
 def introduced(base: Iterable[Diagnostic], head: Iterable[Diagnostic],
                added: Mapping[str, frozenset[int]] | None = None) -> list[Diagnostic]:
     """Head diagnostics whose kind the change made more frequent."""

@@ -355,6 +355,81 @@ def _preamble(case: Case, part: int, parts: int) -> list[str]:
     return body + [""]
 
 
+
+def _per_file(case: Case, system: str, version: str, context: Sequence[str],
+              with_facts: bool, with_deletions: bool) -> list[Pack]:
+    """One call per changed file instead of one per pull request.
+
+    D23 measured where recall is lost: of seventeen labels still missed, six sit
+    in a file the model reported nothing about while reporting elsewhere in the
+    same pull request, and zincir_bench -- two labels on every defective pull
+    request -- accounts for five of them. One fixed attention budget spread over
+    a whole change is the same effect `split` was written for on SWRBench, one
+    level down.
+
+    Each pack carries the other changed files by name, so the model knows the
+    change is wider than what it is reading and can say a value comes from
+    somewhere it cannot see. It cannot see it, though: a defect that exists only
+    between two files is unreachable here by construction, which is why this is
+    measured beside the whole-request pack and not instead of it.
+
+    MEASURED (D24) and REJECTED, family rung, same chain otherwise:
+
+        halka      43/11/5 -> 41/12/7      zincir 8/2/8 -> 6/3/10
+        demo_repo  13/3/4  -> 11/5/6       pooled F1 0.795 -> 0.730
+
+    Worse on every corpus, and the union of both passes (this plus the whole
+    request, merged by `dedupe`) is worse than the whole request alone: 0.756,
+    buying one halka finding for three false alarms and nothing at all on
+    zincir for five.
+
+    What it cost is what this docstring predicted: halka lost
+    `crossfile_unit_mismatch`, `crossfile_data_exposure` and an
+    `unvalidated_passthrough` that runs from a view into a service; zincir lost
+    `crossfile_idempotency` and `removed_config_key`. What it bought was one
+    finding -- `deser-03`, a pull request the whole-request pass had said
+    nothing about at all.
+
+    The premise is what failed. D23 read the misses as attention spread thin
+    over a change, since six labels sat in files the model reported nothing
+    about while reporting elsewhere in the same pull request. With the file
+    alone in front of it the model still says nothing in SEVEN of zincir's ten
+    missed label files. It is not running out of attention: a default in
+    `defaults.py` and an assertion in a test file do not read as defects to it,
+    however much of the budget they get. That wall is recognition, and no
+    packing changes it.
+    """
+    names = sorted(name for name in case.head_files if is_code(name))
+    if not names:
+        return [Pack(case.case_id, system, "\n".join(_preamble(case, 1, 1)
+                                                     + ["No code is available for this pull request.", ""]), 0)]
+    removals = removed_lines(case) if with_deletions else {}
+    packs = []
+    for index, filename in enumerate(names, start=1):
+        body = _preamble(case, 1, 1)
+        if len(names) > 1:
+            others = ", ".join(f"`{other}`" for other in names if other != filename)
+            body += [f"This pull request also changed {others}. You are reviewing "
+                     f"`{filename}` only; the others are being reviewed separately. "
+                     f"Report only what is wrong in this file.", ""]
+        added = case.added_lines.get(filename, frozenset())
+        code, count = _numbered(case.head_files[filename], added)
+        if removals.get(filename):
+            body += ["Lines marked `-` were deleted by this pull request. They "
+                     "carry no line number because they are in no file any more; "
+                     "they are printed where they used to be.", ""]
+        code = _with_removals(code, removals.get(filename, ()))
+        header = [f"# FILE {filename}"]
+        if version in prompt_module.TYPED:
+            header.append(f"Role: {roles.ROLE_NAMES[roles.role_of(filename, case.head_files[filename])]}.")
+        body += header + ["", "```"] + code + ["```", ""]
+        if with_facts:
+            body += facts_module.render(facts_module.collect(case))
+        if context:
+            body += _repo_section(case, context)
+        packs.append(Pack(case.case_id, system, "\n".join(body), count, part=index, parts=len(names)))
+    return packs
+
 def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
           context: Sequence[str] = (), with_facts: bool = False,
           with_deletions: bool = False) -> Pack:
@@ -395,7 +470,8 @@ def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
 
 def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
           max_lines: int = 0, context: Sequence[str] = (),
-          with_facts: bool = False, with_deletions: bool = False) -> list[Pack]:
+          with_facts: bool = False, with_deletions: bool = False,
+          per_file: bool = False) -> list[Pack]:
     """The pull request as one pack, or as several when it is large.
 
     Measured on SWRBench: the model's output volume tracks the size of the pack
@@ -410,6 +486,9 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
     large enough to split anyway, so the rule costs nothing and removes the risk.
     """
     system = prompt_module.system(dataset, version)
+
+    if case.head_files and per_file:
+        return _per_file(case, system, version, context, with_facts, with_deletions)
 
     if case.head_files:
         body = _preamble(case, 1, 1)

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Sequence
 
 from adapters import claims_path, eval_path, load_cases
-from detect import agent, challenge, client as client_module, prompt, verify
+from detect import dedupe, agent, challenge, client as client_module, prompt, verify
 
 HERE = Path(__file__).resolve().parent
 
@@ -45,6 +45,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="settle a claim by whether the failing run can be written from the "
                              "code -- the input, the order, the line -- asking nothing of how the "
                              "rest of the repository does it; implies --contract-evidence")
+    parser.add_argument("--callers-note", action=argparse.BooleanOptionalAction, default=False,
+                        help="with --mechanism: forbid the 'nothing calls it' argument, which "
+                             "contradicted three true findings whose callers are a route table, "
+                             "a schedule or a later change")
+    parser.add_argument("--dedupe", action=argparse.BooleanOptionalAction, default=True,
+                        help="publish one finding per code site: where two claims land within "
+                             "--dedupe-radius lines of each other in one file, keep the more "
+                             "confident (measured: no true finding lost on any corpus)")
+    parser.add_argument("--dedupe-radius", type=int, default=dedupe.RADIUS)
     parser.add_argument("--policy", choices=("strict", "lenient"), default="strict",
                         help="which policy the run's own predictions.jsonl carries; both are always "
                              "written under the run for comparison")
@@ -92,7 +101,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         workspace = workspaces.setdefault(case.case_id, agent.Workspace(case))
         rows = challenge.excerpt(case, claim["file"], claim["line"], args.radius, with_deletions=deletions)
         user = verify.user_message(claim, definitions.get(claim["type"], ""), rows)
-        system = verify.system_for(args.contract_evidence, args.precedent, args.mechanism)
+        system = verify.system_for(args.contract_evidence, args.precedent, args.mechanism,
+                                   args.callers_note)
         text, transcript, calls = agent.review(client.chat, system, user, workspace, verify.SCHEMA,
                                                args.max_tool_calls, guide=verify.GUIDE,
                                                final_ask=verify.FINAL_ASK)
@@ -112,8 +122,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                   f"{answer['verdict']} / {settled} ({calls} calls)", file=sys.stderr, flush=True)
     log.close()
 
+    site_drops = {}
     for policy in ("strict", "lenient"):
         kept = [c for c, v in zip(claims, verdicts) if verify.keeps(v["verdict"], policy)]
+        if args.dedupe:
+            before = len(kept)
+            kept = dedupe.one_per_site(kept, args.dedupe_radius)
+            site_drops[policy] = before - len(kept)
         body = "".join(json.dumps(c, ensure_ascii=False) + "\n" for c in kept)
         sub = run_dir / policy
         sub.mkdir(exist_ok=True)
@@ -131,8 +146,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         "claims_from": claims_file.name, "created_utc": datetime.now(timezone.utc).isoformat(),
         "verifier": {"model": client.name, "model_build": client.build(), "max_tool_calls": args.max_tool_calls,
                      "num_ctx": args.num_ctx, "contract_evidence": bool(args.contract_evidence),
-                     "precedent": bool(args.precedent), "mechanism": bool(args.mechanism)},
+                     "precedent": bool(args.precedent), "mechanism": bool(args.mechanism),
+                     "callers_note": bool(args.callers_note)},
         "claims": len(claims), "reused": len(done), "policy": args.policy, "verdicts": counts,
+        "dedupe": {"radius": args.dedupe_radius, "dropped": site_drops} if args.dedupe else None,
         "claimed_verdicts": {v: sum(1 for r in verdicts if r["claimed_verdict"] == v) for v in verify.VERDICTS},
         "errors": sum(1 for r in verdicts if r["error"]),
         "python": platform.python_version(), "argv": list(argv if argv is not None else sys.argv[1:]),

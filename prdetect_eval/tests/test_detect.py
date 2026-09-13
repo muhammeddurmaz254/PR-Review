@@ -1694,3 +1694,32 @@ def test_v14_demands_the_failing_run_and_changes_nothing_else():
     assert "failing run in your head" in v14 and "failing run in your head" not in v13
     assert "rest of the repository" in v14   # says it asks nothing of the neighbours
     assert v14.count("findings") == v13.count("findings")
+
+
+# --- per-file review --------------------------------------------------------
+
+def test_per_file_makes_one_pack_for_each_changed_code_file():
+    case = _case("halka")
+    packs = pack.split(case, "halka", "review/v13-universal", per_file=True)
+    files = sorted(n for n in case.head_files if pack.is_code(n))
+    assert len(packs) == len(files)
+    assert [p.part for p in packs] == list(range(1, len(files) + 1))
+    assert all(p.parts == len(files) for p in packs)
+    for p, name in zip(packs, files):
+        assert f"# FILE {name}" in p.user
+        assert sum(f"# FILE {other}" in p.user for other in files) == 1
+
+
+def test_a_per_file_pack_names_the_other_changed_files():
+    case = _case("halka")
+    files = sorted(n for n in case.head_files if pack.is_code(n))
+    if len(files) < 2:
+        return
+    packs = pack.split(case, "halka", "review/v13-universal", per_file=True)
+    assert f"`{files[1]}`" in packs[0].user
+    assert "being reviewed separately" in packs[0].user
+
+
+def test_whole_request_packing_is_untouched():
+    one = pack.split(_case("halka"), "halka", "review/v13-universal")
+    assert len(one) == 1

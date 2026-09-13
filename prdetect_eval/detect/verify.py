@@ -160,7 +160,54 @@ SYSTEM_MECHANISM = SYSTEM_CONTRACT.replace(
     + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
 
 
-def system_for(contract: bool, precedent: bool = False, mechanism: bool = False) -> str:
+# D23. The clause above cost four true findings on halka and zincir, and three
+# of the four fell to one argument: nothing in the repository calls it.
+#
+#   ssrf-02: "The function does fetch a caller-supplied URL with no validation
+#             and follows redirects, which matches the described pattern.
+#             However, `ping_callback` is defined but never called anywhere in
+#             the repository ... A defect no run can reach is not a defect."
+#   bus-01:  "no code reads them together ... no such consumer exists in the
+#             repository."
+#
+# In each the verifier states the defect and then rejects it for want of a
+# caller. That is the wrong test: the caller of code a change adds is usually
+# not in the change and often not in the repository at all -- a route table, a
+# scheduler, a framework, a test, or the pull request that comes next. The
+# reachability question is worth asking of a *value* (can this input get
+# here?), never of a *definition* (does anyone call this?).
+#
+# This keeps the run but takes the caller argument away from it.
+# MEASURED (D23), same claims, family rung, against --mechanism alone:
+#
+#     halka 41/8/7 -> 43/11/5     zincir 7/2/9 -> 8/2/8    demo_repo 13/2/4 -> 13/3/4
+#     with the 0.8 confidence floor: pooled 60/10/21 -> 63/13/18,
+#     F1 0.795 -> 0.803, recall 0.741 -> 0.778, precision 0.857 -> 0.829.
+#
+# The three findings it was written for came back: ssrf-01 and ssrf-02, whose
+# fetches the verifier had described correctly and then dismissed for want of a
+# caller, and dlq-01. It costs three false alarms, all on clean twins and all
+# of the "a guard is missing here" kind the caller argument had been suppressing
+# by accident.
+#
+# Adopted on those numbers and on the argument itself: "nothing in this
+# repository calls it" is not a reason to reject a review comment, and a rule
+# that is wrong does not get to stay because it happened to silence noise --
+# that is what the precedent clause was dropped for. It misfires more, not
+# less, outside the corpora: the caller of code a pull request adds is almost
+# never in the pull request.
+CALLERS_NOTE = """
+Whether anything in this repository calls the code is not the question, and it never contradicts a claim on its own. A function a change adds is reached by a route, a schedule, a handler, a test, a command, or by the change that comes after this one; the repository you can see is not the whole of it. Ask only whether the wrong thing happens when the line runs with a value a caller could pass -- not whether you can find that caller.
+"""
+
+SYSTEM_MECHANISM_CALLERS = SYSTEM_MECHANISM.replace(
+    "A claim you cannot back with lines is `unsettled`, however plausible it sounds.",
+    CALLERS_NOTE.strip()
+    + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
+
+
+def system_for(contract: bool, precedent: bool = False, mechanism: bool = False,
+               callers: bool = False) -> str:
     """The verifier's system prompt. Both added clauses imply the contract one:
     a rule the repository writes down is evidence either way. They ask opposite
     questions and are not combined -- one settles a claim by the repository's
@@ -170,7 +217,7 @@ def system_for(contract: bool, precedent: bool = False, mechanism: bool = False)
     if precedent:
         return SYSTEM_PRECEDENT
     if mechanism:
-        return SYSTEM_MECHANISM
+        return SYSTEM_MECHANISM_CALLERS if callers else SYSTEM_MECHANISM
     return SYSTEM_CONTRACT if contract else SYSTEM
 
 

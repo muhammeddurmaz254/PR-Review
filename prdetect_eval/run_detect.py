@@ -131,6 +131,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="shorthand for --context '*'")
     parser.add_argument("--max-pack-lines", type=int, default=0,
                         help="split a pull request larger than this into excerpts; 0 never splits")
+    parser.add_argument("--per-file", action="store_true",
+                        help="one call per changed file instead of one per pull request; a defect "
+                             "that exists only between two files is unreachable this way, so it is "
+                             "measured beside the whole-request pack, not instead of it")
     parser.add_argument("--scope-gate", action=argparse.BooleanOptionalAction, default=True,
                         help="drop a report about a file this pull request does not change, "
                              "and every report on a pull request that shows no code (stage [5])")
@@ -182,7 +186,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     packs = [item for case in cases
              for item in pack.split(case, args.dataset, args.prompt_version,
                                     args.max_pack_lines, context, args.facts,
-                                    args.deletions)]
+                                    args.deletions, args.per_file)]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
@@ -355,7 +359,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "evidence_gate": bool(args.evidence_gate),
         "dropped_off_operation": off_operation,
         "field_order": list(order),
-        "max_pack_lines": args.max_pack_lines, "packs": len(packs),
+        "max_pack_lines": args.max_pack_lines, "per_file": bool(args.per_file), "packs": len(packs),
         "context": list(context), "facts": args.facts, "deletions": args.deletions,
         "reused_answers": len(done),
         # A run that lost its server two thirds of the way through still writes

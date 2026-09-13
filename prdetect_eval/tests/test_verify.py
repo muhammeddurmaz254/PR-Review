@@ -130,3 +130,17 @@ def test_the_two_clauses_are_not_combined():
     with pytest.raises(ValueError):
         verify.system_for(contract=True, precedent=True, mechanism=True)
     assert verify.system_for(contract=True) == verify.SYSTEM_CONTRACT
+
+
+def test_the_callers_note_removes_the_argument_that_killed_true_findings():
+    """Three of four true findings the mechanism clause contradicted fell to
+    'nothing in the repository calls it'."""
+    system = verify.system_for(contract=True, mechanism=True, callers=True)
+    assert system == verify.SYSTEM_MECHANISM_CALLERS
+    assert "never contradicts a claim on its own" in system
+    assert "write the failure out" in system          # the mechanism clause stays
+    assert "Whether anything in this repository calls" not in verify.SYSTEM_MECHANISM
+
+
+def test_the_callers_note_needs_the_mechanism_clause():
+    assert verify.system_for(contract=True, callers=True) == verify.SYSTEM_CONTRACT
