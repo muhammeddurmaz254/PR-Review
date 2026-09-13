@@ -1617,6 +1617,52 @@ INSTRUCTIONS_V14 = INSTRUCTIONS_V6.replace(
 TAXONOMIES_UNIVERSAL_V14 = TAXONOMIES_UNIVERSAL_V13
 
 
+# --- Reporting for a stage that checks, not for a reader -------------------
+#
+# The sentence this version replaces was written when the detector's word was
+# final: "a false alarm costs a reviewer's trust, a miss costs one line of
+# recall." That is no longer the arrangement. D26 opened the holdout and
+# measured what the stages after it do to eighteen unseen cases: the detector
+# alone scored 3/9/7, the verifier turned that into 2/0/8 -- nine false alarms
+# removed for one true finding -- and the rules put the finding back. On unseen
+# code the filter is the strongest part of the pipeline and the detector is the
+# weakest, and the detector is still being told to keep quiet.
+#
+# So this asks it for the suspicion instead of the verdict, and says who checks
+# it. The catalogue, the quote contract, the schema and every other word of the
+# instructions are untouched; this is one paragraph and the cap the runner
+# passes.
+# MEASURED (D27) and REJECTED, with --max-findings 6 and the rest of the chain
+# unchanged, family rung at the 0.8 floor:
+#
+#     halka 42/8/6 -> 41/5/7     zincir 11/2/5 -> 10/2/6    demo 13/3/4 -> 12/5/5
+#     pooled F1 0.825 -> 0.808, recall 0.815 -> 0.778
+#
+# The detector did speak more -- 74 -> 88 claims on halka, 15 -> 20 on zincir,
+# 21 -> 27 on demo_repo -- and nineteen of those claims were new. Five landed
+# on a label. Net it LOST three true findings and gained one: telling the model
+# the filter will catch its mistakes does not make it see more, it makes it say
+# more, and what it says instead displaces what it used to say.
+#
+# That is the third measurement of one thing. D20 asked for the failing run and
+# got 91 claims for no extra finding; D24 gave each file the whole budget and
+# the model stayed silent in seven of ten label files; this gave it permission
+# and a bigger cap. Recall is a property of the model, not of how it is asked,
+# and no wording reaches it.
+RECALL_BIAS = """\
+Report anything you have a real reason to suspect, not only what you are sure of. What you report is checked afterwards by a separate reviewer that reads the rest of the repository and drops what it cannot establish, so a suspicion that turns out to be wrong is cheap here, while a defect you keep to yourself is gone for good. Say how sure you are in `confidence` and let the check do its work.
+
+Still report nothing you cannot point at: a line, a quote, and what is wrong with it. An empty `findings` list is the right answer for a pull request where you can find nothing to point at."""
+
+INSTRUCTIONS_V15 = INSTRUCTIONS_V6.replace(
+    "Most pull requests contain no defect. An empty `findings` list is a normal answer "
+    "and a much better one than a guess: a false alarm costs a reviewer's trust, a miss "
+    "costs one line of recall.",
+    RECALL_BIAS, 1)
+
+TAXONOMIES_UNIVERSAL_V15 = TAXONOMIES_UNIVERSAL_V13
+
+
 VERSIONS = {
     "review/v1": (INSTRUCTIONS_V1, TAXONOMIES),
     "review/v2": (INSTRUCTIONS_V2, TAXONOMIES),
@@ -1645,6 +1691,7 @@ VERSIONS = {
     "review/v12-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V12),
     "review/v13-universal": (INSTRUCTIONS_V6, TAXONOMIES_UNIVERSAL_V13),
     "review/v14-universal": (INSTRUCTIONS_V14, TAXONOMIES_UNIVERSAL_V14),
+    "review/v15-recall": (INSTRUCTIONS_V15, TAXONOMIES_UNIVERSAL_V15),
 }
 
 # Which versions print each file's role under its header; the pack reads this.
@@ -1668,7 +1715,7 @@ QUOTED = frozenset({"review/v4", "review/v5", "review/v6", "review/v7", "review/
                     "review/v6-broad-typed", "review/v6-shared-typed", "review/v9-pr",
                     "review/v10-universal", "review/v11-universal",
                     "review/v12-universal", "review/v13-universal",
-                    "review/v14-universal"})
+                    "review/v14-universal", "review/v15-recall"})
 
 # Which versions want the answer produced evidence-first. Everything measured
 # before v7 was measured under the legacy order and has to stay on it.

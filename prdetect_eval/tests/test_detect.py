@@ -91,7 +91,7 @@ def test_every_prompt_version_renders_for_every_dataset():
 # has no positives for. That is the point of it -- the catalogue a deployment
 # ships is not the list of defects the repository in front of it contains.
 NAME_CHANGING = {"review/v10-universal", "review/v11-universal",
-                 "review/v12-universal", "review/v13-universal", "review/v14-universal",
+                 "review/v12-universal", "review/v13-universal", "review/v14-universal", "review/v15-recall",
                  "review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
                  "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed",
                  "review/v9-pr"}
@@ -1723,3 +1723,15 @@ def test_a_per_file_pack_names_the_other_changed_files():
 def test_whole_request_packing_is_untouched():
     one = pack.split(_case("halka"), "halka", "review/v13-universal")
     assert len(one) == 1
+
+
+def test_v15_asks_for_the_suspicion_and_says_who_checks_it():
+    """D26: on unseen cases the verifier removed nine false alarms for one true
+    finding, so the detector's silence is the expensive half now."""
+    v13 = prompt.system("halka", "review/v13-universal")
+    v15 = prompt.system("halka", "review/v15-recall")
+    assert "a miss costs one line of recall" in v13
+    assert "a miss costs one line of recall" not in v15
+    assert "checked afterwards by a separate reviewer" in v15
+    assert "An empty `findings` list is the right answer" in v15   # not a licence to guess
+    assert prompt.types("halka", "review/v15-recall") == prompt.types("halka", "review/v13-universal")
