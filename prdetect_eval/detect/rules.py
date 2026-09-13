@@ -19,7 +19,7 @@ Every rule is written to be checkable, not clever. What cannot be established
 from our corpora is how well they generalise: each fires exactly once here.
 What IS measured is what they cost.
 
-MEASURED (D25). Family rung, published beside the model's findings through
+MEASURED (D25, extended in D28). Family rung, published beside the model's findings through
 `dedupe`, with the 0.8 confidence floor:
 
     zincir_dev   8/2/8 -> 11/2/5    F1 0.615 -> 0.759
@@ -42,6 +42,13 @@ The caveat that matters, stated plainly: these rules were written after
 reading the cases they catch. Their precision here (3/3) is not evidence they
 generalise, only that they are narrow -- they say nothing on 138 cases they
 were not written for, including every clean twin of the three they fire on.
+D28 added two rules and deleted a third; see each function. The set that ships
+is the three above plus `hardcoded_secret`, published through
+`dedupe.fill_gaps` so a rule speaks only where the model did not: halka
+42/8/6, zincir 11/2/5, demo_repo 13/3/4, pooled F1 0.825 -- unchanged by the
+extension, plus one real password in a README that the corpus scores out of
+scope and every prompt version missed.
+
 The holdout answered that question (D26) and the answer is good: opened once,
 `config.off-value` fired on `HANDLER_TIMEOUT_MS = 0` in `timeout-01-kusurlu`
 -- a case it had never seen, a constant it was not written for -- and landed on
@@ -166,7 +173,115 @@ def weakened_test(case: Case) -> list[Finding]:
     return out
 
 
-RULES = (unbounded_default, list_typed_as_text, weakened_test)
+
+# --- What the change took away, where something still reaches for it --------
+
+REQUIREMENT = re.compile(r"^\s*([A-Za-z0-9_.\-]+)\s*(?:[=<>!~\[].*)?$")
+# Only what the application needs to run. Dropping `pytest` from a runtime
+# list while the tests still import it is housekeeping, not a defect -- and it
+# is what the clean twin of halka's `conf-01` does, which is how this line got
+# written.
+REQUIREMENT_FILES = ("requirements.txt", "pyproject.toml", "setup.py", "setup.cfg", "Pipfile")
+DICT_KEY = re.compile(r"""["']([a-z][a-z0-9_]{2,})["']\s*:""")
+CONST_ASSIGN = re.compile(r"^\s*([A-Z][A-Z0-9_]{2,})\s*=")
+
+# A dependency's import name is not always its distribution name. Only the
+# handful that differ and are common enough to matter; anything else is looked
+# up as itself.
+IMPORT_NAME = {"pyyaml": "yaml", "python-dateutil": "dateutil", "beautifulsoup4": "bs4",
+               "pillow": "PIL", "msgpack-python": "msgpack", "attrs": "attr",
+               "python-dotenv": "dotenv", "scikit-learn": "sklearn"}
+
+
+def _repo_text(case: Case, tests: bool = True) -> str:
+    """Every line of code this case carries, changed and unchanged.
+
+    `tests=False` leaves the test suite out: a package only the tests import is
+    not a runtime dependency, whatever the requirements file it sat in.
+    """
+    files = {**case.head_files, **(case.context_files or {})}
+    return "\n".join(source for name, source in files.items()
+                     if tests or not is_test_file(name))
+
+
+def removed_dependency(case: Case) -> list[Finding]:
+    """A package this change drops from the requirements, still imported."""
+    out = []
+    body = _repo_text(case, tests=False)
+    for filename, lines in sorted(pack_module.removed_lines(case).items()):
+        if not filename.endswith(REQUIREMENT_FILES):
+            continue
+        for number, text in lines:
+            stripped = text.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            match = REQUIREMENT.match(stripped)
+            if not match:
+                continue
+            package = match.group(1)
+            module = IMPORT_NAME.get(package.lower(), package.replace("-", "_"))
+            if re.search(rf"^\s*(?:import\s+{re.escape(module)}\b|from\s+{re.escape(module)}\b)",
+                         body, re.M):
+                out.append(Finding(case.case_id, filename, number, stripped, "removed_dependency",
+                                   f"`{package}` is gone from the requirements while `{module}` is "
+                                   f"still imported", "deps.removed"))
+    return out
+
+
+# MEASURED and DELETED: a rule for a config key the change removes while
+# something still reads its name. It fired on `dlq-01-kusurlu` AND on
+# `dlq-01-temiz`, which delete the identical line and have identical head
+# files: the twins differ in what `defaults.STREAMS` contains, which is not in
+# the deleted line or in any name a reader mentions. A rule that cannot tell
+# the defective change from the clean one is not a rule, and no amount of
+# widening the reader search fixes it.
+
+
+SECRET_NAME = re.compile(r"(password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)",
+                         re.I)
+SECRET_VALUE = re.compile(r"""[:=]\s*["']?([^"'\s]{6,})["']?\s*$""")
+PLACEHOLDER = re.compile(r"(change[_-]?me|placeholder|example|xxx+|\.\.\.|<[^>]+>|\$\{|os\.environ|"
+                         r"getenv|secrets\.|vault|\*\*\*)", re.I)
+
+
+# A file whose whole job is to show the shape of a secret without being one.
+EXAMPLE_FILE = re.compile(r"(\.example$|\.sample$|\.template$|\.dist$|example\.|sample\.)", re.I)
+
+
+def hardcoded_secret(case: Case) -> list[Finding]:
+    """A secret this change writes down, in any file it touched.
+
+    Not only code: a compose file, a README or an example carries the same
+    value to the same place. `ruff` reads none of these (D21), and neither did
+    the model -- demo_repo's README password went unreported by every version.
+    """
+    out = []
+    for filename in sorted(case.head_files):
+        if EXAMPLE_FILE.search(filename):
+            continue
+        lines = case.head_files[filename].splitlines()
+        for number in sorted(case.added_lines.get(filename, frozenset())):
+            if not 1 <= number <= len(lines):
+                continue
+            text = lines[number - 1]
+            if not SECRET_NAME.search(text):
+                continue
+            value = SECRET_VALUE.search(text)
+            if not value or PLACEHOLDER.search(text):
+                continue
+            out.append(Finding(case.case_id, filename, number, text.strip(),
+                               "hardcoded_credential",
+                               "a secret is written into the file rather than read from the "
+                               "environment", "secret.literal"))
+    return out
+
+# MEASURED (D28) and NOT DEFAULT: `removed_dependency` costs halka one false
+# alarm and gains nothing scorable. Its one firing is right -- `defusedxml` is
+# gone from `requirements.txt` while the code still imports it -- but the
+# corpus files that label under `requirements-dev.txt` and marks it out of
+# scope, so the report lands on a different file from the label and counts
+# against us. A rule that is correct and unscorable is kept and left off.
+RULES = (unbounded_default, list_typed_as_text, weakened_test, hardcoded_secret)
 
 
 def run(case: Case, rules: Sequence = RULES) -> list[Finding]:

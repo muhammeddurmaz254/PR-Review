@@ -48,3 +48,18 @@ def test_ties_are_broken_by_line_so_the_choice_is_stable():
     first = dedupe.one_per_site([claim("c", "a.py", 20, 0.8), claim("c", "a.py", 18, 0.8)])
     again = dedupe.one_per_site([claim("c", "a.py", 18, 0.8), claim("c", "a.py", 20, 0.8)])
     assert [c["line"] for c in first] == [c["line"] for c in again] == [18]
+
+
+def test_a_rule_speaks_only_where_the_model_did_not():
+    model = [claim("c", "a.py", 52, 0.95, "weak_crypto_primitive")]
+    extra = [claim("c", "a.py", 52, 0.9, "hardcoded_credential"),
+             claim("c", "b.py", 10, 0.9, "unsafe_default")]
+    kept = dedupe.fill_gaps(model, extra)
+    assert [(c["file"], c["type"]) for c in kept] == [
+        ("a.py", "weak_crypto_primitive"), ("b.py", "unsafe_default")]
+
+
+def test_fill_gaps_keeps_the_published_order():
+    model = [claim("c", "a.py", 10, 0.9), claim("c", "b.py", 10, 0.8)]
+    kept = dedupe.fill_gaps(model, [claim("c", "c.py", 1, 0.9)])
+    assert [c["file"] for c in kept] == ["a.py", "b.py", "c.py"]

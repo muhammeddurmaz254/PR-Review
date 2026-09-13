@@ -83,3 +83,21 @@ def _flatten(by_case: dict[str, list[dict]]) -> list[dict]:
 
 def dropped(predictions: Sequence[dict], kept: Sequence[dict]) -> int:
     return len(predictions) - len(kept)
+
+def fill_gaps(published: Sequence[dict], extra: Iterable[dict], radius: int = RADIUS) -> list[dict]:
+    """Add `extra` findings only where nothing is published yet.
+
+    The rules are a fallback for what the model does not see, not a competitor
+    for what it does. Published beside it they win any site they share, because
+    a rule's confidence is fixed and the model's is not -- and D28 measured
+    what that costs: on `crypto-03` the model had named the weak digest at the
+    line where `secret.literal` also fires, `one_per_site` kept the rule's name,
+    and a true finding became a false alarm. Here the model keeps its site and
+    a rule speaks only into silence.
+    """
+    kept = list(published)
+    for claim in extra:
+        if any(_same_site(other, claim, radius) for other in kept):
+            continue
+        kept.append(claim)
+    return kept
