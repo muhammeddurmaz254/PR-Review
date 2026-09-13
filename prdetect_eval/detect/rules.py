@@ -42,7 +42,12 @@ The caveat that matters, stated plainly: these rules were written after
 reading the cases they catch. Their precision here (3/3) is not evidence they
 generalise, only that they are narrow -- they say nothing on 138 cases they
 were not written for, including every clean twin of the three they fire on.
-The holdout exists for exactly this question and has not been touched.
+The holdout answered that question (D26) and the answer is good: opened once,
+`config.off-value` fired on `HANDLER_TIMEOUT_MS = 0` in `timeout-01-kusurlu`
+-- a case it had never seen, a constant it was not written for -- and landed on
+the label's own line. It fired nowhere else in the eighteen cases, and on none
+of the twelve clean ones. One firing is one firing, but it is the firing of a
+rule written on `REPLAY_MAX_BATCH` catching a timeout instead.
 """
 from __future__ import annotations
 

@@ -28,6 +28,23 @@ def eval_path(dataset: str, datasets_dir: Path) -> Path:
     return datasets_dir / f"{dataset}.eval.jsonl"
 
 
+
+def corpus_of(manifest: dict, datasets_dir: Path) -> Path:
+    """The eval file a run was made against.
+
+    The manifest records the corpus a run actually used; the dataset name maps
+    to the open split only. zincir_bench ships two and a run on `holdout` is
+    made by typing its path (B9), so a later stage that re-derives the path
+    from the dataset name loads the wrong corpus -- which is what happened the
+    first time the holdout was opened.
+    """
+    recorded = manifest.get("corpus")
+    if recorded:
+        path = Path(recorded)
+        if path.exists():
+            return path
+    return eval_path(manifest["dataset"], datasets_dir)
+
 def claims_path(run_dir: Path) -> Path:
     """The claims a verify stage reads from a finished run: the gated ones.
 

@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from adapters import eval_path, load_cases
+from adapters import corpus_of, load_cases
 from detect import anchor as anchor_module
 from detect import client as client_module
 from detect import contract, continuation, pack, prompt
@@ -83,7 +83,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     context = tuple(manifest.get("context") or ())
     limit = int(manifest.get("max_findings") or 3)
     quoted = version in prompt.QUOTED
-    cases = {c.case_id: c for c in load_cases(eval_path(dataset, DATASETS))}
+    cases = {c.case_id: c for c in load_cases(corpus_of(manifest, DATASETS))}
     claims = [json.loads(l) for l in (source / "predictions.jsonl").read_text().splitlines() if l.strip()]
     anchored_path = source / "predictions.anchored.jsonl"
     anchored_src = ([json.loads(l) for l in anchored_path.read_text().splitlines() if l.strip()]

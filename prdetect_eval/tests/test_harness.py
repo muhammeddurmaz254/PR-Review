@@ -267,3 +267,15 @@ def test_a_clean_case_with_a_neutral_finding_is_not_a_pr_level_negative():
     assert excluded
     card = metrics.pr_level(swrbench, match_all(swrbench, [], PRIMARY))
     assert card.total == len(swrbench) - len(excluded)
+
+
+def test_a_later_stage_reads_the_corpus_the_run_used():
+    """zincir ships two splits and the holdout is reached by path, so deriving
+    it from the dataset name again loads the wrong one."""
+    import adapters, pathlib
+    datasets = pathlib.Path(__file__).resolve().parent.parent / "datasets"
+    holdout = datasets / "zincir_holdout.eval.jsonl"
+    assert adapters.corpus_of({"dataset": "zincir", "corpus": str(holdout)}, datasets) == holdout
+    assert adapters.corpus_of({"dataset": "zincir"}, datasets) == datasets / "zincir_dev.eval.jsonl"
+    assert adapters.corpus_of({"dataset": "zincir", "corpus": "/gone.jsonl"}, datasets) \
+        == datasets / "zincir_dev.eval.jsonl"

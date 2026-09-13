@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from adapters import claims_path, eval_path, load_cases
+from adapters import claims_path, corpus_of, load_cases
 from detect import dedupe, agent, challenge, client as client_module, prompt, verify
 
 HERE = Path(__file__).resolve().parent
@@ -71,7 +71,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     dataset, version = manifest["dataset"], manifest["prompt_version"]
     deletions = bool(manifest.get("deletions"))
     definitions = prompt.VERSIONS[version][1][dataset]
-    cases = {c.case_id: c for c in load_cases(eval_path(dataset, HERE / "datasets"))}
+    cases = {c.case_id: c for c in load_cases(corpus_of(manifest, HERE / "datasets"))}
     claims_file = claims_path(source)
     claims = [json.loads(l) for l in claims_file.read_text().splitlines() if l.strip()][: args.limit]
     client = client_module.OllamaClient(model=args.model, base_url=args.base_url, num_ctx=args.num_ctx,
