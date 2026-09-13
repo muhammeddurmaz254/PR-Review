@@ -23,8 +23,13 @@ def eval_path(dataset: str, datasets_dir: Path) -> Path:
     `zincir.eval.jsonl` that does not exist -- one stage of the pipeline knew
     about the split and the next two did not.
     """
-    if dataset == "zincir":
-        return datasets_dir / "zincir_dev.eval.jsonl"
+    # A corpus that ships a sealed split is named `<dataset>_dev` on disk, and
+    # naming the dataset gets the open half. This used to be spelled out for
+    # zincir alone, which is exactly how a second split corpus -- stock_bench --
+    # would have fallen through to a file that does not exist.
+    split = datasets_dir / f"{dataset}_dev.eval.jsonl"
+    if split.exists():
+        return split
     return datasets_dir / f"{dataset}.eval.jsonl"
 
 
@@ -135,6 +140,10 @@ def load_cases(path: Path = DEFAULT_EVAL) -> list[Case]:
             distractors=tuple(
                 Distractor(Span(d["file"], d["start_line"], d["end_line"]), d.get("looks_like", ""), d.get("why_not", ""))
                 for d in row.get("distractors", [])
+                # stock_bench names a distractor by file and a note, with no
+                # lines. It is documentation for a reader; the metric that uses
+                # distractors measures distance to a span, and a note has none.
+                if "start_line" in d
             ),
             base_commit=row.get("base_commit", ""), head_commit=row.get("head_commit", ""),
             branch=row.get("branch", ""),

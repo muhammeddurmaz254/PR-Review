@@ -25,6 +25,7 @@ from statistics import median
 from typing import Sequence
 
 from adapters import load_cases, write_predictions
+from adapters import eval_path as eval_path_for
 from detect import anchor as anchor_module
 from detect import scope as scope_module
 from detect import evidence as evidence_module
@@ -94,7 +95,7 @@ def resolve_client(args: argparse.Namespace) -> client_module.Client | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the review detector over one dataset.")
-    parser.add_argument("--dataset", default="demo_repo", choices=sorted(prompt.TAXONOMIES))
+    parser.add_argument("--dataset", default="demo_repo", choices=prompt.DATASETS_KNOWN)
     parser.add_argument("--eval", type=Path, help="defaults to datasets/<dataset>.eval.jsonl")
     parser.add_argument("--model", help="Ollama model tag, e.g. qwen3.8:27b")
     parser.add_argument("--base-url", default=client_module.DEFAULT_BASE_URL,
@@ -154,8 +155,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # zincir_bench ships two files, and only one of them is open. A run that
     # names the dataset and not the file gets `dev`; reaching `holdout` has to
     # be typed out, counted, and written down in the corpus README (B9).
-    default_eval = DATASETS / ("zincir_dev.eval.jsonl" if args.dataset == "zincir"
-                               else f"{args.dataset}.eval.jsonl")
+    default_eval = eval_path_for(args.dataset, DATASETS)
     eval_path = args.eval or default_eval
     cases: list[Case] = load_cases(eval_path)
     if args.case:

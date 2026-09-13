@@ -76,7 +76,23 @@ GUARD = re.compile(r"(verify|ssl|tls|secure|auth|check|validate|debug|strict)", 
 # A name that promises several values.
 PLURAL = re.compile(r"(statuses|codes|hosts|keys|origins|methods|users|paths|fields|names|ids)$", re.I)
 
-ASSIGNMENT = re.compile(r"([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)(?:\s*#.*)?$")
+# A setting is written two ways in Python: a module constant (`MAX_BATCH = 0`)
+# and a field on a settings object (`max_rows: int = 0`, class body). D29's
+# first stock_bench run showed the rule knew only the first -- zincir writes
+# constants, stock writes a dataclass -- so it read `max_movement_rows: int = 0`
+# under a comment saying "0 prints every row" as nothing at all. The indent cap
+# keeps it to module and class bodies: a local `retries = 0` inside a function
+# is a loop counter, not a default.
+ASSIGNMENT = re.compile(r"^( {0,4})([A-Za-z_][A-Za-z0-9_]*)\s*(?::\s*[^=#]+?)?\s*=\s*(.+?)(?:\s*#.*)?$")
+
+# Counted as pytest writes it. D29 measured the unittest form too
+# (`self.assertEqual(...)`) on stock_bench, a unittest suite, and it lost:
+# the one defect it reached, `stock-13`, the model had already named at 0.95,
+# so `fill_gaps` passed over the rule; what was left was `stock-13-clean`
+# dropping `self.assertIn("GLUE250", text)` from a test that still checks the
+# same text -- a legitimate edit with exactly the shape of a weakened test.
+# Counting cannot tell those apart, and a heuristic written on that one pair
+# would be fitting it. stock 10/3/12 without it, 10/4/12 with it.
 ASSERT = re.compile(r"\s*assert\b")
 
 CONFIG_NAMES = ("settings.py", "defaults.py", "config.py", "profiles.py", "constants.py")
@@ -109,7 +125,7 @@ def _added_assignments(case: Case, filename: str) -> list[tuple[int, str, str, s
         if 1 <= number <= len(lines):
             match = ASSIGNMENT.match(lines[number - 1])
             if match:
-                out.append((number, match.group(1), match.group(2).strip(), lines[number - 1].strip()))
+                out.append((number, match.group(2), match.group(3).strip(), lines[number - 1].strip()))
     return out
 
 

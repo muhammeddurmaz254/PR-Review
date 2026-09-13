@@ -102,7 +102,8 @@ in the excerpt you are pointing at.
 """
 
 FORMATS = {"demo_repo": WHOLE_FILE_FORMAT, "swrbench": HUNK_FORMAT,
-           "halka": WHOLE_FILE_FORMAT, "zincir": WHOLE_FILE_FORMAT}
+           "halka": WHOLE_FILE_FORMAT, "zincir": WHOLE_FILE_FORMAT,
+           "stock": WHOLE_FILE_FORMAT}
 
 
 # v2 changes one thing: where the precision/recall trade-off is made. It was
@@ -1723,6 +1724,22 @@ EVIDENCE_FIRST = frozenset({"review/v7"})
 CLAIM_FIRST = frozenset({"review/v8"})
 
 
+# stock_bench (D29) was built by a separate model in a separate folder, told
+# not to consult any defect taxonomy, so its label names are its own and it
+# exists to test whether the ONE catalogue reaches a repository it was not
+# written from. It is registered with the universal versions only. Every older
+# version was built from a corpus's own list; handing it one of those would be
+# the silent default section 0.5 forbids, so those raise for it instead.
+UNIVERSAL_VERSIONS = ("review/v10-universal", "review/v11-universal", "review/v12-universal",
+                      "review/v13-universal", "review/v14-universal", "review/v15-recall")
+LATE_DATASETS = ("stock",)
+for _version in UNIVERSAL_VERSIONS:
+    _taxonomies = VERSIONS[_version][1]
+    for _dataset in LATE_DATASETS:
+        _taxonomies[_dataset] = _taxonomies["halka"]
+DATASETS_KNOWN = tuple(sorted({*TAXONOMIES, *LATE_DATASETS}))
+
+
 def types(dataset: str, version: str | None = None) -> list[str]:
     """The names the schema constrains the answer to.
 
@@ -1730,8 +1747,8 @@ def types(dataset: str, version: str | None = None) -> list[str]:
     and a schema built from the default map would let the model answer with a
     type the prompt never listed.
     """
-    if dataset not in TAXONOMIES:
-        raise KeyError(f"unknown dataset {dataset!r}; have {', '.join(TAXONOMIES)}")
+    if dataset not in DATASETS_KNOWN:
+        raise KeyError(f"unknown dataset {dataset!r}; have {', '.join(DATASETS_KNOWN)}")
     taxonomies = VERSIONS[version][1] if version in VERSIONS else TAXONOMIES
     if dataset not in taxonomies:
         # Section 0.5. A variant that covers one corpus and silently hands every

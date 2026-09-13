@@ -69,3 +69,28 @@ def test_a_rewritten_test_does_not_fire():
     """One assertion out, one in, is a rewrite and not a weakening."""
     case = _case("zincir_dev", "clean-schema-v4")
     assert not [f for f in rules.run(case) if f.rule == "test.weakened"]
+
+
+def test_a_settings_field_set_to_nothing_is_reported():
+    """D29: a setting is also written as an annotated field on a settings
+    object. stock_bench's `max_movement_rows: int = 0`, under a comment saying
+    0 prints every row, was invisible to a rule that knew only UPPER_CASE
+    constants."""
+    found = [f for f in rules.run(_case("stock_dev", "stock-17-defective"))
+             if f.rule == "config.off-value"]
+    assert [(f.file, f.line) for f in found] == [("stock/settings.py", 22)]
+
+
+def test_a_local_variable_inside_a_function_is_not_a_setting():
+    """The indent cap: `retries = 0` in a function body is a counter."""
+    import re
+    assert rules.ASSIGNMENT.match("    max_rows: int = 0")
+    assert rules.ASSIGNMENT.match("MAX_ROWS = 0")
+    assert not rules.ASSIGNMENT.match("        retries = 0")
+
+
+def test_unittest_assertions_are_not_counted():
+    """D29: counting them cost stock_bench a false alarm and bought nothing."""
+    assert rules.ASSERT.match("    assert x == 1")
+    assert not rules.ASSERT.match("        self.assertEqual(x, 1)")
+    assert rules.run(_case("stock_dev", "stock-13-clean")) == []
