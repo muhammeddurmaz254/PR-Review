@@ -49,6 +49,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="with --mechanism: forbid the 'nothing calls it' argument, which "
                              "contradicted three true findings whose callers are a route table, "
                              "a schedule or a later change")
+    parser.add_argument("--rename", action=argparse.BooleanOptionalAction, default=False,
+                        help="judge the line, not the name: an established claim is published under "
+                             "the kind the verifier says the evidence shows (detect/verify.py, D31); "
+                             "off by default: pooled F1 0.800 -> 0.806 but demo_repo loses one, reproducibly")
     parser.add_argument("--dedupe", action=argparse.BooleanOptionalAction, default=True,
                         help="publish one finding per code site: where two claims land within "
                              "--dedupe-radius lines of each other in one file, keep the more "
@@ -100,16 +104,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         case = cases[claim["case_id"]]
         workspace = workspaces.setdefault(case.case_id, agent.Workspace(case))
         rows = challenge.excerpt(case, claim["file"], claim["line"], args.radius, with_deletions=deletions)
-        user = verify.user_message(claim, definitions.get(claim["type"], ""), rows)
+        kinds = list(definitions) if args.rename else None
+        user = verify.user_message(claim, definitions.get(claim["type"], ""), rows, kinds)
         system = verify.system_for(args.contract_evidence, args.precedent, args.mechanism,
                                    args.callers_note)
-        text, transcript, calls = agent.review(client.chat, system, user, workspace, verify.SCHEMA,
+        schema, final_ask = verify.SCHEMA, verify.FINAL_ASK
+        if args.rename:
+            system, schema, final_ask = (verify.with_kind_clause(system), verify.schema_with_kinds(kinds),
+                                         verify.FINAL_ASK_KIND)
+        text, transcript, calls = agent.review(client.chat, system, user, workspace, schema,
                                                args.max_tool_calls, guide=verify.GUIDE,
-                                               final_ask=verify.FINAL_ASK)
+                                               final_ask=final_ask)
         answer = verify.parse(text)
         settled = verify.settle(answer, workspace)
         row = {**{k: claim[k] for k in ("case_id", "file", "line", "type")}, "title": claim.get("message", ""),
-               "claimed_verdict": answer["verdict"], "verdict": settled, "needed": answer.get("needed", ""),
+               "claimed_verdict": answer["verdict"], "verdict": settled, "kind": answer.get("kind", ""),
+               "needed": answer.get("needed", ""),
                "evidence": answer.get("evidence", []), "reason": answer.get("reason", ""),
                "evidence_checked": [verify.cited(workspace, e) for e in answer.get("evidence", [])],
                "tool_calls": calls, "steps": transcript,
@@ -124,7 +134,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     site_drops = {}
     for policy in ("strict", "lenient"):
-        kept = [c for c, v in zip(claims, verdicts) if verify.keeps(v["verdict"], policy)]
+        names = list(definitions)
+        kept = []
+        for c, v in zip(claims, verdicts):
+            if not verify.keeps(v["verdict"], policy):
+                continue
+            kind = verify.published_type(c, v, names) if args.rename else c["type"]
+            kept.append({**c, "type": kind, "claimed_type": c["type"]} if kind != c["type"] else c)
         if args.dedupe:
             before = len(kept)
             kept = dedupe.one_per_site(kept, args.dedupe_radius)
@@ -149,6 +165,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                      "precedent": bool(args.precedent), "mechanism": bool(args.mechanism),
                      "callers_note": bool(args.callers_note)},
         "claims": len(claims), "reused": len(done), "policy": args.policy, "verdicts": counts,
+        "rename": bool(args.rename),
+        "renamed": sum(1 for c, v in zip(claims, verdicts)
+                       if args.rename and verify.published_type(c, v, list(definitions)) != c["type"]),
         "dedupe": {"radius": args.dedupe_radius, "dropped": site_drops} if args.dedupe else None,
         "claimed_verdicts": {v: sum(1 for r in verdicts if r["claimed_verdict"] == v) for v in verify.VERDICTS},
         "errors": sum(1 for r in verdicts if r["error"]),

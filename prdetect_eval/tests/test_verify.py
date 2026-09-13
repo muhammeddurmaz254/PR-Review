@@ -144,3 +144,38 @@ def test_the_callers_note_removes_the_argument_that_killed_true_findings():
 
 def test_the_callers_note_needs_the_mechanism_clause():
     assert verify.system_for(contract=True, callers=True) == verify.SYSTEM_CONTRACT
+
+
+# --- judge the line, not the name (D31) --------------------------------------
+
+def test_kind_is_generated_before_the_verdict():
+    schema = verify.schema_with_kinds(["off_by_one", "missing_lock"])
+    assert list(schema["properties"])[-2:] == ["kind", "verdict"]
+    assert schema["properties"]["kind"]["enum"] == ["off_by_one", "missing_lock", "none"]
+    assert schema["required"][-2:] == ["kind", "verdict"]
+
+
+def test_the_kind_clause_keeps_the_mechanism_and_callers_clauses():
+    base = verify.system_for(contract=True, mechanism=True, callers=True)
+    system = verify.with_kind_clause(base)
+    assert "Judge the line, not the name" in system
+    assert "write the failure out" in system
+    assert "never contradicts a claim on its own" in system
+    assert system.rstrip().endswith("however plausible it sounds.")
+
+
+def test_only_an_established_claim_is_renamed():
+    claim = {"type": "off_by_one"}
+    kinds = ["off_by_one", "remainder_dropped", "missing_lock"]
+    assert verify.published_type(claim, {"verdict": "established", "kind": "missing_lock"}, kinds) == "missing_lock"
+    assert verify.published_type(claim, {"verdict": "contradicted", "kind": "missing_lock"}, kinds) == "off_by_one"
+    assert verify.published_type(claim, {"verdict": "unsettled", "kind": "missing_lock"}, kinds) == "off_by_one"
+    assert verify.published_type(claim, {"verdict": "established", "kind": "none"}, kinds) == "off_by_one"
+    assert verify.published_type(claim, {"verdict": "established", "kind": "made_up"}, kinds) == "off_by_one"
+    assert verify.published_type(claim, {"verdict": "established"}, kinds) == "off_by_one"
+
+
+def test_the_kinds_line_is_added_only_when_asked():
+    claim = {"file": "a.py", "line": 3, "type": "off_by_one", "message": "m"}
+    assert "Kinds you may name" not in verify.user_message(claim, "d", ["x"])
+    assert "`missing_lock`" in verify.user_message(claim, "d", ["x"], ["off_by_one", "missing_lock"])

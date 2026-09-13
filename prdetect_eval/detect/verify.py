@@ -206,6 +206,83 @@ SYSTEM_MECHANISM_CALLERS = SYSTEM_MECHANISM.replace(
     + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
 
 
+# D31. The verifier judged the name, not the line. On the two sets this project
+# was never tuned on, it contradicted claims that stood on a labelled defect
+# under the wrong kind and nothing else found them: three on stock_bench, three
+# on the zincir holdout -- against none on halka and demo_repo and one on zincir
+# dev. `stock-11` is the plainest: the reason describes the defect word for word
+# ("none of them assert that a non-multiple amount is fully covered") and the
+# verdict is `contradicted`, because the claim said `off_by_one`.
+#
+# On a repository the catalogue was written from, the detector's names fit; on
+# one it was not, the detector finds the place and misnames what is there. So
+# this asks for a second answer beside the verdict: which kind the evidence
+# actually shows. It is narrow on purpose -- D26 measured that on unseen cases
+# the verifier's most valuable work is removing false alarms, nine of them for
+# one true finding -- and says so: no hunting for a different defect to rescue
+# the claim, only a name for what the lines already cited show.
+# MEASURED (D31) and NOT DEFAULT. Same claims re-verified with this clause and
+# `kind`, published with the rules through fill_gaps, location rung, 0.8 floor:
+#
+#     stock_dev   10/3/12 -> 11/3/11   F1 0.571 -> 0.611   stock-11 recovered
+#     zincir_dev  11/2/5  unchanged
+#     halka       42/8/6  -> 42/7/6    F1 0.857 -> 0.866
+#     demo_repo   15/1/2  -> 15/2/2    F1 0.909 -> 0.882
+#     pooled      78/14/25 -> 79/14/24  F1 0.800 -> 0.806, recall 0.757 -> 0.767
+#
+# Five claims were renamed and four land on labels -- `stock-11` off_by_one ->
+# lossy_conversion recovers a finding, halka's `inj-02` path_traversal ->
+# command_injection names its label exactly. But demo_repo gains a false alarm
+# that is no rename at all: a `float_money` claim on `coklu-dosya-cift-harcama`
+# that the plain verifier contradicts ("the float's rounding never reaches a
+# stored or charged value") is established under this clause, same kind, and
+# established again on a repeat run -- so it is the clause, not run-to-run
+# variance. Telling the verifier to judge the line rather than the name also
+# lowers its bar on a borderline claim whose name was right. Rule 2 fails,
+# reproducibly, by that one claim.
+KIND_CLAUSE = """
+The kind named in the claim can be wrong while the line is still defective. Judge the line, not the name. If the lines you cite show that this pull request introduces a defect at this place, the verdict is `established` even when it is a different kind from the one claimed, and `kind` is the name from the list that fits what you found. If they show no defect here -- neither the claimed one nor any other -- the verdict is `contradicted` and `kind` is `none`. Do not go looking for some other defect to rescue a claim: name a different kind only for what the lines you already cite show.
+"""
+
+FINAL_ASK_KIND = ("Answer now, as JSON with `needed`, `evidence`, `reason`, `kind` and `verdict`, "
+                  "in that order.")
+
+
+def schema_with_kinds(kinds: Sequence[str]) -> dict:
+    """SCHEMA with `kind` before `verdict`. Constrained decoding generates in
+    schema order, so the name of what was found is written before the decision
+    that depends on it -- the same reason the verdict already comes last."""
+    properties = {key: value for key, value in SCHEMA["properties"].items() if key != "verdict"}
+    properties["kind"] = {"type": "string", "enum": [*kinds, "none"]}
+    properties["verdict"] = SCHEMA["properties"]["verdict"]
+    return {"type": "object", "properties": properties,
+            "required": [*SCHEMA["required"][:-1], "kind", "verdict"]}
+
+
+def with_kind_clause(system: str) -> str:
+    return system.replace(
+        "A claim you cannot back with lines is `unsettled`, however plausible it sounds.",
+        KIND_CLAUSE.strip() + "\n\nA claim you cannot back with lines is `unsettled`, however plausible it sounds.", 1)
+
+
+def kinds_line(kinds: Sequence[str]) -> str:
+    return ("Kinds you may name, if the defect the lines show is not the one claimed: "
+            + ", ".join(f"`{name}`" for name in kinds) + ".")
+
+
+def published_type(claim: dict, row: dict, kinds: Sequence[str]) -> str:
+    """The kind a kept claim is published under.
+
+    Renamed only when the verifier established a defect at the line and named a
+    different, valid kind for it. A contradicted or unsettled claim is never
+    renamed, and `none` never replaces anything.
+    """
+    kind = row.get("kind")
+    if row.get("verdict") == "established" and kind and kind != "none" and kind in kinds:
+        return kind
+    return claim["type"]
+
+
 def system_for(contract: bool, precedent: bool = False, mechanism: bool = False,
                callers: bool = False) -> str:
     """The verifier's system prompt. Both added clauses imply the contract one:
@@ -241,15 +318,19 @@ SCHEMA = {
 }
 
 
-def user_message(claim: dict, definition: str, rows: Sequence[str]) -> str:
-    return "\n".join([
+def user_message(claim: dict, definition: str, rows: Sequence[str],
+                 kinds: Sequence[str] | None = None) -> str:
+    lines = [
         "# The claim", "",
         f"In `{claim['file']}`, at line {claim['line']}: {claim.get('message') or claim.get('title', '')}", "",
         f"Kind claimed: `{claim['type']}` -- {definition}", "",
         "# The lines around it", "", "```", *(rows or ["(no lines available)"]), "```", "",
         "Decide whether this pull request really introduces this defect. First name what you need "
         "to see; look for it; then answer.",
-    ])
+    ]
+    if kinds:
+        lines += ["", kinds_line(kinds)]
+    return "\n".join(lines)
 
 
 def parse(text: str) -> dict:
