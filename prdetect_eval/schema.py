@@ -78,13 +78,17 @@ def scorable_types(cases: Iterable["Case"], published: Iterable[str] = ()) -> fr
     """
     return in_scope_types(cases) | catalog_types() | frozenset(published)
 
+# `missing_transaction` appeared twice in this literal -- "concurrency" in the
+# original rows and "data_layer" where D17 added the universal names -- and a
+# dict literal keeps the last. Every number measured since D17 was scored with
+# "data_layer", so that is the row kept; the audit that found the duplicate
+# (ruff F601) removed the dead one without changing the table.
 FAMILY_BY_TYPE = {
     "authz": "authz", "authn_bypass": "authz", "mass_assignment": "authz",
-    "overly_permissive_permission": "authz",
     "sql_injection": "injection", "command_injection": "injection", "path_traversal": "injection",
     "ssrf": "injection", "unsafe_deserialization": "injection",
     "secrets_exposure": "secrets", "sensitive_data_exposure": "disclosure", "crypto_misuse": "crypto",
-    "race_condition": "concurrency", "missing_transaction": "concurrency", "non_idempotent_retry": "concurrency",
+    "race_condition": "concurrency", "non_idempotent_retry": "concurrency",
     "null_deref": "correctness", "inverted_condition": "correctness", "off_by_one": "correctness",
     "exception_swallowing": "correctness", "resource_leak": "correctness", "timezone_bug": "correctness",
     "mutable_default_arg": "correctness",

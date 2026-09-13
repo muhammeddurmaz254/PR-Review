@@ -83,7 +83,6 @@ def test_a_settings_field_set_to_nothing_is_reported():
 
 def test_a_local_variable_inside_a_function_is_not_a_setting():
     """The indent cap: `retries = 0` in a function body is a counter."""
-    import re
     assert rules.ASSIGNMENT.match("    max_rows: int = 0")
     assert rules.ASSIGNMENT.match("MAX_ROWS = 0")
     assert not rules.ASSIGNMENT.match("        retries = 0")
