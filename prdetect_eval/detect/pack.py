@@ -29,6 +29,7 @@ from typing import Sequence
 from schema import Case
 
 from . import facts as facts_module
+from . import written_rules as rules_module
 from . import prompt as prompt_module
 from . import roles
 
@@ -357,7 +358,7 @@ def _preamble(case: Case, part: int, parts: int) -> list[str]:
 
 
 def _per_file(case: Case, system: str, version: str, context: Sequence[str],
-              with_facts: bool, with_deletions: bool) -> list[Pack]:
+              with_facts: bool, with_deletions: bool, with_rules: bool = False) -> list[Pack]:
     """One call per changed file instead of one per pull request.
 
     D23 measured where recall is lost: of seventeen labels still missed, six sit
@@ -425,6 +426,8 @@ def _per_file(case: Case, system: str, version: str, context: Sequence[str],
         body += header + ["", "```"] + code + ["```", ""]
         if with_facts:
             body += facts_module.render(facts_module.collect(case))
+        if with_rules:
+            body += rules_module.render(rules_module.collect(case))
         if context:
             body += _repo_section(case, context)
         packs.append(Pack(case.case_id, system, "\n".join(body), count, part=index, parts=len(names)))
@@ -432,10 +435,10 @@ def _per_file(case: Case, system: str, version: str, context: Sequence[str],
 
 def build(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
           context: Sequence[str] = (), with_facts: bool = False,
-          with_deletions: bool = False) -> Pack:
+          with_deletions: bool = False, with_rules: bool = False) -> Pack:
     """The whole pull request in one call."""
     return split(case, dataset, version, max_lines=0, context=context,
-                 with_facts=with_facts, with_deletions=with_deletions)[0]
+                 with_facts=with_facts, with_deletions=with_deletions, with_rules=with_rules)[0]
 
 
 def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
@@ -471,7 +474,7 @@ def _repo_section(case: Case, patterns: Sequence[str] = ("*",)) -> list[str]:
 def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
           max_lines: int = 0, context: Sequence[str] = (),
           with_facts: bool = False, with_deletions: bool = False,
-          per_file: bool = False) -> list[Pack]:
+          per_file: bool = False, with_rules: bool = False) -> list[Pack]:
     """The pull request as one pack, or as several when it is large.
 
     Measured on SWRBench: the model's output volume tracks the size of the pack
@@ -488,7 +491,7 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
     system = prompt_module.system(dataset, version)
 
     if case.head_files and per_file:
-        return _per_file(case, system, version, context, with_facts, with_deletions)
+        return _per_file(case, system, version, context, with_facts, with_deletions, with_rules)
 
     if case.head_files:
         body = _preamble(case, 1, 1)
@@ -521,6 +524,8 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
             body += header + ["", "```"] + code + ["```", ""]
         if with_facts:
             body += facts_module.render(facts_module.collect(case))
+        if with_rules:
+            body += rules_module.render(rules_module.collect(case))
         if context:
             body += _repo_section(case, context)
         return [Pack(case.case_id, system, "\n".join(body), shown)]

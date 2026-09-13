@@ -132,6 +132,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="shorthand for --context '*'")
     parser.add_argument("--max-pack-lines", type=int, default=0,
                         help="split a pull request larger than this into excerpts; 0 never splits")
+    parser.add_argument("--written-rules", action="store_true",
+                        help="stage [3c]: add the passages of the repository's own docs that "
+                             "mention a name the change touches (detect/written_rules.py); "
+                             "measured in D30 and off by default: pooled F1 0.800 -> 0.794")
     parser.add_argument("--per-file", action="store_true",
                         help="one call per changed file instead of one per pull request; a defect "
                              "that exists only between two files is unreachable this way, so it is "
@@ -186,7 +190,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     packs = [item for case in cases
              for item in pack.split(case, args.dataset, args.prompt_version,
                                     args.max_pack_lines, context, args.facts,
-                                    args.deletions, args.per_file)]
+                                    args.deletions, args.per_file, args.written_rules)]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = "dry-run" if detector is None else detector.name.replace(":", "-").replace("/", "-")
@@ -359,7 +363,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "evidence_gate": bool(args.evidence_gate),
         "dropped_off_operation": off_operation,
         "field_order": list(order),
-        "max_pack_lines": args.max_pack_lines, "per_file": bool(args.per_file), "packs": len(packs),
+        "max_pack_lines": args.max_pack_lines, "per_file": bool(args.per_file), "written_rules": bool(args.written_rules), "packs": len(packs),
         "context": list(context), "facts": args.facts, "deletions": args.deletions,
         "reused_answers": len(done),
         # A run that lost its server two thirds of the way through still writes

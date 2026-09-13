@@ -80,6 +80,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     manifest = json.loads((source / "config.json").read_text(encoding="utf-8"))
     dataset, version = manifest["dataset"], manifest["prompt_version"]
     facts, deletions = bool(manifest.get("facts")), bool(manifest.get("deletions"))
+    # The continuation re-sends the detector's pack; a section the detector saw
+    # and this call did not would make [4b] a different experiment.
+    written = bool(manifest.get("written_rules"))
     context = tuple(manifest.get("context") or ())
     limit = int(manifest.get("max_findings") or 3)
     quoted = version in prompt.QUOTED
@@ -121,7 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         claimed[claim["case_id"]].add((claim["file"], claim["line"]))
     for case_id, remaining, role in jobs:
         case = cases[case_id]
-        item = pack.build(case, dataset, version, context, facts, deletions)
+        item = pack.build(case, dataset, version, context, facts, deletions, written)
         reported = by_case.get(case_id, [])
         tail = (continuation.focus(remaining[0], role, reported) if role
                 else continuation.trailer(reported, remaining))
