@@ -43,7 +43,7 @@ code line lines file files call calls called caller callee value values
 
 
 def pool(datasets: Sequence[str] = ("halka", "demo_repo", "swrbench"),
-         version: str = "review/v6") -> dict[str, str]:
+         version: str = prompt_module.PROMPT_VERSION) -> dict[str, str]:
     """Every kind every configured dataset names, in one catalogue.
 
     A deployment against an unknown repository has exactly this problem: it
@@ -51,11 +51,7 @@ def pool(datasets: Sequence[str] = ("halka", "demo_repo", "swrbench"),
     the simulation of that, and the point of the stage is that carrying them
     costs nothing until a finding needs one.
     """
-    _, taxonomies = prompt_module.VERSIONS[version]
-    catalogue: dict[str, str] = {}
-    for dataset in datasets:
-        catalogue.update(taxonomies[dataset])
-    return catalogue
+    return dict(prompt_module.CATALOGUE)
 
 
 # Enough morphology to match a finding's words against a definition's: "random"

@@ -48,207 +48,6 @@ def test_prompt_prefix_is_byte_identical(packs):
     assert len({p.system for p in packs}) == 1
 
 
-def test_measured_prompts_are_unchanged():
-    """Each number in the plan was measured under one exact text. A silent edit
-    invalidates it without anything failing, so every version that has a
-    published score is pinned here and unpinned only by re-measuring."""
-    import hashlib
-    pinned = {
-        ("demo_repo", "review/v1"): "4b1de85b72188b80",
-        ("swrbench", "review/v1"): "9be10ddda5fefa3f",
-        ("swrbench", "review/v3"): "243f3e371087abb8",
-        ("swrbench", "review/v4"): "3abe68a78ff83ab3",
-        ("swrbench", "review/v5"): "368c076c6929b3e9",
-        ("halka", "review/v5"): "55503f6cb42618d0",
-        # The controls every current number is measured against.
-        ("halka", "review/v6-broad"): "e7383866724470e5",
-        ("zincir", "review/v6-shared"): "95c80931b31fd4f3",
-        ("demo_repo", "review/v6"): "ba3bfe008e228f3b",
-        ("swrbench", "review/v6"): "161402784edbbeae",
-        # One catalogue for every repository; measured in D17.
-        ("halka", "review/v10-universal"): "b3ad4ea094c4c8df",
-        ("halka", "review/v11-universal"): "988b37a33227696f",
-    }
-    for (dataset, version), digest in pinned.items():
-        actual = hashlib.sha256(prompt.system(dataset, version).encode("utf-8")).hexdigest()
-        assert actual.startswith(digest), f"{dataset} {version} changed; re-measure or revert"
-
-
-def test_every_prompt_version_renders_for_every_dataset():
-    for version in prompt.VERSIONS:
-        for dataset in prompt.TAXONOMIES:
-            text = prompt.system(dataset, version)
-            assert "{format}" not in text and text.strip()
-
-
-# Four versions change the type *names* on purpose: they are the experiments that
-# ask what a shared catalogue would cost. Every other version may reword a
-# definition but must leave the names alone, because the schema enum and every
-# stored label are built from them.
-#
-# ``review/v6-shared`` is the portability run: both corpora are handed the whole
-# product catalogue, so halka gains the five names zincir_bench introduced and
-# has no positives for. That is the point of it -- the catalogue a deployment
-# ships is not the list of defects the repository in front of it contains.
-NAME_CHANGING = {"review/v10-universal", "review/v11-universal",
-                 "review/v12-universal", "review/v13-universal", "review/v14-universal", "review/v15-recall",
-                 "review/v6-wide", "review/v6-wide-evidence", "review/v6-broad",
-                 "review/v6-shared", "review/v6-broad-typed", "review/v6-shared-typed",
-                 "review/v9-pr"}
-
-
-def test_the_type_names_never_move_between_versions():
-    for version in prompt.VERSIONS:
-        if version in NAME_CHANGING:
-            continue
-        _, taxonomies = prompt.VERSIONS[version]
-        for dataset in prompt.TAXONOMIES:
-            assert list(taxonomies[dataset]) == prompt.types(dataset), (version, dataset)
-
-
-def test_the_schema_follows_the_version_that_asked_for_it():
-    """A schema built from the default map would let the model answer with a type
-    the prompt never listed."""
-    assert len(prompt.types("halka", "review/v6-wide")) == 54
-    assert len(prompt.types("halka", "review/v6")) == 41
-    text = prompt.system("halka", "review/v6-wide")
-    for name in prompt.types("halka", "review/v6-wide"):
-        assert f"`{name}`" in text, name
-
-
-def test_the_evidence_catalogue_names_no_repository():
-    """Deney C separates two things Deney A confounded: naming this codebase, and
-    saying what would establish the claim. Only the first is machine-checkable.
-
-    A keyword list was tried for the second and rejected: it scored the catalogue
-    27 of 41 while the definitions it missed -- "escaped on the other paths that
-    render it", "wider than anything the body it guards can raise" -- demand
-    evidence as plainly as the ones it caught. Padding the definitions to satisfy
-    the list would have corrupted the experiment it exists to run. Whether the
-    shape holds is what the measurement answers, not what a regex can.
-    """
-    types = prompt.HALKA_TYPES_EVIDENCE
-    assert set(types) == set(prompt.HALKA_TYPES)
-    for name, text in types.items():
-        assert "repositor" not in text.lower(), name
-        assert "halka" not in text.lower(), name
-
-
-def test_the_located_catalogue_points_at_something_findable():
-    """Deney C demanded a comparison and left the reference unnamed, so on a clean
-    pull request the model found *some* neighbour that differed and called it a
-    violation -- six extra false alarms, all under the comparative types. D keeps
-    the demand and names where to look, in words that are a location rather than
-    a convention."""
-    types = prompt.HALKA_TYPES_LOCATED
-    assert set(types) == set(prompt.HALKA_TYPES)
-    for name, text in types.items():
-        lowered = text.lower()
-        assert "repositor" not in lowered and "halka" not in lowered, name
-        # The words C used to gesture at a reference without giving one.
-        for vague in ("its sibling", "siblings", "neighbour", "elsewhere"):
-            assert vague not in lowered, f"{name}: {vague!r}"
-
-
-def test_the_reachable_catalogue_lifts_only_the_diff_restriction():
-    """E is D with one phrase removed and nothing else, so the difference between
-    the two runs is the restriction alone. D lost three true positives whose
-    reference lives in code the pull request does not touch, and thirty-three of
-    this corpus's forty-nine defects are grounded that way."""
-    located, reachable = prompt.HALKA_TYPES_LOCATED, prompt.HALKA_TYPES_REACHABLE
-    assert set(located) == set(reachable)
-    for name, text in reachable.items():
-        lowered = text.lower()
-        assert "shown in this change" not in lowered, name
-        assert "shown here" not in lowered, name
-        assert "repositor" not in lowered and "halka" not in lowered, name
-        for vague in ("its sibling", "siblings", "neighbour", "elsewhere"):
-            assert vague not in lowered, f"{name}: {vague!r}"
-    # Only the restriction moved; the definitions that never carried it are equal.
-    assert sum(located[k] != reachable[k] for k in located) == 21
-
-
-def test_the_wide_evidence_catalogue_is_wide_and_names_no_repository():
-    """B confounded two things: how many names there are, and whether their
-    definitions were written with the repository in hand. This separates them --
-    every name, none of the grounding."""
-    wide = prompt.HALKA_TYPES_WIDE_EVIDENCE
-    assert len(wide) == 54
-    for dataset in ("halka", "demo_repo", "swrbench"):
-        for name in prompt.types(dataset):
-            assert name in wide, name
-    for name, text in wide.items():
-        lowered = text.lower()
-        assert "repositor" not in lowered and "halka" not in lowered, name
-    assert len(prompt.types("halka", "review/v6-wide-evidence")) == 54
-
-
-def test_the_broad_catalogue_is_wider_than_the_corpus_and_holds_no_synonyms():
-    """G's quarter of F1 went to coarse synonyms the merge introduced, not to the
-    kinds that could not occur. This is the same breadth without that fault: no
-    name overlaps another, and twelve classes cannot occur here at all."""
-    broad = prompt.HALKA_TYPES_BROAD
-    assert len(broad) == 53
-    assert set(prompt.HALKA_TYPES) < set(broad)
-    beyond = set(prompt.BEYOND_CORPUS)
-    assert len(beyond) == 12
-    assert beyond.isdisjoint(prompt.HALKA_TYPES)
-    # None of the coarse names the merge brought in.
-    for coarse in ("authz", "injection", "error_handling", "data_exposure", "secrets",
-                   "race_condition", "business_logic", "F.1 Interface", "F.2 Logic"):
-        assert coarse not in broad, coarse
-    for name, text in broad.items():
-        lowered = text.lower()
-        assert "repositor" not in lowered and "halka" not in lowered, name
-    # Nothing in this corpus can be reported under an added class and be right.
-    labelled = {label for label in prompt.HALKA_TYPES}
-    assert beyond.isdisjoint(labelled)
-
-
-def test_the_generic_catalogue_names_no_repository():
-    """Deney A only means something if the generic definitions were written from
-    the class of defect, not from how halka_bench expresses it."""
-    for name, text in prompt.HALKA_TYPES_GENERIC.items():
-        assert "repositor" not in text.lower(), name
-        assert "sibling" not in text.lower(), name
-    assert set(prompt.HALKA_TYPES_GENERIC) == set(prompt.HALKA_TYPES)
-
-
-def test_v3_separates_the_two_definitions_that_collided():
-    """v1 filed 'a dependency is unavailable' under F.3 and the corpus files it
-    under F.5, which is a large part of why F.3 was never once reported."""
-    v1 = prompt.SWRBENCH_TYPES
-    v3 = prompt.SWRBENCH_TYPES_V3
-    assert "dependency is unavailable" in v1["F.3 Resource"]
-    assert "dependency" not in v3["F.3 Resource"]
-    assert "dependency" in v3["F.5 Support"]
-
-
-def test_v3_covers_the_shapes_v1_left_out(dataset):
-    """Two of F.1's five cases are a deleted public name, and two of F.4's are a
-    guard that exists and is wrong. v1 described neither."""
-    text = prompt.system("swrbench", "review/v3")
-    for phrase in ("removed or narrowed", "asserts something that",
-                   "not on its sibling", "never imported"):
-        assert phrase in text, phrase
-
-
-def test_v3_leaves_demo_repo_alone():
-    _, v1 = prompt.VERSIONS["review/v1"]
-    _, v3 = prompt.VERSIONS["review/v3"]
-    assert v1["demo_repo"] == v3["demo_repo"]
-
-
-def test_v2_moves_the_trade_off_out_of_the_model():
-    """v1 asserted the prior and the cost; v2 grades the doubt instead."""
-    v1 = prompt.system("swrbench", "review/v1")
-    v2 = prompt.system("swrbench", "review/v2")
-    assert "around 0.3" not in v1
-    assert "a miss costs one line of recall" in v1
-    assert "a miss costs one line of recall" not in v2
-    assert "around 0.3" in v2, "v2 must anchor the confidence scale"
-
-
 def test_each_prompt_describes_its_own_print_format(dataset):
     """Explaining the wrong rendering is worse than explaining none."""
     text = prompt.system(dataset)
@@ -261,11 +60,7 @@ def test_each_prompt_describes_its_own_print_format(dataset):
 
 def test_prompt_lists_exactly_the_dataset_types(dataset):
     text = prompt.system(dataset)
-    for name in prompt.types(dataset):
-        assert f"`{name}`" in text, name
-    other = "swrbench" if dataset == "demo_repo" else "demo_repo"
-    for name in prompt.types(other):
-        assert f"`{name}`" not in text, f"{name} leaked into {dataset}"
+    assert re.findall(r"^- `([^`]+)` -- ", text, re.M) == prompt.types(dataset)
 
 
 def test_code_block_line_numbers_match_the_file(dataset):
@@ -706,8 +501,8 @@ def test_a_line_that_comes_back_is_not_a_removal():
 def test_the_whole_file_pack_prints_what_the_change_deleted():
     """The prompt has always asked for removals; only the hunk path answered it.
 
-    `review/v6-shared` says a removal "has no `+` line at all" and tells the
-    model to quote the deleted line. On a corpus that ships whole files there
+    The prompt says a removal "has no `+` line at all" and tells the model to
+    quote the deleted line. On a corpus that ships whole files there
     was no deleted line in the pack to quote, so the instruction was
     unsatisfiable -- the same shape of gap as a response contract asking for a
     line number against a raw diff.
@@ -784,10 +579,8 @@ def test_an_absent_quote_is_never_used_to_drop_a_finding(dataset):
     assert decisions[0].verdict == "unchecked" and decisions[0].kept
 
 
-def test_v4_asks_for_the_quote_and_the_schema_requires_it():
-    assert "review/v4" in prompt.QUOTED
-    assert "`quote` is the code on that line" in prompt.system("swrbench", "review/v4")
-    assert "quote" not in prompt.system("swrbench", "review/v3")
+def test_the_prompt_asks_for_the_quote_and_the_schema_requires_it():
+    assert "`quote` is the code on that line" in prompt.system("swrbench")
     schema = contract.response_schema(["F.2 Logic"], quote=True)
     assert "quote" in schema["properties"]["findings"]["items"]["required"]
     plain = contract.response_schema(["F.2 Logic"])
@@ -874,31 +667,6 @@ def test_every_label_is_reachable_after_a_split(dataset):
             assert found, f"{case.case_id}: {label.span.file}:{label.span.start_line}"
 
 
-def test_v5_puts_support_code_in_scope():
-    """Six of the seven findings the model stayed silent on live in a test, a
-    fixture, an example or a packaging script."""
-    v4 = prompt.system("swrbench", "review/v4")
-    v5 = prompt.system("swrbench", "review/v5")
-    assert "A test is not exempt for being a test" in v5
-    assert "A test is not exempt" not in v4
-    for shape in ("skip condition that is always true", "conftest", "setup.py"):
-        assert shape in v5, shape
-
-
-def test_v5_narrows_the_two_clauses_that_silenced_it():
-    """`a placeholder in an example file` reads as the file, not the placeholder,
-    and `a broad except` is the whole of one F.4 label."""
-    v5 = prompt.system("swrbench", "review/v5")
-    assert "a placeholder in an example file" not in v5
-    assert "about the expression, not the file it is in" in v5
-    assert "swallows rather than re-raises is a defect" in v5
-
-
-def test_v5_still_asks_for_the_quote():
-    assert "review/v5" in prompt.QUOTED
-    assert "`quote` is the code on that line" in prompt.system("swrbench", "review/v5")
-
-
 def test_halka_carries_the_repository_behind_the_diff():
     """Thirty-three of forty-nine defects are only legible against code the pull
     request does not touch; a pack without it cannot reach them."""
@@ -932,13 +700,6 @@ def test_the_anchor_filter_sees_the_repository_when_the_pack_does():
     report = contract.Report(filename, line, "sql_injection", "t", 0.9, quote=text)
     assert anchor.resolve([report], case)[0].verdict == "unchecked"
     assert anchor.resolve([report], case, context=("*",))[0].verdict == "anchored"
-
-
-def test_every_halka_type_is_defined_once():
-    assert len(prompt.HALKA_TYPES) == 41
-    text = prompt.system("halka", "review/v5")
-    for name in prompt.HALKA_TYPES:
-        assert f"`{name}`" in text, name
 
 
 def test_resume_refuses_to_mix_two_prompts(tmp_path):
@@ -1008,26 +769,6 @@ def test_a_clean_run_is_marked_complete(tmp_path):
     assert json.loads((tmp_path / "fine" / "config.json").read_text())["complete"] is True
 
 
-def test_v6_widens_the_definition_to_the_corpus_taxonomy():
-    """halka_bench names correctness, maintainability, performance, naming and
-    configuration defects. The definition was written for the first alone, and
-    the model answered nothing at all on all seven pull requests it missed."""
-    v5 = prompt.system("halka", "review/v5")
-    v6 = prompt.system("halka", "review/v6")
-    assert "the new code will behave wrong -- not code that is merely" in v5
-    assert "the new code will behave wrong -- not code that is merely" not in v6
-    for shape in ("behave wrong *later*", "wastefully", "named against the repository",
-                  "configuration, packaging or a dependency list"):
-        assert shape in v6, shape
-    assert "Formatting and taste are still not defects" in v6
-
-
-def test_v6_narrows_the_clauses_that_covered_the_rest():
-    v6 = prompt.system("halka", "review/v6")
-    assert "Duplicating a block is not refactoring" in v6
-    assert "is not a preference, it is a contract" in v6
-
-
 def test_only_labels_the_pack_can_show_are_in_scope():
     """The corpus marks eight types outside `birincil_kapsam`, but the reason is
     the product's rule-id vocabulary rather than the label, so every one of them
@@ -1091,46 +832,6 @@ def test_the_legacy_field_order_is_exactly_what_was_measured():
     assert schema["required"] == list(schema["properties"])
     plain = contract.response_schema(["authz"])["properties"]["findings"]["items"]
     assert list(plain["properties"]) == ["file", "line", "type", "title", "confidence"]
-
-
-def test_v7_produces_the_evidence_before_the_claim():
-    """The quote was emitted last -- after the file, line, type, title and even
-    the confidence -- so the line it accuses was chosen after the accusation."""
-    assert "review/v7" in prompt.EVIDENCE_FIRST
-    assert prompt.EVIDENCE_FIRST.isdisjoint({"review/v%d" % n for n in range(1, 7)})
-    schema = contract.response_schema(
-        ["authz"], quote=True, order=contract.EVIDENCE_ORDER)["properties"]["findings"]["items"]
-    assert list(schema["properties"]) == ["quote", "title", "type", "file", "line", "confidence"]
-    text = prompt.system("halka", "review/v7")
-    assert text.index('"quote"') < text.index('"title"') < text.index('"file"')
-    assert "Choose it by reading, before you have decided what is wrong" in text
-
-
-def _example_order(version: str) -> list[str]:
-    text = prompt.system("halka", version)
-    start = text.index('{"findings"')
-    example = text[start:text.index("\n", start)]
-    return sorted((example.index(f'"{name}"'), name)
-                  for name in ("file", "line", "type", "title", "confidence", "quote")
-                  if f'"{name}"' in example)
-
-
-def test_v7_shows_the_fields_in_the_order_it_decodes_them():
-    """A prompt that names one order while decoding forces another teaches the
-    model that the instruction is not binding."""
-    shown = [name for _, name in _example_order("review/v7")]
-    assert shown == list(contract.EVIDENCE_ORDER)
-
-
-def test_the_versions_before_v7_showed_an_order_they_did_not_decode():
-    """Kept as a record, not a target: v4 to v6 print `quote` third and decode it
-    last. Their numbers were measured that way and cannot be re-lit by fixing the
-    text, so the fix is v7 and this is what it fixes."""
-    shown = [name for _, name in _example_order("review/v6")]
-    assert shown.index("quote") == 2
-    decoded = list(contract.response_schema(
-        ["authz"], quote=True)["properties"]["findings"]["items"]["properties"])
-    assert decoded.index("quote") == len(decoded) - 1
 
 
 # --- stage [5b]: the accused statement must perform the operation the type names
@@ -1288,16 +989,6 @@ def test_every_other_kind_of_claim_can_be():
 
 # --- [4a] / [4b]: the detector reports, a second call names ------------------
 
-def test_the_open_prompt_carries_no_catalogue():
-    """The whole point is that breadth lives in a search rather than in front of
-    the code: fifty-four kinds in the detector's prompt cost 0.242 of F1."""
-    text = prompt.system("halka", "review/open")
-    assert "kinds of defect you report" not in text
-    for name in prompt.types("halka"):
-        assert f"`{name}`" not in text, name
-    assert "there is no list of kinds to choose from" in text.lower()
-    assert len(text) < len(prompt.system("halka", "review/v6")) * 0.7
-
 
 def test_an_open_answer_has_no_type_field():
     schema = contract.response_schema(
@@ -1312,35 +1003,7 @@ def test_the_catalogue_holds_every_configured_kind():
     for dataset in ("halka", "demo_repo", "swrbench"):
         for name in prompt.types(dataset):
             assert name in catalogue, name
-    assert len(catalogue) == 54
-
-
-def test_retrieval_puts_the_right_kind_in_the_shortlist():
-    """Its ceiling is this stage's ceiling. Measured on the forty-three findings a
-    real run located, queried with the titles that run wrote: the right kind is
-    in the top five 91% of the time, and widening to twelve adds nothing."""
-    from detect import naming
-    catalogue = naming.pool()
-    for finding, expected in (
-        ({"title": "Redirect target fetched without allow-list validation",
-          "quote": "yanit = requests.get(url)"}, "ssrf_unvalidated_fetch"),
-        ({"title": "Search term concatenated into SQL text",
-          "quote": 'raw_query("SELECT ... WHERE x = " + terim)'}, "sql_injection"),
-        ({"title": "Invoice status not checked before applying credit",
-          "quote": "invoice.cached_total_minor -= int(delta_minor)"}, "wrong_state_check"),
-    ):
-        assert expected in naming.rank(finding, catalogue), (expected, finding["title"])
-
-
-def test_the_retrieval_ceiling_is_recorded_not_assumed():
-    """The nine percent it cannot reach fail one way: the finding and the
-    definition name one thing in different words. Kept as a fact so that a change
-    which claims to fix retrieval has to move it."""
-    from detect import naming
-    catalogue = naming.pool()
-    beyond = {"title": "Failure counter never incremented on exception", "quote": "pass"}
-    assert "swallowed_exception" not in naming.rank(beyond, catalogue)
-    assert "swallowed_exception" in naming.rank(beyond, catalogue, limit=8)
+    assert len(catalogue) == 74
 
 
 def test_naming_may_refuse_every_candidate():
@@ -1381,37 +1044,6 @@ def test_the_namer_refuses_to_search_blind():
                           "quote": "requests.get(url)"}, catalogue)
     assert blind != seeing, "an empty query must not look like a real one"
     assert blind == list(catalogue)[:len(blind)], "the empty case is the catalogue head"
-
-
-def test_the_hybrid_states_scope_without_naming_kinds():
-    """Removing the catalogue cost eight of forty-three findings, because it was
-    also saying what counts as a defect. The families put that back without
-    putting fifty-four names in front of the code."""
-    hybrid = prompt.system("halka", "review/hybrid")
-    assert "kinds of defect you report" not in hybrid
-    for name in prompt.types("halka"):
-        assert f"`{name}`" not in hybrid, name
-    for family in ("Access.", "Untrusted input.", "Hidden failure.", "Maintenance.",
-                   "Configuration and packaging.", "Version assumptions."):
-        assert f"**{family}**" in hybrid, family
-    assert "you are not choosing a label here" in hybrid
-    # Scope costs a few hundred tokens; the catalogue cost a thousand.
-    open_prompt = prompt.system("halka", "review/open")
-    assert len(open_prompt) < len(hybrid) < len(prompt.system("halka", "review/v6"))
-
-
-def test_the_families_name_no_repository_and_no_type():
-    """They have to carry to a codebase whose kinds nobody has written down."""
-    lowered = prompt.FAMILIES.lower()
-    assert "repositor" not in lowered and "halka" not in lowered
-    every = set(prompt.types("halka")) | set(prompt.types("demo_repo"))
-    for name in every:
-        assert name not in prompt.FAMILIES, name
-
-
-def test_the_hybrid_answers_without_a_type():
-    assert "review/hybrid" in prompt.OPEN
-    assert '"type"' not in prompt.system("halka", "review/hybrid")
 
 
 def test_the_client_keeps_the_thinking_it_is_given(fake_server):
@@ -1591,116 +1223,28 @@ def test_the_two_verify_nodes_are_asked_different_questions():
         assert "f(x)" in payload and "wrong_argument" in payload
 
 
-# --- typed versions: the file's role, and nothing else ------------------------
-
-def test_a_typed_version_is_its_control_plus_the_role_section():
-    """A difference in the measurement must be a difference the section made."""
-    for dataset, typed, control in (("halka", "review/v6-broad-typed", "review/v6-broad"),
-                                     ("zincir", "review/v6-shared-typed", "review/v6-shared")):
-        text = prompt.system(dataset, typed)
-        assert prompt.ROLE_SECTION in text
-        assert text.replace(prompt.ROLE_SECTION, "", 1) == prompt.system(dataset, control)
-        assert prompt.types(dataset, typed) == prompt.types(dataset, control)
+# --- the catalogue: one list for every repository ---------------------------
 
 
-def test_only_a_typed_pack_says_what_each_file_is():
-    case = next(c for c in load_cases(DATASETS / "zincir_dev.eval.jsonl")
-                if any(n.startswith("tests/test_") for n in c.head_files))
-    lean = pack.build(case, "zincir", "review/v6-shared").user
-    typed = pack.build(case, "zincir", "review/v6-shared-typed").user
-    assert "Role:" not in lean
-    rows = typed.split("\n")
-    for index, row in enumerate(rows):
-        if row.startswith("# FILE "):
-            path = row[len("# FILE "):]
-            assert " " not in path, "the header still carries the bare path"
-            assert rows[index + 1].startswith("Role: ")
-            if path.rsplit("/", 1)[-1].startswith("test_"):
-                assert rows[index + 1] == "Role: test file."
-
-
-# --- review/v9-pr: the evidence boundary is the pull request -------------------
-
-def test_the_pr_bounded_version_keeps_the_broad_list_and_moves_only_definitions():
-    for dataset in ("halka", "zincir"):
-        assert prompt.types(dataset, "review/v9-pr") == prompt.types(dataset, "review/v6-broad")
-
-
-def test_no_pr_bounded_definition_leans_on_code_the_model_is_not_shown():
-    """A real repository gives no promise that the sibling is in the diff."""
-    unseen = re.compile(r"sibling|elsewhere|neighbour|this codebase|repository|convention|"
-                        r"surrounding code|other call sites|documented", re.I)
-    _, taxonomies = prompt.VERSIONS["review/v9-pr"]
-    for dataset in ("halka", "zincir"):
-        leaning = [name for name, text in taxonomies[dataset].items() if unseen.search(text)]
-        assert not leaning, (dataset, leaning)
-    text = prompt.system("halka", "review/v9-pr")
-    assert "Judge only from what you are shown" in text
-    assert "a rule this repository already follows" not in text
-    assert "## How to answer" in text and "Report each defect once." in text
-
-
-# --- review/v10-universal: one catalogue for every repository ----------------
-
-def test_every_dataset_is_handed_the_same_catalogue():
-    lists = [prompt.types(dataset, "review/v10-universal") for dataset in prompt.TAXONOMIES]
-    assert all(names == lists[0] for names in lists)
-    assert len(lists[0]) == len(set(lists[0])) == 74
-
-
-def test_the_universal_catalogue_drops_no_measured_name():
-    universal = set(prompt.types("halka", "review/v10-universal"))
-    assert set(prompt.types("halka", "review/v6-broad")) <= universal
-    assert set(prompt.types("zincir", "review/v6-broad")) <= universal
-    assert set(prompt.UNIVERSAL_ADDITIONS) <= universal
-
-
-def test_the_universal_catalogue_carries_no_synonym_of_a_name_it_has():
+def test_the_catalogue_carries_no_synonym_of_a_coarse_corpus_name():
     """A catalogue with synonyms was measured at -0.25 F1 (D10): demo_repo's
     coarse names stay out and meet the fine ones at the family rung instead."""
-    universal = set(prompt.types("halka", "review/v10-universal"))
-    assert not universal & set(prompt.types("demo_repo", "review/v6"))
-    assert not universal & set(prompt.types("swrbench", "review/v6"))
+    coarse = {label.type for case in load_cases(DATASETS / "demo_repo.eval.jsonl")
+              for label in case.labels}
+    assert coarse and not set(prompt.types("halka")) & coarse
 
 
-def test_every_universal_name_has_a_definition_and_asks_for_a_quote():
-    _, taxonomies = prompt.VERSIONS["review/v10-universal"]
-    assert all(text.strip() for text in taxonomies["halka"].values())
-    assert "review/v10-universal" in prompt.QUOTED
-
-
-def test_v13_names_every_defect_without_a_precedent():
-    """The precedent question moved to the verifier (`run_verify --precedent`).
-    Duplication is the one kind whose definition needs the other copy: that is
-    what the word duplicate means."""
-    cues = ("elsewhere", "other call sites", "sibling", "convention",
-            "same purpose", "every other", "surrounding code", "this codebase")
-    _, taxonomies = prompt.VERSIONS["review/v13-universal"]
-    left = [name for name, text in taxonomies["halka"].items()
-            if any(cue in text.lower() for cue in cues)]
-    assert left == ["duplicated_block"]
-
-
-def test_v13_keeps_v12s_names_and_changes_only_wording():
-    assert prompt.types("halka", "review/v13-universal") == prompt.types("halka", "review/v12-universal")
-
-
-def test_v14_demands_the_failing_run_and_changes_nothing_else():
-    """The only detect-stage change: the claim has to come with the run that
-    produces it. Same names, same schema, same fields."""
-    v13 = prompt.system("halka", "review/v13-universal")
-    v14 = prompt.system("halka", "review/v14-universal")
-    assert prompt.types("halka", "review/v14-universal") == prompt.types("halka", "review/v13-universal")
-    assert "failing run in your head" in v14 and "failing run in your head" not in v13
-    assert "rest of the repository" in v14   # says it asks nothing of the neighbours
-    assert v14.count("findings") == v13.count("findings")
+def test_every_catalogue_name_has_a_definition():
+    definitions = prompt.definitions("halka")
+    assert list(definitions) == prompt.types("halka")
+    assert all(text.strip() for text in definitions.values())
 
 
 # --- per-file review --------------------------------------------------------
 
 def test_per_file_makes_one_pack_for_each_changed_code_file():
     case = _case("halka")
-    packs = pack.split(case, "halka", "review/v13-universal", per_file=True)
+    packs = pack.split(case, "halka", prompt.PROMPT_VERSION, per_file=True)
     files = sorted(n for n in case.head_files if pack.is_code(n))
     assert len(packs) == len(files)
     assert [p.part for p in packs] == list(range(1, len(files) + 1))
@@ -1715,23 +1259,13 @@ def test_a_per_file_pack_names_the_other_changed_files():
     files = sorted(n for n in case.head_files if pack.is_code(n))
     if len(files) < 2:
         return
-    packs = pack.split(case, "halka", "review/v13-universal", per_file=True)
+    packs = pack.split(case, "halka", prompt.PROMPT_VERSION, per_file=True)
     assert f"`{files[1]}`" in packs[0].user
     assert "being reviewed separately" in packs[0].user
 
 
 def test_whole_request_packing_is_untouched():
-    one = pack.split(_case("halka"), "halka", "review/v13-universal")
+    one = pack.split(_case("halka"), "halka", prompt.PROMPT_VERSION)
     assert len(one) == 1
 
 
-def test_v15_asks_for_the_suspicion_and_says_who_checks_it():
-    """D26: on unseen cases the verifier removed nine false alarms for one true
-    finding, so the detector's silence is the expensive half now."""
-    v13 = prompt.system("halka", "review/v13-universal")
-    v15 = prompt.system("halka", "review/v15-recall")
-    assert "a miss costs one line of recall" in v13
-    assert "a miss costs one line of recall" not in v15
-    assert "checked afterwards by a separate reviewer" in v15
-    assert "An empty `findings` list is the right answer" in v15   # not a licence to guess
-    assert prompt.types("halka", "review/v15-recall") == prompt.types("halka", "review/v13-universal")

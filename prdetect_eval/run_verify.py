@@ -29,7 +29,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--run", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--base-url", default=client_module.DEFAULT_BASE_URL)
-    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--num-ctx", type=int, default=16384)
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--max-tool-calls", type=int, default=4)
@@ -41,11 +41,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="settle a claim that something is missing by looking for how the "
                              "repository does the same thing elsewhere, including the revision "
                              "before the change; implies --contract-evidence")
-    parser.add_argument("--mechanism", action=argparse.BooleanOptionalAction, default=False,
+    parser.add_argument("--mechanism", action=argparse.BooleanOptionalAction, default=True,
                         help="settle a claim by whether the failing run can be written from the "
                              "code -- the input, the order, the line -- asking nothing of how the "
                              "rest of the repository does it; implies --contract-evidence")
-    parser.add_argument("--callers-note", action=argparse.BooleanOptionalAction, default=False,
+    parser.add_argument("--callers-note", action=argparse.BooleanOptionalAction, default=True,
                         help="with --mechanism: forbid the 'nothing calls it' argument, which "
                              "contradicted three true findings whose callers are a route table, "
                              "a schedule or a later change")
@@ -80,7 +80,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     manifest = json.loads((source / "config.json").read_text(encoding="utf-8"))
     dataset, version = manifest["dataset"], manifest["prompt_version"]
     deletions = bool(manifest.get("deletions"))
-    definitions = prompt.VERSIONS[version][1][dataset]
+    definitions = prompt.definitions(dataset, version)
     cases = {c.case_id: c for c in load_cases(corpus_of(manifest, HERE / "datasets"))}
     claims_file = claims_path(source)
     claims = [json.loads(l) for l in claims_file.read_text().splitlines() if l.strip()][: args.limit]

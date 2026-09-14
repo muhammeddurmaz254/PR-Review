@@ -102,16 +102,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="Ollama server; an ngrok https URL when the card is remote")
     parser.add_argument("--stub", choices=sorted(client_module.STUBS), help="run without a server")
     parser.add_argument("--prompt-version", default=prompt.PROMPT_VERSION,
-                        choices=sorted(prompt.VERSIONS),
-                        help="v1 decided the precision/recall trade-off inside the model; "
-                             "v2 grades the confidence and leaves it to --threshold")
+                        choices=(prompt.PROMPT_VERSION,),
+                        help="the one prompt; retired versions are refused")
     parser.add_argument("--dry-run", action="store_true", help="write prompts and budget only")
-    parser.add_argument("--num-ctx", type=int, default=8192)
+    parser.add_argument("--num-ctx", type=int, default=16384)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--timeout", type=float, default=300.0)
-    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None,
-                        help="reasoning models only: --no-think keeps the answer parseable")
+    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=False,
+                        help="off by default: every measured run used --no-think, and "
+                             "thinking lost when measured (D11)")
     # Off by default: measured, it cut the raw findings from sixty-five to
     # thirty and moved no metric, because the per-pull-request cap was already
     # discarding exactly that surplus at no extra call. Kept for the case it
@@ -119,10 +119,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--resume", action="store_true",
                         help="reuse the answers already in the run directory and ask only "
                              "for the packs still missing")
-    parser.add_argument("--facts", action="store_true",
+    parser.add_argument("--facts", action=argparse.BooleanOptionalAction, default=True,
                         help="state what the repository says about the names this change "
                              "defines; silent unless it has something discriminating to say")
-    parser.add_argument("--deletions", action="store_true",
+    parser.add_argument("--deletions", action=argparse.BooleanOptionalAction, default=True,
                         help="print the lines this pull request deleted, where they were; "
                              "lines that come back elsewhere in the file are not removals")
     parser.add_argument("--context", action="append", default=[], metavar="GLOB",
@@ -146,7 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--evidence-gate", action=argparse.BooleanOptionalAction, default=True,
                         help="drop a finding whose type names an operation the accused "
                              "statement does not perform (stage [5b])")
-    parser.add_argument("--max-findings", type=int, default=3,
+    parser.add_argument("--max-findings", type=int, default=6,
                         help="most confident N per pull request; 0 keeps them all")
     parser.add_argument("--limit", type=int, help="first N cases only, for a smoke run")
     parser.add_argument("--case", action="append", default=[], help="restrict to these case ids")
@@ -177,14 +177,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise SystemExit(f"{args.base_url}: {problem}")
 
     types = prompt.types(args.dataset, args.prompt_version)
-    quoted = args.prompt_version in prompt.QUOTED
+    quoted = True
     order = contract.LEGACY_ORDER
-    if args.prompt_version in prompt.OPEN:
-        order = contract.OPEN_ORDER
-    elif args.prompt_version in prompt.EVIDENCE_FIRST:
-        order = contract.EVIDENCE_ORDER
-    elif args.prompt_version in prompt.CLAIM_FIRST:
-        order = contract.CLAIM_ORDER
     schema = contract.response_schema(types, quote=quoted, order=order)
     context = tuple(args.context) or (("*",) if args.with_repo else ())
     packs = [item for case in cases

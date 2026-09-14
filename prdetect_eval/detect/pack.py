@@ -31,7 +31,6 @@ from schema import Case
 from . import facts as facts_module
 from . import written_rules as rules_module
 from . import prompt as prompt_module
-from . import roles
 
 # `@@ -old,n +new,m @@ enclosing context`. Only the new-side start is needed:
 # it is the line number the reviewer sees, and the one a label refers to.
@@ -421,8 +420,6 @@ def _per_file(case: Case, system: str, version: str, context: Sequence[str],
                      "they are printed where they used to be.", ""]
         code = _with_removals(code, removals.get(filename, ()))
         header = [f"# FILE {filename}"]
-        if version in prompt_module.TYPED:
-            header.append(f"Role: {roles.ROLE_NAMES[roles.role_of(filename, case.head_files[filename])]}.")
         body += header + ["", "```"] + code + ["```", ""]
         if with_facts:
             body += facts_module.render(facts_module.collect(case))
@@ -516,11 +513,6 @@ def split(case: Case, dataset: str, version: str = prompt_module.PROMPT_VERSION,
             shown += count
             code = _with_removals(code, removals.get(filename, ()))
             header = [f"# FILE {filename}"]
-            if version in prompt_module.TYPED:
-                # On its own line: the answer contract copies the path from the
-                # header, and a role glued to it would be copied with it.
-                role = roles.role_of(filename, case.head_files[filename])
-                header.append(f"Role: {roles.ROLE_NAMES[role]}.")
             body += header + ["", "```"] + code + ["```", ""]
         if with_facts:
             body += facts_module.render(facts_module.collect(case))

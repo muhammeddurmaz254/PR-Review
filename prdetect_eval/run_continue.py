@@ -44,15 +44,7 @@ def _row(case_id: str, report: contract.Report) -> dict:
 
 
 def _schema(version: str, dataset: str) -> dict:
-    order = contract.LEGACY_ORDER
-    if version in prompt.OPEN:
-        order = contract.OPEN_ORDER
-    elif version in prompt.EVIDENCE_FIRST:
-        order = contract.EVIDENCE_ORDER
-    elif version in prompt.CLAIM_FIRST:
-        order = contract.CLAIM_ORDER
-    return contract.response_schema(prompt.types(dataset, version),
-                                    quote=version in prompt.QUOTED, order=order)
+    return contract.response_schema(prompt.types(dataset, version), quote=True, order=contract.LEGACY_ORDER)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -60,11 +52,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--run", required=True, help="detector run id under runs/")
     parser.add_argument("--model", help="Ollama model tag")
     parser.add_argument("--base-url", default=client_module.DEFAULT_BASE_URL)
-    parser.add_argument("--num-ctx", type=int, default=8192)
+    parser.add_argument("--num-ctx", type=int, default=16384)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--timeout", type=float, default=300.0)
-    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--mode", choices=("unreported", "role"), default="unreported",
                         help="unreported: stage [4b]; role: ask each test file and constants "
                              "module its own question (see detect/continuation.py)")
@@ -85,7 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     written = bool(manifest.get("written_rules"))
     context = tuple(manifest.get("context") or ())
     limit = int(manifest.get("max_findings") or 3)
-    quoted = version in prompt.QUOTED
+    quoted = True
     cases = {c.case_id: c for c in load_cases(corpus_of(manifest, DATASETS))}
     claims = [json.loads(l) for l in (source / "predictions.jsonl").read_text().splitlines() if l.strip()]
     anchored_path = source / "predictions.anchored.jsonl"

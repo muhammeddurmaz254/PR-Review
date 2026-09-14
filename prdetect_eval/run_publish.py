@@ -39,6 +39,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--rules", required=True, help="the run_rules.py run")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--radius", type=int, default=dedupe.RADIUS)
+    parser.add_argument("--min-confidence", type=float, default=0.6,
+                        help="drop what is published below this confidence, after agreement, "
+                             "one-per-site and the rules -- the order measured in D33-D34")
     parser.add_argument("--agree", help="a second verify run over the same claims: publish only what "
                                         "both established (D32)")
     parser.add_argument("--out", type=Path, default=RUNS)
@@ -65,6 +68,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     found = _read(args.out / args.rules / "predictions.jsonl")
     merged = dedupe.fill_gaps(model, found, args.radius)
     added = len(merged) - len(model)
+    floored = [row for row in merged if float(row.get("confidence", 1.0)) >= args.min_confidence]
+    below_floor = len(merged) - len(floored)
+    merged = floored
 
     run_dir = args.out / args.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -75,7 +81,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         **manifest, "run_id": args.run_id, "stage": "publish", "model_run": args.run,
         "rules_run": args.rules, "predictions": len(merged),
         "from_model": len(model), "from_rules": added, "rules_dropped_as_duplicate": len(found) - added,
-        "radius": args.radius, "agreement": agreement, "created_utc": datetime.now(timezone.utc).isoformat(),
+        "radius": args.radius, "agreement": agreement,
+        "min_confidence": args.min_confidence, "below_floor": below_floor, "created_utc": datetime.now(timezone.utc).isoformat(),
         "harness_commit": harness_commit(), "python": platform.python_version(),
         "argv": list(argv if argv is not None else sys.argv[1:]),
     }, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")

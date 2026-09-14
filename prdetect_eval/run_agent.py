@@ -39,7 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--num-ctx", type=int, default=32768)
     parser.add_argument("--timeout", type=float, default=600.0)
-    parser.add_argument("--prompt-version", default="review/v6-broad")
+    parser.add_argument("--prompt-version", default=prompt.PROMPT_VERSION)
     parser.add_argument("--facts", action="store_true")
     parser.add_argument("--deletions", action="store_true")
     parser.add_argument("--max-tool-calls", type=int, default=12)
@@ -57,11 +57,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     cases = cases[: args.limit]
     version = args.prompt_version
     order = contract.LEGACY_ORDER
-    if version in prompt.EVIDENCE_FIRST:
-        order = contract.EVIDENCE_ORDER
-    elif version in prompt.CLAIM_FIRST:
-        order = contract.CLAIM_ORDER
-    quoted = version in prompt.QUOTED
+    quoted = True
     schema = contract.response_schema(prompt.types(args.dataset, version), quote=quoted, order=order)
     client = client_module.OllamaClient(model=args.model, base_url=args.base_url, num_ctx=args.num_ctx,
                                         timeout=args.timeout, think=args.think)

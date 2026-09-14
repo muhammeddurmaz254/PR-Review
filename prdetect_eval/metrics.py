@@ -152,8 +152,8 @@ def pr_level(cases: Sequence[Case], results: dict[str, MatchResult], scope: str 
 
     ``published`` is the taxonomy the run offered the model, read from its
     manifest. The catalogue alone was one level short: a prompt that widens it
-    -- `review/v6-broad` does, by twelve names -- could be wrong under a word
-    the scorer had never heard of.
+    -- the current one does -- could be wrong under a word the scorer had never
+    heard of.
     """
     card = DetectionCard()
     scored_types = scorable_types(cases, published)

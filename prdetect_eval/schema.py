@@ -67,10 +67,9 @@ def scorable_types(cases: Iterable["Case"], published: Iterable[str] = ()) -> fr
     categories are not in the catalogue and must still score, and a catalogue
     name with no positive anywhere must still be able to produce a false alarm.
 
-    ``published`` closes the same hole one level up. `review/v6-broad` hands
-    halka fifty-three names -- the catalogue's words plus twelve from
-    `prompt.BEYOND_CORPUS` that no catalogue carries -- and a report under one
-    of those twelve on a clean pull request was scored a true negative. On
+    ``published`` closes the same hole one level up. The prompt hands every
+    corpus names the catalogue does not carry, and a report under one of them
+    on a clean pull request used to be scored a true negative. On
     halka-noise that hid `path_traversal` on `inj-02-temiz` and `float_money`
     on `corr-01-temiz`, and put balanced accuracy at 87.2% where it is 85.5%.
     A name the model was offered is a name it can be wrong under. A name
@@ -107,7 +106,7 @@ FAMILY_BY_TYPE = {
     "F.1 Interface": "interface", "F.2 Logic": "logic", "F.3 Resource": "resource",
     "F.4 Check": "check", "F.5 Support": "support",
     # The names outside the shared catalogue: the twelve a corpus cannot supply
-    # (prompt.BEYOND_CORPUS) and the sixteen the universal catalogue adds. They
+    # (the catalogue's) and the sixteen the universal catalogue adds. They
     # are here for the same reason as everything above -- a type with no family
     # resolves to "", which matches nothing, so the family rung would be blind
     # to exactly the names that exist to reach beyond the corpora.
@@ -135,7 +134,7 @@ FAMILY_BY_TYPE = {
 # through this one table, so the two vocabularies never met and a fine-named
 # report could not match a coarse label at any rung. That is only visible once
 # a single catalogue is handed to every corpus, which is what makes demo_repo
-# scorable at all under review/v10-universal. The rows above now speak the
+# scorable at all under one shared catalogue. The rows above now speak the
 # catalogue's vocabulary throughout. This moves the `file+family` rung for
 # earlier demo_repo runs; the exact-type rung, which every headline number in
 # PLAN.md is measured at, is untouched.

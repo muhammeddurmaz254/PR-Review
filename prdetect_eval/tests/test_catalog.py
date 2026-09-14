@@ -152,15 +152,17 @@ def test_a_report_under_a_name_no_catalogue_knows_still_does_not_count():
 
 # --- a name the run published is a name it can be wrong under ---------------
 
-def test_the_broad_taxonomy_reaches_past_the_catalogue():
+def _beyond_the_catalogue() -> tuple[str, ...]:
+    return tuple(sorted(set(prompt.types("halka")) - schema.catalog_types()))
+
+
+def test_the_prompt_reaches_past_the_catalogue():
     """Why the catalogue alone was one level short.
 
-    `review/v6-broad` offers halka the catalogue's words plus
-    `prompt.BEYOND_CORPUS`, and none of those twelve is in the catalogue. A
-    scorer that reads only the catalogue cannot see a false alarm under them.
+    The prompt offers names the shared catalogue does not hold. A scorer that
+    reads only the catalogue cannot see a false alarm under them.
     """
-    assert prompt.BEYOND_CORPUS
-    assert not set(prompt.BEYOND_CORPUS) & schema.catalog_types()
+    assert _beyond_the_catalogue()
 
 
 def test_a_report_under_a_name_only_the_prompt_published_is_a_false_alarm():
@@ -170,12 +172,12 @@ def test_a_report_under_a_name_only_the_prompt_published_is_a_false_alarm():
     absent = "path_traversal"
     case = _clean_case("clean-03")
     assert absent not in schema.scorable_types([case])
-    assert absent in schema.scorable_types([case], published=prompt.BEYOND_CORPUS)
+    assert absent in schema.scorable_types([case], published=_beyond_the_catalogue())
 
     prediction = Prediction("clean-03", Span("zincir/pipeline/worker.py", 1, 1), absent)
     results = match_all([case], [prediction], schema.PRIMARY)
     assert metrics.pr_level([case], results).true_negative == 1, "the fault, documented"
-    card = metrics.pr_level([case], results, published=tuple(prompt.BEYOND_CORPUS))
+    card = metrics.pr_level([case], results, published=_beyond_the_catalogue())
     assert card.false_positive == 1 and card.true_negative == 0
 
 
@@ -192,35 +194,12 @@ def test_the_scorer_reads_the_published_taxonomy_from_the_run_it_scores(tmp_path
     assert run_eval.published_types(None) == ()
 
 
-# --- 0.5 a prompt variant covers every corpus, or says so --------------------
-
-def test_every_prompt_version_covers_every_registered_dataset():
-    """A variant that covers one corpus and falls through for the rest is the
-    experiment's own control group, run under the experiment's name."""
-    for version, (_, taxonomies) in prompt.VERSIONS.items():
-        if version in prompt.OPEN:
-            continue
-        for dataset in prompt.TAXONOMIES:
-            assert dataset in taxonomies, (version, dataset)
+# --- 0.5 the prompt covers every corpus, or says so --------------------
 
 
 def test_an_uncovered_dataset_raises_instead_of_falling_back():
-    original = dict(prompt.TAXONOMIES_BROAD)
-    prompt.TAXONOMIES_BROAD.pop("zincir")
-    try:
-        with pytest.raises(KeyError, match="defines no catalogue"):
-            prompt.types("zincir", "review/v6-broad")
-    finally:
-        prompt.TAXONOMIES_BROAD.clear()
-        prompt.TAXONOMIES_BROAD.update(original)
-
-
-def test_the_portability_run_hands_both_corpora_the_same_catalogue():
-    halka = prompt.types("halka", "review/v6-shared")
-    zincir = prompt.types("zincir", "review/v6-shared")
-    assert halka == zincir
-    assert set(halka) == schema.catalog_types()
-    assert prompt.system("halka", "review/v6-shared") == prompt.system("zincir", "review/v6-shared")
+    with pytest.raises(KeyError, match="unknown dataset"):
+        prompt.types("some_new_corpus")
 
 
 def test_a_corpus_may_only_use_catalogue_names():

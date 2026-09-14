@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Sequence
 
 from adapters import eval_path, load_cases
-from detect import rules
+from detect import prompt, rules
 from run_detect import harness_commit
 
 HERE = Path(__file__).resolve().parent
@@ -59,7 +59,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         # The names are the catalogue's, and the stages downstream read the
         # definitions from it: a rule finding is verified against the same words
         # as the model's. Nothing here calls the model.
-        "prompt_version": "review/v13-universal", "deletions": True, "facts": False,
+        "prompt_version": prompt.PROMPT_VERSION, "deletions": True, "facts": False,
         "detectors": ["rules"], "model": None, "sampling": None,
         "types": sorted({row["type"] for row in found}),
         "created_utc": datetime.now(timezone.utc).isoformat(),
