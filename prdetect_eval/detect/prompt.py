@@ -4,15 +4,18 @@ One prompt and one catalogue for every repository. The instructions ask the
 detector for every defect it has a real reason to suspect, with an honest
 confidence, because every claim is checked afterwards by two verifiers and
 only what both establish is published (`run_publish.py --agree`, confidence
-floor 0.6). Every definition in the catalogue names a defect from the code in
-front of the reader; none depends on how the rest of a repository does things.
+floor 0.6). Every instruction and every definition in the catalogue names a
+defect from the code in front of the reader; none depends on how the rest of a
+repository does things, on a precedent, or on a sibling path to compare with.
+Duplication is the one kind that needs the other copy.
 
-Measured as the default in PLAN D33-D34. The rendered text is pinned by
-`tests/test_prompt.py`: changing it is a new experiment, not a cleanup.
+v16 is v15-recall with the repository-convention and sibling sentences
+rewritten to stand on the code alone (PLAN D37). The rendered text is pinned
+by `tests/test_prompt.py`: changing it is a new experiment, not a cleanup.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "review/v15-recall"
+PROMPT_VERSION = "review/v16-standard"
 
 WHOLE_FILE_FORMAT = """\
 You are given the pull request title, and the code it changed with real line numbers. Lines marked `+` are the ones this pull request added or rewrote.
@@ -52,8 +55,8 @@ Read the change against what the title says it does.
 A defect is a place this change makes worse and a reviewer would ask to fix. Most are about behaviour: the new code will do the wrong thing when it runs. Not all of them are, and these count too:
 
 - it will behave wrong *later*, when something else changes -- a value copied away from the single source that documents it, a block duplicated so that one contract now has to be remembered in two places;
-- it does the right thing wastefully -- the same expensive call twice in one flow, or one query per row where a batch call already exists;
-- it is named against the repository's own convention, so callers read it wrongly even though it runs correctly;
+- it does the right thing wastefully -- the same expensive call twice in one flow, or one query per row inside a loop;
+- its name says something its code does not do, so callers read it wrongly even though it runs correctly;
 - it is in configuration, packaging or a dependency list rather than in code -- a package moved out of the runtime requirements, a host dropped from an allow-list the code still reaches for.
 
 Formatting and taste are still not defects, and neither is code that is merely unusual or unfinished.
@@ -76,7 +79,7 @@ The same holds for an example script and for `setup.py`: an example that misuses
 - A control that moved rather than disappeared. If the change deletes a check here and adds an equivalent one elsewhere in the same pull request, nothing is wrong.
 - Code that only looks dangerous. String building with values from a closed set, a placeholder value standing in for real input, an `except` that re-raises. This is about the expression, not the file it is in -- and an `except` that swallows rather than re-raises is a defect, not a false alarm.
 - Refactoring that leaves one copy of the logic, and removal of code nothing calls. Duplicating a block is not refactoring. But when you cannot see the callers, a removed *public* name -- a command-line flag, an exported alias, a class attribute a subclass would override -- is a breaking change and not dead code.
-- Anything you would raise as a preference rather than a defect -- but a rule this repository already follows in several places is not a preference, it is a contract. A guard is not a preference: a check the change applies on one path and not on its sibling, or an assertion of something that can legitimately be false, is a defect.
+- Anything you would raise as a preference rather than a defect. A missing guard is not a preference: a path that reaches an operation without the check that operation needs, or an assertion of something that can legitimately be false, is a defect.
 
 Report anything you have a real reason to suspect, not only what you are sure of. What you report is checked afterwards by a separate reviewer that reads the rest of the repository and drops what it cannot establish, so a suspicion that turns out to be wrong is cheap here, while a defect you keep to yourself is gone for good. Say how sure you are in `confidence` and let the check do its work.
 
@@ -110,7 +113,7 @@ CATALOGUE = {
     "command_injection": "A runtime value is placed in the command text rather than in an element of an argument list.",
     "xss": "A value that came from outside reaches the response as markup, unescaped.",
     "error_detail_disclosure": "The response carries exception text, a stack trace or an internal identifier back to the caller.",
-    "hardcoded_credential": "A secret is a literal here where its neighbours read the same kind of value from configuration.",
+    "hardcoded_credential": "A secret -- a password, a token, a key -- is written as a literal in code or a committed file instead of being read from the environment or a secret store.",
     "weak_crypto_primitive": "The primitive chosen is broken for the job it is doing: a digest that is not collision-resistant used for signing or passwords, or a secret compared with an equality that returns early.",
     "unvalidated_passthrough": "Request data is passed straight into a call that acts on it -- a query, a path, a command, a write -- with no check on the way.",
     "wrong_argument": "The arguments do not match the order or the roles the callee's signature declares.",
@@ -140,8 +143,8 @@ CATALOGUE = {
     "unsafe_deserialization": "Untrusted data reaches a decoder that can construct objects or run code -- `pickle`, `yaml.load`, `marshal`.",
     "divergent_change": "One module is changed for reasons that have nothing to do with each other.",
     "path_traversal": "A path is built from a value the caller controls and opened, with nothing keeping it inside the directory it is meant to stay in.",
-    "open_redirect": "A redirect is sent to a location the request supplied, without the restriction applied where other redirect targets are chosen.",
-    "mass_assignment": "A request body is bound wholesale onto a stored object, so fields the explicit list for that object leaves out can be written from outside.",
+    "open_redirect": "A redirect is sent to a location the request supplied, with nothing restricting it to the application's own hosts or paths.",
+    "mass_assignment": "A request body is bound wholesale onto a stored object, so fields no caller should set -- an owner, a role, a price, a status -- can be written from outside.",
     "unbounded_resource": "A response, file or query result is read whole into memory with no limit on how large it may be.",
     "float_money": "A monetary amount is held or computed in a binary floating type, so the rounding it introduces reaches a stored or charged value.",
     "naive_datetime": "A timestamp is created or compared without a timezone, so what it means depends on where the code runs.",
@@ -168,7 +171,7 @@ CATALOGUE = {
     "unsafe_temp_file": "A temporary file or directory is created at a predictable path, or with default permissions, where another process can reach it.",
     "ignored_return_value": "A call whose return value reports whether the work succeeded is made as a statement, so the failure it reports is dropped.",
     "stale_cache_write": "A write updates the store without invalidating or updating the cache that is read for the same value.",
-    "overly_permissive_permission": "A file mode, bucket policy or object ACL is set wider than the code needs -- world-writable, publicly readable -- where comparable resources are narrower.",
+    "overly_permissive_permission": "A file mode, bucket policy or object ACL is set wider than the code needs -- world-writable, publicly readable.",
     "insecure_randomness": "A token, key, password or identifier that has to be unguessable is drawn from a non-cryptographic random source.",
     "loop_without_progress": "A loop's exit condition is not advanced on every path through its body, so an input exists for which it never ends.",
     "check_then_act_race": "A value is read, a decision is made from it, and the decision is acted on as though the value had not changed in between -- a balance checked then debited, stock checked then reserved, a row checked then inserted.",
