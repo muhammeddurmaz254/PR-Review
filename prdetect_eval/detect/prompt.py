@@ -1657,6 +1657,25 @@ TAXONOMIES_UNIVERSAL_V14 = TAXONOMIES_UNIVERSAL_V13
 # The development corpora have not been measured with the agreement path on
 # this prompt, and 0.6 was chosen after reading the sweep: not a default.
 #
+# D34 ran this prompt through both verifiers' agreement on every corpus.
+# Location rung, rules included, against v13 through the same agreement:
+#
+#                 0.8 floor                  0.6 floor
+#     halka       42/5/6 -> 41/3/7  (up)     44/7/4 -> 44/9/4  (down)
+#     zincir_dev  11/1/5 -> 10/2/6  (down)   same
+#     demo_repo   15/0/2 -> 15/2/2  (down)   15/0/2 -> 15/3/2  (down)
+#     stock_dev   10/2/12 -> 11/1/11 (up)    11/2/11 -> 13/2/9 (up)
+#     holdout     2/0/8 -> 5/1/5    (up)     2/1/8 -> 5/2/5    (up)
+#     pooled over the four development corpora: F1 0.825 -> 0.819, 0.835 -> 0.816
+#
+# It loses where raw reach was already saturated (zincir, demo_repo: extra
+# claims become false alarms and displace one true finding -- the bound written
+# before the run said zincir could not improve) and wins on both sets this
+# project did not write its catalogue from: stock and the holdout together go
+# 12/2/20 -> 16/2/16 at 0.8. The holdout gain is three labels of one pull
+# request (batch-01), on ten labels in all. Not a default: it fails rule 2 on
+# two corpora, and the evidence on the side it wins is thin.
+#
 # That is the third measurement of one thing. D20 asked for the failing run and
 # got 91 claims for no extra finding; D24 gave each file the whole budget and
 # the model stayed silent in seven of ten label files; this gave it permission
