@@ -1645,6 +1645,18 @@ TAXONOMIES_UNIVERSAL_V14 = TAXONOMIES_UNIVERSAL_V13
 # the filter will catch its mistakes does not make it see more, it makes it say
 # more, and what it says instead displaces what it used to say.
 #
+# D33 measured the same prompt on stock_bench, the one corpus whose vocabulary
+# is not ours, and it does NOT hold there. The detector's raw reach there was
+# 14 of 22 labels, against 81-92% on the development corpora; forced, it reached
+# 16, and all three new labels (stock-04, -05, -19) break a written repository
+# convention -- the class that had gone silent. Published through both verifiers'
+# agreement: 10/2/12 -> 11/1/11 at the 0.8 floor, and 13/2/9 at 0.6 (F1 0.588 ->
+# 0.703), because the forced detector reports its suspicions with the lower
+# confidence it was asked for and stock-19 was established by both verifiers at
+# 0.65. So "no wording reaches recall" was true where recall had no room left.
+# The development corpora have not been measured with the agreement path on
+# this prompt, and 0.6 was chosen after reading the sweep: not a default.
+#
 # That is the third measurement of one thing. D20 asked for the failing run and
 # got 91 claims for no extra finding; D24 gave each file the whole budget and
 # the model stayed silent in seven of ten label files; this gave it permission
