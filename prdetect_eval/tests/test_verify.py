@@ -179,3 +179,38 @@ def test_the_kinds_line_is_added_only_when_asked():
     claim = {"file": "a.py", "line": 3, "type": "off_by_one", "message": "m"}
     assert "Kinds you may name" not in verify.user_message(claim, "d", ["x"])
     assert "`missing_lock`" in verify.user_message(claim, "d", ["x"], ["off_by_one", "missing_lock"])
+
+
+# --- two questions asked apart (D32) ------------------------------------------
+
+def test_the_located_claim_carries_its_sentence_and_not_its_name():
+    claim = {"file": "stock/quantity.py", "line": 72, "type": "off_by_one",
+             "message": "Pallet list built by repeating the drop size"}
+    text = verify.user_message_located(claim, "The index is one away from the range.", ["72 | x"])
+    assert "Pallet list built by repeating the drop size" in text
+    assert "off_by_one" not in text
+    assert "one away from the range" not in text
+    assert "nothing wider and nothing narrower" in text
+
+
+def test_a_claim_with_no_sentence_falls_back_to_its_name():
+    claim = {"file": "a.py", "line": 3, "type": "off_by_one", "message": ""}
+    assert verify.user_message_located(claim, "defn", ["3 | x"]) == verify.user_message(claim, "defn", ["3 | x"])
+
+
+def test_judge_location_and_rename_cannot_be_combined():
+    import pytest
+    import run_verify
+    with pytest.raises(SystemExit):
+        run_verify.main(["--run", "x", "--model", "m", "--run-id", "y", "--judge-location", "--rename"])
+
+
+def test_only_claims_every_verifier_established_are_agreed():
+    a = {"case_id": "c", "file": "a.py", "line": 1, "type": "x"}
+    b = {"case_id": "c", "file": "a.py", "line": 9, "type": "y"}
+    c = {"case_id": "c", "file": "b.py", "line": 3, "type": "z"}
+    k = lambda x: (x["case_id"], x["file"], x["line"], x["type"])
+    named = {k(a): {"verdict": "established"}, k(b): {"verdict": "established"}, k(c): {"verdict": "contradicted"}}
+    located = {k(a): {"verdict": "established"}, k(b): {"verdict": "unsettled"}}
+    assert verify.agreed([a, b, c], named, located) == [a]
+    assert verify.agreed([a, b, c], named) == [a, b]

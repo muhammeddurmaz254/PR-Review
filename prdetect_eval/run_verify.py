@@ -49,6 +49,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="with --mechanism: forbid the 'nothing calls it' argument, which "
                              "contradicted three true findings whose callers are a route table, "
                              "a schedule or a later change")
+    parser.add_argument("--judge-location", action=argparse.BooleanOptionalAction, default=False,
+                        help="show the verifier the claim's own sentence and not its catalogue name or "
+                             "definition, so a misfit name cannot decide the verdict (D32); off by "
+                             "default -- on its own it lets clean-twin claims through, see run_publish --agree")
     parser.add_argument("--rename", action=argparse.BooleanOptionalAction, default=False,
                         help="judge the line, not the name: an established claim is published under "
                              "the kind the verifier says the evidence shows (detect/verify.py, D31); "
@@ -69,6 +73,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=HERE / "runs")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
+    if args.judge_location and args.rename:
+        parser.error("--judge-location and --rename are two answers to one problem; choose one")
 
     source = args.out / args.run
     manifest = json.loads((source / "config.json").read_text(encoding="utf-8"))
@@ -105,7 +111,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         workspace = workspaces.setdefault(case.case_id, agent.Workspace(case))
         rows = challenge.excerpt(case, claim["file"], claim["line"], args.radius, with_deletions=deletions)
         kinds = list(definitions) if args.rename else None
-        user = verify.user_message(claim, definitions.get(claim["type"], ""), rows, kinds)
+        if args.judge_location:
+            user = verify.user_message_located(claim, definitions.get(claim["type"], ""), rows)
+        else:
+            user = verify.user_message(claim, definitions.get(claim["type"], ""), rows, kinds)
         system = verify.system_for(args.contract_evidence, args.precedent, args.mechanism,
                                    args.callers_note)
         schema, final_ask = verify.SCHEMA, verify.FINAL_ASK
@@ -165,7 +174,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                      "precedent": bool(args.precedent), "mechanism": bool(args.mechanism),
                      "callers_note": bool(args.callers_note)},
         "claims": len(claims), "reused": len(done), "policy": args.policy, "verdicts": counts,
-        "rename": bool(args.rename),
+        "rename": bool(args.rename), "judge_location": bool(args.judge_location),
         "renamed": sum(1 for c, v in zip(claims, verdicts)
                        if args.rename and verify.published_type(c, v, list(definitions)) != c["type"]),
         "dedupe": {"radius": args.dedupe_radius, "dropped": site_drops} if args.dedupe else None,

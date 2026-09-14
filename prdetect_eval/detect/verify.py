@@ -333,6 +333,80 @@ def user_message(claim: dict, definition: str, rows: Sequence[str],
     return "\n".join(lines)
 
 
+
+# D32. Two questions, asked apart. D31 found that on repositories the catalogue
+# was not written from, the verifier rejects claims that stand on a real defect
+# because the claimed NAME does not fit -- and that telling it, in the same call,
+# to establish a defect "even of a different kind" widened every claim and let a
+# borderline one through on demo_repo. The widening was the sentence, not the
+# separation.
+#
+# So this does not widen anything. The verifier is shown the claim as the
+# detector wrote it -- its own sentence, as specific as it was -- and not the
+# catalogue name or that name's definition. The definition is where a misfit
+# name kills a true finding: `off_by_one` demands an index one away from a
+# range, and a remainder silently dropped by integer division is not that,
+# though it is exactly what the sentence described. Which kind it is gets asked
+# later, of what survived, and cannot change whether it survived.
+# MEASURED (D32) and REJECTED on its own. Same claims, location rung, rules
+# through fill_gaps, 0.8 floor:
+#
+#     stock_dev  10/3/12 -> 12/4/10   zincir_dev 11/2/5 -> 11/3/5
+#     demo_repo  15/1/2  unchanged    halka      42/8/6 -> 42/9/6
+#     holdout    3/0/7   -> 3/3/7     pooled (four dev corpora) F1 0.800 -> 0.800
+#
+# It brought back the two claims it was built for, stock-07 and stock-11. But of
+# the verdicts that went from contradicted to established, about fourteen were
+# on clean twins and four on labels: the name's definition was doing precision
+# work for this stage, the way the precedent clause did for the catalogue (D18,
+# D19). It kills a true finding on an unfamiliar repository only when the name
+# does not fit, and it kills a plausible false one everywhere.
+def user_message_located(claim: dict, definition: str, rows: Sequence[str]) -> str:
+    """The claim without its catalogue name: the sentence is the claim.
+
+    A claim with no sentence of its own falls back to the named form -- there is
+    nothing else to judge it by.
+    """
+    sentence = (claim.get("message") or claim.get("title") or "").strip()
+    if not sentence:
+        return user_message(claim, definition, rows)
+    return "\n".join([
+        "# The claim", "",
+        f"In `{claim['file']}`, at line {claim['line']}: {sentence}", "",
+        "# The lines around it", "", "```", *(rows or ["(no lines available)"]), "```", "",
+        "Decide whether this pull request really introduces the problem that sentence describes, at "
+        "this place. The sentence is the whole claim: judge whether the code shows it, nothing wider "
+        "and nothing narrower. First name what you need to see; look for it; then answer.",
+    ])
+
+
+# MEASURED (D32), and found AFTER the numbers above were read -- not
+# pre-registered. Publishing only what both the named verifier and the
+# location-only verifier established, then one comment per site, then the rules:
+#
+#     stock_dev  10/3/12 -> 10/2/12   zincir_dev 11/2/5 -> 11/1/5
+#     demo_repo  15/1/2  -> 15/0/2    halka      42/8/6 -> 42/5/6
+#     pooled (four dev corpora) 78/14/25 -> 78/8/25, precision 0.848 -> 0.907,
+#     recall unchanged, F1 0.800 -> 0.825
+#     holdout    3/0/7   -> 2/0/8
+#
+# Every development corpus improves and none loses a true finding: the two
+# framings are wrong about different false alarms and agree on real defects.
+# The holdout loses one (audit-01, which the location-only verifier contradicts
+# on a conftest reset), and it is the only data here the combination was not
+# fitted to. Reproduced exactly through `run_publish.py --agree`. It doubles
+# the verifier's calls and it is not a default until a set nobody has read
+# confirms it.
+def agreed(claims: Sequence[dict], *verdicts: dict) -> list[dict]:
+    """Claims every verifier established, in their original order.
+
+    `verdicts` maps `(case_id, file, line, type)` to a verdict row. A claim one
+    verifier never saw is not agreed on.
+    """
+    key = lambda c: (c["case_id"], c["file"], c["line"], c["type"])
+    return [c for c in claims
+            if all((v.get(key(c)) or {}).get("verdict") == "established" for v in verdicts)]
+
 def parse(text: str) -> dict:
     try:
         document = json.loads(text)
