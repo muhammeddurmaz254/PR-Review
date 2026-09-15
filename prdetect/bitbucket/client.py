@@ -14,6 +14,7 @@ request again asks for nothing but the pull request list.
 from __future__ import annotations
 
 import base64
+import http.client
 import io
 import json
 import tarfile
@@ -30,13 +31,23 @@ API = "https://api.bitbucket.org/2.0"
 WEB = "https://bitbucket.org"
 
 
+class BitbucketError(SystemExit):
+    """A request that failed for good. `status` is the HTTP status, or None when nothing answered."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
 class Bitbucket:
     def __init__(self, email: str, token: str, cache_dir: Path | None = paths.BITBUCKET_CACHE,
-                 api: str = API, web: str = WEB):
+                 api: str = API, web: str = WEB, timeout: float = 120.0, retry_wait: float = 1.0):
         self._auth = "Basic " + base64.b64encode(f"{email}:{token}".encode()).decode()
         self.cache_dir = cache_dir
         self.api = api
         self.web = web
+        self.timeout = timeout
+        self.retry_wait = retry_wait
 
     @classmethod
     def from_env(cls, env_file: Path | None = None,
@@ -50,14 +61,21 @@ class Bitbucket:
 
     # -- transport ---------------------------------------------------------------
 
-    def _request(self, method: str, url: str, body: dict | None = None) -> bytes:
-        """One request, retried when Bitbucket asks to wait.
+    def _wait(self, attempt: int, retry_after: str | None = None) -> None:
+        time.sleep(float(retry_after) if retry_after else self.retry_wait * 2 ** (attempt + 1))
 
-        A rate limit (429) is retried for every method, since the request was not
-        processed. A server error is retried only for GET and PUT: a POST that
-        failed half-way may already have created its comment.
+    def _request(self, method: str, url: str, body: dict | None = None) -> bytes:
+        """One request, retried when it is safe to ask again.
+
+        A rate limit (429) is retried for every method: the request was not
+        processed. A server error, a timeout or a dropped connection is retried
+        only for GET and PUT, which can be repeated without effect. A POST is not
+        retried, because one that got no answer may still have created its
+        comment -- and running the command again finds that comment instead of
+        adding a second.
         """
-        retryable = {429} | ({500, 502, 503, 504} if method in ("GET", "PUT") else set())
+        repeatable = method in ("GET", "PUT")
+        retryable = {429} | ({500, 502, 503, 504} if repeatable else set())
         data = json.dumps(body).encode("utf-8") if body is not None else None
         headers = {"Authorization": self._auth}
         if data is not None:
@@ -65,15 +83,22 @@ class Bitbucket:
         for attempt in range(6):
             request = urllib.request.Request(url, data=data, method=method, headers=headers)
             try:
-                with urllib.request.urlopen(request, timeout=120) as response:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     return response.read()
             except urllib.error.HTTPError as error:
                 if error.code in retryable and attempt < 5:
-                    time.sleep(int(error.headers.get("Retry-After") or 2 ** (attempt + 1)))
+                    self._wait(attempt, error.headers.get("Retry-After"))
                     continue
                 detail = error.read().decode(errors="replace")[:300]
-                raise SystemExit(f"{method} {url}: HTTP {error.code} {detail}") from error
-        raise SystemExit(f"{method} {url}: gave up after retries")
+                raise BitbucketError(f"{method} {url}: HTTP {error.code} {detail}", error.code) from error
+            except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException) as error:
+                if repeatable and attempt < 5:
+                    self._wait(attempt)
+                    continue
+                hint = ("; the comment may have been created, and running the command again finds it "
+                        "instead of adding another") if method == "POST" else ""
+                raise BitbucketError(f"{method} {url}: {type(error).__name__}: {error}{hint}") from error
+        raise BitbucketError(f"{method} {url}: gave up after retries")
 
     def _get(self, url: str) -> bytes:
         return self._request("GET", url)

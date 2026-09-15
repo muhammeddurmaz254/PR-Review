@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import json
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
 from prdetect.bitbucket import comment
-from prdetect.bitbucket.client import Bitbucket
+from prdetect.bitbucket.client import Bitbucket, BitbucketError
 from prdetect.cli import comment as comment_cli
 from prdetect.cli import runs
 from prdetect.detect import prompt
@@ -101,6 +102,8 @@ def test_no_comment_is_added_for_no_findings_but_an_old_one_is_corrected():
 class FakeBitbucket(BaseHTTPRequestHandler):
     requests: list[tuple[str, str, dict | None]] = []
     fail_post = False
+    slow_get_once = False
+    slow_post = False
 
     def log_message(self, *args) -> None:
         pass
@@ -119,6 +122,9 @@ class FakeBitbucket(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         FakeBitbucket.requests.append(("GET", self.path, None))
+        if FakeBitbucket.slow_get_once:
+            FakeBitbucket.slow_get_once = False
+            time.sleep(1.0)
         if "page=2" in self.path:
             self._send(200, {"values": [{"id": 2}]})
         elif self.path.split("?")[0].endswith("/comments"):
@@ -128,6 +134,8 @@ class FakeBitbucket(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         FakeBitbucket.requests.append(("POST", self.path, self._body()))
+        if FakeBitbucket.slow_post:
+            time.sleep(1.0)
         if FakeBitbucket.fail_post:
             self._send(500, {"error": "boom"})
         else:
@@ -141,9 +149,12 @@ class FakeBitbucket(BaseHTTPRequestHandler):
 @pytest.fixture
 def bitbucket():
     FakeBitbucket.requests, FakeBitbucket.fail_post = [], False
-    server = HTTPServer(("127.0.0.1", 0), FakeBitbucket)
+    FakeBitbucket.slow_get_once = FakeBitbucket.slow_post = False
+    server = ThreadingHTTPServer(("127.0.0.1", 0), FakeBitbucket)
+    server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    yield Bitbucket("a@b.c", "token", cache_dir=None, api=f"http://127.0.0.1:{server.server_port}")
+    yield Bitbucket("a@b.c", "token", cache_dir=None, api=f"http://127.0.0.1:{server.server_port}",
+                    timeout=0.3, retry_wait=0.0)
     server.shutdown()
 
 
@@ -164,8 +175,23 @@ def test_the_client_writes_a_general_comment_and_updates_it(bitbucket):
 def test_a_failed_post_is_not_retried(bitbucket):
     """A POST that failed on the server may already have created its comment."""
     FakeBitbucket.fail_post = True
-    with pytest.raises(SystemExit, match="HTTP 500"):
+    with pytest.raises(BitbucketError, match="HTTP 500") as raised:
         bitbucket.post_comment("w", "r", 7, "hello")
+    assert raised.value.status == 500
+    assert len([r for r in FakeBitbucket.requests if r[0] == "POST"]) == 1
+
+
+def test_a_read_that_times_out_is_asked_again(bitbucket):
+    FakeBitbucket.slow_get_once = True
+    assert [c["id"] for c in bitbucket.comments("w", "r", 7)] == [1, 2]
+    assert len([r for r in FakeBitbucket.requests if r[0] == "GET"]) == 3, "the slow page, its retry, page 2"
+
+
+def test_a_post_that_times_out_is_not_asked_again(bitbucket):
+    FakeBitbucket.slow_post = True
+    with pytest.raises(BitbucketError, match="running the command again finds it") as raised:
+        bitbucket.post_comment("w", "r", 7, "hello")
+    assert raised.value.status is None
     assert len([r for r in FakeBitbucket.requests if r[0] == "POST"]) == 1
 
 
@@ -209,3 +235,40 @@ def test_post_writes_where_there_are_findings_and_skips_a_moved_branch(tmp_path,
     actions = {row["case_id"]: row["action"] for row in runs.read_rows(run_dir / "comments.jsonl")}
     assert actions == {"PR-1": "no findings", "PR-2": "source moved", "PR-14": "created"}
     assert len(client.posted) == 1 and code == 1, "a skipped pull request is reported"
+
+
+def _client_failing_on(pull_to_fail: int, error: BitbucketError):
+    heads = {item.pull_request["id"]: item.head_commit for item in cases(NARROW)}
+
+    class Client(FakeComments):
+        def pull_request(self, workspace, repo, pull_id):
+            return {"source": {"commit": {"hash": heads[pull_id]}}}
+
+        def comments(self, workspace, repo, pull_id):
+            if pull_id == pull_to_fail:
+                raise error
+            return []
+
+    return Client([])
+
+
+def test_a_pull_request_bitbucket_fails_on_is_recorded_and_the_rest_go_on(tmp_path, monkeypatch):
+    run_dir = _publish_run(tmp_path, [
+        {"case_id": "PR-1", "file": "a.py", "line": 1, "type": "xss", "message": "m"},
+        {"case_id": "PR-14", "file": "README.md", "line": 3, "type": "hardcoded_credential", "message": "m"}])
+    client = _client_failing_on(1, BitbucketError("GET x: TimeoutError: The read operation timed out"))
+    monkeypatch.setattr(comment_cli.Bitbucket, "from_env", lambda: client)
+    code = comment_cli.main(["--run", str(run_dir), "--post", "--case", "PR-1", "--case", "PR-14", "--quiet"])
+    rows = {row["case_id"]: row for row in runs.read_rows(run_dir / "comments.jsonl")}
+    assert rows["PR-1"]["action"] == "error" and "timed out" in rows["PR-1"]["error"]
+    assert rows["PR-14"]["action"] == "created"
+    assert code == 1
+
+
+def test_a_refused_token_stops_the_command(tmp_path, monkeypatch):
+    run_dir = _publish_run(tmp_path, [{"case_id": "PR-1", "file": "a.py", "line": 1, "type": "xss", "message": "m"}])
+    client = _client_failing_on(1, BitbucketError("GET x: HTTP 403 forbidden", 403))
+    monkeypatch.setattr(comment_cli.Bitbucket, "from_env", lambda: client)
+    with pytest.raises(BitbucketError, match="403"):
+        comment_cli.main(["--run", str(run_dir), "--post", "--case", "PR-1", "--case", "PR-14", "--quiet"])
+    assert not client.posted
