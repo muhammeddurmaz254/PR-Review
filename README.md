@@ -2,7 +2,8 @@
 
 Reviews a pull request with a local open-weight model and reports the defects it
 introduces, by file and line, with a kind from a fixed catalogue. Pull requests
-are read from Bitbucket Cloud; nothing is ever written back to it.
+are read from Bitbucket Cloud, and the only thing written back is one comment
+under each pull request listing its findings (`comment --post`).
 
 The code under review is confidential, so the model is always a local
 open-weight one served by [Ollama](https://ollama.com) — on this machine or on a
@@ -38,6 +39,8 @@ python -m prdetect.cli.rules --repo genis_olcum_reposu --run-id g-rules
 python -m prdetect.cli.publish --run g-named --agree g-located --rules g-rules --run-id g
 python -m prdetect.cli.report --run g
 python -m prdetect.cli.report_txt reports/genis_olcum_reposu/g.json
+python -m prdetect.cli.comment --run g            # previews in runs/g/comments/
+python -m prdetect.cli.comment --run g --post     # writes them under the pull requests
 ```
 
 | Stage | What it does |
@@ -49,6 +52,12 @@ python -m prdetect.cli.report_txt reports/genis_olcum_reposu/g.json
 | `rules` | Deterministic checks that need no model: a bound or protection set to "off" in configuration, a list written as one string, a test left asserting less, a secret written into a file. |
 | `publish` | Claims both verifiers established, one per code site, plus the rules' findings where the model published nothing nearby, above confidence 0.6. |
 | `report` | `reports/<repo>/<run>.json`; `report_txt` prints it as text. |
+| `comment` | One general comment under each pull request with findings: a table of severity, kind, `file:line` and title, most severe first. Never inline in the code. A later run updates the same comment; a pull request whose branch moved since the fetch is skipped. Without `--post` it only writes previews. |
+
+Severity (HIGH, MEDIUM, LOW) belongs to the kind of defect and is read from
+`prdetect/severity.py` after publishing: HIGH is a hole someone can use or a loss
+of data, money or integrity, MEDIUM is wrong behaviour at run time, LOW is
+maintainability and tests. It does not change what the model is asked.
 
 `detect --dry-run` writes the prompts without a server; `--stub silent` runs the
 pipeline with a model that finds nothing. A run whose calls partly failed exits

@@ -27,6 +27,7 @@ from prdetect.cases import Label, load_cases, load_predictions
 from prdetect.cli import runs
 from prdetect.scoring import metrics
 from prdetect.scoring.matching import MatchConfig, match_all
+from prdetect.severity import severity
 
 RUNGS = (("location", "none"), ("family", "family"), ("type", "exact"))
 
@@ -58,7 +59,8 @@ def build(run_dir: Path, tolerance: int = 10) -> dict:
         for prediction in sorted(by_case[case.case_id], key=lambda p: (p.span.file, p.span.start_line, p.type)):
             finding = {"file": prediction.span.file, "line": prediction.span.start_line,
                        "end_line": prediction.span.end_line, "type": prediction.type,
-                       "family": prediction.family, "title": prediction.message,
+                       "severity": severity(prediction.type), "family": prediction.family,
+                       "title": prediction.message,
                        "confidence": prediction.confidence, "detector": prediction.detector,
                        "stage": prediction.stage}
             if not case.labelled:

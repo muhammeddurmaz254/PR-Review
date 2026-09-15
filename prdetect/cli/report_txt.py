@@ -55,7 +55,8 @@ def render(report: dict) -> str:
             out.append("  (bulgu yok)")
         for index, finding in enumerate(pull["findings"], start=1):
             out.append(f"  {index}. {finding['file']}:{_lines(finding['line'], finding['end_line'])}")
-            out.append(f"     bulgu  : {finding['type']}  (güven {finding['confidence']:.2f})")
+            out.append(f"     bulgu  : {finding.get('severity', '-')}  {finding['type']}  "
+                       f"(güven {finding['confidence']:.2f})")
             out.append(f"     başlık : {_short(finding['title'])}")
             verdict = finding.get("verdict", "unscored")
             label = finding.get("assigned_to")
