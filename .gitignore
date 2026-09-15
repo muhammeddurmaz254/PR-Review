@@ -1,10 +1,15 @@
-.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
 venv
-PLAN.md
-*.ipynb
+.env
 
-prdetect_eval/datasets/*.eval.jsonl
-prdetect_eval/.bitbucket_cache/
+# Cases fetched from Bitbucket (the repositories' code), their cache, and the answer keys.
+data/
+
+# Written by the stages.
+runs/
 reports/
-analysis
+
+*.ipynb
 colab_a100_ollama.py
