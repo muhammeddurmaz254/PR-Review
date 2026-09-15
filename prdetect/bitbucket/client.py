@@ -16,7 +16,6 @@ from __future__ import annotations
 import base64
 import io
 import json
-import os
 import tarfile
 import time
 import urllib.error
@@ -24,21 +23,11 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from prdetect import paths
+from prdetect import paths, settings
 
 DEFAULT_WORKSPACE = "muhammeddurmazytuce"
 API = "https://api.bitbucket.org/2.0"
 WEB = "https://bitbucket.org"
-
-
-def _read_env(path: Path) -> dict[str, str]:
-    values = {}
-    if path.exists():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if "=" in line and not line.lstrip().startswith("#"):
-                key, value = line.split("=", 1)
-                values[key.strip()] = value.strip().strip('"').strip("'")
-    return values
 
 
 class Bitbucket:
@@ -50,13 +39,13 @@ class Bitbucket:
         self.web = web
 
     @classmethod
-    def from_env(cls, env_file: Path = paths.ENV_FILE,
+    def from_env(cls, env_file: Path | None = None,
                  cache_dir: Path | None = paths.BITBUCKET_CACHE) -> "Bitbucket":
         """Credentials from the environment, else from the project's `.env`."""
-        values = {**_read_env(env_file), **os.environ}
+        values = settings.load(env_file)
         missing = [key for key in ("BITBUCKET_CLOUD_EMAIL", "BITBUCKET_CLOUD_API_TOKEN") if not values.get(key)]
         if missing:
-            raise SystemExit(f"missing {', '.join(missing)} (environment or {env_file})")
+            raise SystemExit(f"missing {', '.join(missing)} (environment or {env_file or paths.ENV_FILE})")
         return cls(values["BITBUCKET_CLOUD_EMAIL"], values["BITBUCKET_CLOUD_API_TOKEN"], cache_dir)
 
     # -- transport ---------------------------------------------------------------

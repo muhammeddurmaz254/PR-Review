@@ -1,6 +1,6 @@
 """Review the changed files a detect run left without a claim.
 
-    python -m prdetect.cli.continue_review --run <detect-run> --model qwen3.8:27b --base-url https://<tunnel>
+    python -m prdetect.cli.continue_review --run <detect-run>
 
 For every pull request the detector made a claim on, if some changed code files
 carry none, the same pack is sent once more with a trailer naming what is already
@@ -16,7 +16,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
 
-from prdetect import paths
+from prdetect import paths, settings
 from prdetect.cli import runs
 from prdetect.detect import anchor, contract, continuation, ollama, pack, prompt, scope
 
@@ -30,8 +30,10 @@ def _row(case_id: str, report: contract.Report) -> dict:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Review the changed files a detect run left without a claim.")
     parser.add_argument("--run", required=True, help="the detect run")
-    parser.add_argument("--model", help="Ollama model tag")
-    parser.add_argument("--base-url", default=ollama.DEFAULT_BASE_URL)
+    parser.add_argument("--model", default=settings.get(settings.LLM_MODEL),
+                        help="Ollama model tag; defaults to LLM_MODEL in .env")
+    parser.add_argument("--base-url", default=settings.get(settings.SERVER_URL) or ollama.DEFAULT_BASE_URL,
+                        help="Ollama server; defaults to SERVER_URL in .env")
     parser.add_argument("--num-ctx", type=int, default=16384)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=7)
@@ -56,7 +58,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     detector = None
     if not args.dry_run:
         if not args.model:
-            raise SystemExit("give --model, or --dry-run")
+            raise SystemExit("set LLM_MODEL in .env or give --model; or use --dry-run")
         detector = ollama.OllamaClient(model=args.model, base_url=args.base_url, num_ctx=args.num_ctx,
                                        temperature=args.temperature, seed=args.seed,
                                        timeout=args.timeout, think=args.think)

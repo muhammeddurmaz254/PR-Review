@@ -1,7 +1,7 @@
 """Check every claim of a detect or continue run with the verifier.
 
-    python -m prdetect.cli.verify --run <continue-run> --run-id <id>-named   --model qwen3.8:27b --base-url https://<tunnel>
-    python -m prdetect.cli.verify --run <continue-run> --run-id <id>-located --judge-location --model ...
+    python -m prdetect.cli.verify --run <continue-run> --run-id <id>-named
+    python -m prdetect.cli.verify --run <continue-run> --run-id <id>-located --judge-location
 
 Each claim is verified in a fresh context with tools (`detect/verify.py`), and
 what the verifier cites is checked against the repository. The pipeline runs this
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from prdetect import paths
+from prdetect import paths, settings
 from prdetect.cli import runs
 from prdetect.detect import agent, dedupe, ollama, pack, prompt, verify
 
@@ -32,8 +32,10 @@ def _key(row: dict) -> tuple:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check every claim of a run with the verifier.")
     parser.add_argument("--run", required=True, help="the detect or continue run whose claims are checked")
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--base-url", default=ollama.DEFAULT_BASE_URL)
+    parser.add_argument("--model", default=settings.get(settings.LLM_MODEL),
+                        help="Ollama model tag; defaults to LLM_MODEL in .env")
+    parser.add_argument("--base-url", default=settings.get(settings.SERVER_URL) or ollama.DEFAULT_BASE_URL,
+                        help="Ollama server; defaults to SERVER_URL in .env")
     parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--num-ctx", type=int, default=16384)
     parser.add_argument("--timeout", type=float, default=600.0)
@@ -47,6 +49,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=paths.RUNS)
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
+    if not args.model:
+        parser.error("set LLM_MODEL in .env or give --model")
 
     source = runs.run_dir(args.run, args.out)
     manifest = runs.read_manifest(source)

@@ -16,25 +16,30 @@ uv venv --python 3.11 venv
 uv pip install --python venv/bin/python -r requirements.txt
 ```
 
-`.env` at the project root holds the Bitbucket credentials (an API token with
-read access to repositories and pull requests):
+`.env` at the project root holds the model server and the Bitbucket credentials
+(an API token that can read repositories and read and write pull requests):
 
 ```
+SERVER_URL=https://...          # the Ollama server, e.g. an ngrok tunnel
+LLM_MODEL=qwen3.8:27b
 BITBUCKET_CLOUD_EMAIL=...
 BITBUCKET_CLOUD_API_TOKEN=...
 ```
 
+A variable set in the shell wins over `.env`, and `--model` / `--base-url` win
+over both (`prdetect/settings.py`).
+
 ## Pipeline
 
 Every stage is a module under `prdetect.cli`, run from the project root. For one
-repository, with the model served at `$URL`:
+repository:
 
 ```console
 python -m prdetect.cli.fetch --repo genis_olcum_reposu
-python -m prdetect.cli.detect --repo genis_olcum_reposu --model qwen3.8:27b --base-url $URL --run-id g-detect
-python -m prdetect.cli.continue_review --run g-detect --model qwen3.8:27b --base-url $URL
-python -m prdetect.cli.verify --run g-detect-cont --run-id g-named --model qwen3.8:27b --base-url $URL
-python -m prdetect.cli.verify --run g-detect-cont --run-id g-located --judge-location --model qwen3.8:27b --base-url $URL
+python -m prdetect.cli.detect --repo genis_olcum_reposu --run-id g-detect
+python -m prdetect.cli.continue_review --run g-detect
+python -m prdetect.cli.verify --run g-detect-cont --run-id g-named
+python -m prdetect.cli.verify --run g-detect-cont --run-id g-located --judge-location
 python -m prdetect.cli.rules --repo genis_olcum_reposu --run-id g-rules
 python -m prdetect.cli.publish --run g-named --agree g-located --rules g-rules --run-id g
 python -m prdetect.cli.report --run g

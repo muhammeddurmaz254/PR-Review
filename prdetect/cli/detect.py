@@ -1,7 +1,10 @@
 """Ask the model about every pull request of a repository.
 
-    python -m prdetect.cli.detect --repo genis_olcum_reposu --model qwen3.8:27b --base-url https://<tunnel>
+    python -m prdetect.cli.detect --repo genis_olcum_reposu --run-id g-detect
     python -m prdetect.cli.detect --repo genis_olcum_reposu --dry-run
+
+The model and the server come from `LLM_MODEL` and `SERVER_URL` in `.env`, unless
+`--model` and `--base-url` are given.
 
 One call per pull request, with the changed files, the lines it deleted and the
 counted facts (`detect/pack.py`). The claims pass three checks before they are
@@ -28,7 +31,7 @@ from pathlib import Path
 from statistics import median
 from typing import Sequence
 
-from prdetect import paths
+from prdetect import paths, settings
 from prdetect.cases import Case, Prediction, Span, load_cases, prediction_row
 from prdetect.cli import runs
 from prdetect.detect import anchor, contract, ollama, pack, prompt, scope
@@ -70,7 +73,7 @@ def resolve_client(args: argparse.Namespace) -> ollama.Client | None:
     if args.stub:
         return ollama.STUBS[args.stub]()
     if not args.model:
-        raise SystemExit("give --model, or --stub NAME, or --dry-run")
+        raise SystemExit("set LLM_MODEL in .env or give --model; or use --stub NAME or --dry-run")
     return ollama.OllamaClient(model=args.model, base_url=args.base_url, num_ctx=args.num_ctx,
                                temperature=args.temperature, seed=args.seed, timeout=args.timeout,
                                think=args.think)
@@ -80,9 +83,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Ask the model about every pull request of a repository.")
     parser.add_argument("--repo", required=True, help="repository slug; its cases are data/cases/<repo>.jsonl")
     parser.add_argument("--cases", type=Path, help="a cases file other than data/cases/<repo>.jsonl")
-    parser.add_argument("--model", help="Ollama model tag, e.g. qwen3.8:27b")
-    parser.add_argument("--base-url", default=ollama.DEFAULT_BASE_URL,
-                        help="Ollama server; an ngrok https URL when the GPU is remote")
+    parser.add_argument("--model", default=settings.get(settings.LLM_MODEL),
+                        help="Ollama model tag; defaults to LLM_MODEL in .env")
+    parser.add_argument("--base-url", default=settings.get(settings.SERVER_URL) or ollama.DEFAULT_BASE_URL,
+                        help="Ollama server; defaults to SERVER_URL in .env")
     parser.add_argument("--stub", choices=sorted(ollama.STUBS), help="run without a server")
     parser.add_argument("--dry-run", action="store_true", help="write the prompts and stop")
     parser.add_argument("--num-ctx", type=int, default=16384)
