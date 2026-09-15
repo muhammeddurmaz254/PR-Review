@@ -7,7 +7,7 @@ what is left. See ``detect/continuation.py`` for why, and for the exposure that
 was measured before this was written.
 
 The new reports go through the gates the detector's own went through -- cap,
-scope, evidence, and the quote gate -- and land beside the source run's
+scope and the quote gate -- and land beside the source run's
 predictions in a new run directory. That directory carries the source manifest,
 so ``run_challenge.py``, ``run_regate.py`` and ``run_eval.py`` read it exactly
 like a detector run: the published types, the deletions flag and the dataset
@@ -28,7 +28,6 @@ from adapters import corpus_of, load_cases
 from detect import anchor as anchor_module
 from detect import client as client_module
 from detect import contract, continuation, pack, prompt
-from detect import evidence as evidence_module
 from detect import scope as scope_module
 from run_detect import harness_commit
 
@@ -145,9 +144,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         placements = scope_module.resolve(kept, case)
         counts["out_of_scope"] += sum(1 for p in placements if not p.kept)
         kept = scope_module.apply(placements)
-        calls = evidence_module.resolve(kept, case)
-        counts["off_operation"] += sum(1 for c in calls if not c.kept)
-        kept = evidence_module.apply(calls)
         added.extend(_row(case_id, r) for r in kept)
         if quoted:
             verdicts = anchor_module.resolve(kept, case, context=context, with_deletions=deletions)

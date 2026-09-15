@@ -4,37 +4,34 @@ import hashlib
 
 import pytest
 
+from corpora import REPOSITORIES, WIDE
 from detect import prompt
 
-# The text under measurement (PLAN D37). Unpinned only by re-measuring.
-PINNED = {
-    "demo_repo": "af5ff56cd5ed87ad",
-    "halka": "af5ff56cd5ed87ad",
-    "stock": "af5ff56cd5ed87ad",
-    "swrbench": "80166d5d802dee56",
-    "zincir": "af5ff56cd5ed87ad"
-}
+# The text under measurement (PLAN D37). Unpinned only by re-measuring. Every
+# repository renders the same text: there is one prompt and one catalogue.
+PINNED = "af5ff56cd5ed87ad"
+ANY_REPOSITORY = "some-other-bitbucket-repo"
 
 
 def test_the_rendered_prompt_is_the_measured_one():
-    for dataset, digest in PINNED.items():
+    for dataset in (*REPOSITORIES, ANY_REPOSITORY):
         actual = hashlib.sha256(prompt.system(dataset).encode("utf-8")).hexdigest()
-        assert actual.startswith(digest), f"{dataset} prompt changed; re-measure or revert"
+        assert actual.startswith(PINNED), f"{dataset} prompt changed; re-measure or revert"
 
 
 def test_every_repository_gets_the_same_catalogue():
-    lists = [prompt.types(dataset) for dataset in prompt.DATASETS_KNOWN]
+    lists = [prompt.types(dataset) for dataset in (*REPOSITORIES, ANY_REPOSITORY)]
     assert all(names == lists[0] for names in lists)
     assert len(lists[0]) == len(set(lists[0])) == 74
 
 
 def test_a_retired_version_is_refused_not_silently_replaced():
     with pytest.raises(KeyError):
-        prompt.system("halka", "review/v6-broad")
+        prompt.system(WIDE, "review/v6-broad")
     with pytest.raises(KeyError):
-        prompt.types("halka", "review/v13-universal")
+        prompt.types(WIDE, "review/v13-universal")
     with pytest.raises(KeyError):
-        prompt.system("halka", "review/v15-recall")
+        prompt.system(WIDE, "review/v15-recall")
 
 
 # Wording that makes a defect depend on code outside the change: a convention,

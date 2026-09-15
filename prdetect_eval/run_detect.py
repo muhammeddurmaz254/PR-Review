@@ -28,7 +28,6 @@ from adapters import load_cases, write_predictions
 from adapters import eval_path as eval_path_for
 from detect import anchor as anchor_module
 from detect import scope as scope_module
-from detect import evidence as evidence_module
 from detect import client as client_module
 from detect import contract, pack, prompt
 from schema import Case, Prediction, Span
@@ -95,7 +94,9 @@ def resolve_client(args: argparse.Namespace) -> client_module.Client | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the review detector over one dataset.")
-    parser.add_argument("--dataset", default="demo_repo", choices=prompt.DATASETS_KNOWN)
+    parser.add_argument("--dataset", required=True,
+                        help="repository slug; its cases are datasets/<dataset>.eval.jsonl, "
+                             "written by datasets/fetch_bitbucket.py")
     parser.add_argument("--eval", type=Path, help="defaults to datasets/<dataset>.eval.jsonl")
     parser.add_argument("--model", help="Ollama model tag, e.g. qwen3.8:27b")
     parser.add_argument("--base-url", default=client_module.DEFAULT_BASE_URL,
@@ -143,9 +144,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--scope-gate", action=argparse.BooleanOptionalAction, default=True,
                         help="drop a report about a file this pull request does not change, "
                              "and every report on a pull request that shows no code (stage [5])")
-    parser.add_argument("--evidence-gate", action=argparse.BooleanOptionalAction, default=True,
-                        help="drop a finding whose type names an operation the accused "
-                             "statement does not perform (stage [5b])")
     parser.add_argument("--max-findings", type=int, default=6,
                         help="most confident N per pull request; 0 keeps them all")
     parser.add_argument("--limit", type=int, help="first N cases only, for a smoke run")
@@ -156,9 +154,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
-    # zincir_bench ships two files, and only one of them is open. A run that
-    # names the dataset and not the file gets `dev`; reaching `holdout` has to
-    # be typed out, counted, and written down in the corpus README (B9).
     default_eval = eval_path_for(args.dataset, DATASETS)
     eval_path = args.eval or default_eval
     cases: list[Case] = load_cases(eval_path)
@@ -235,7 +230,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     responses: list[client_module.Response] = []
     rejects: list[dict] = []
     failures = 0
-    off_operation = 0
     out_of_scope = 0
     dropped = 0
     by_case = {case.case_id: case for case in cases}
@@ -299,18 +293,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "detail": p.detail, "title": p.report.title,
                 } for p in placements if not p.kept)
                 kept = scope_module.apply(placements)
-            if args.evidence_gate:
-                # Stage [5b] runs before the quote gate: both refuse a report for
-                # pointing at the wrong place, and neither reads a label, so the
-                # order only decides which reason is recorded first.
-                calls = evidence_module.resolve(kept, by_case[case_id])
-                off_operation += sum(1 for call in calls if not call.kept)
-                signatures.extend({
-                    "case_id": case_id, "file": call.report.file, "line": call.report.line,
-                    "type": call.report.type, "verdict": call.verdict,
-                    "detail": call.detail, "title": call.report.title,
-                } for call in calls)
-                kept = evidence_module.apply(calls)
+            # Stage [5b], the evidence gate, is gone (PLAN D38): it read how an
+            # operation was spelled, and the tool-using verifiers decide what it did.
             predictions.extend(to_predictions(case_id, kept))
             if quoted:
                 verdicts = anchor_module.resolve(kept, by_case[case_id], context=context,
@@ -324,7 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 } for v in verdicts)
 
     write_predictions(run_dir / "predictions.jsonl", predictions)
-    if args.evidence_gate:
+    if args.scope_gate:
         (run_dir / "signatures.jsonl").write_text(
             "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in signatures),
             encoding="utf-8", newline="\n")
@@ -354,8 +338,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "max_findings": args.max_findings, "dropped_over_cap": dropped,
         "scope_gate": bool(args.scope_gate),
         "dropped_out_of_scope": out_of_scope,
-        "evidence_gate": bool(args.evidence_gate),
-        "dropped_off_operation": off_operation,
         "field_order": list(order),
         "max_pack_lines": args.max_pack_lines, "per_file": bool(args.per_file), "written_rules": bool(args.written_rules), "packs": len(packs),
         "context": list(context), "facts": args.facts, "deletions": args.deletions,
@@ -393,8 +375,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"dropped over the {args.max_findings}-per-PR cap: {dropped}")
         if args.scope_gate and out_of_scope:
             print(f"dropped for naming something this pull request does not change: {out_of_scope}")
-        if args.evidence_gate and off_operation:
-            print(f"dropped for naming an operation the statement does not perform: {off_operation}")
         if quoted:
             counts = Counter(row["verdict"] for row in decisions)
             print("anchors: " + "  ".join(f"{name}={n}" for name, n in counts.most_common())

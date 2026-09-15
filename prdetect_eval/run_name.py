@@ -39,7 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--model", help="Ollama model tag")
     parser.add_argument("--base-url", default=client_module.DEFAULT_BASE_URL)
     parser.add_argument("--pool", action="append", default=[],
-                        help="datasets whose kinds go in the catalogue (default: all three)")
+                        help="kept for old command lines; every repository shares one catalogue")
     parser.add_argument("--candidates", type=int, default=5,
                         help="how many kinds to show; five is where retrieval recall stops rising")
     parser.add_argument("--radius", type=int, default=6, help="lines of context around the quote")
@@ -79,7 +79,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         findings.append(row)
     if not any(item["title"] for item in findings):
         raise SystemExit(f"{source}: no finding carries a title; the search would be blind")
-    catalogue = naming.pool(tuple(args.pool) or ("halka", "demo_repo", "swrbench"))
+    catalogue = naming.pool(tuple(args.pool))
 
     if not args.model:
         raise SystemExit("give --model")

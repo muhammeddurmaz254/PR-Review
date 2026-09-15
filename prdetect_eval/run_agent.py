@@ -19,7 +19,7 @@ from typing import Sequence
 
 from adapters import eval_path, load_cases
 from detect import agent, anchor as anchor_module, client as client_module, contract, pack, prompt
-from detect import evidence as evidence_module, scope as scope_module
+from detect import scope as scope_module
 from run_detect import harness_commit
 
 HERE = Path(__file__).resolve().parent
@@ -81,7 +81,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         reports, _ = contract.parse(text)
         kept = contract.cap(contract.dedupe(reports), args.max_findings)
         kept = scope_module.apply(scope_module.resolve(kept, case))
-        kept = evidence_module.apply(evidence_module.resolve(kept, case))
         predictions += [_row(case.case_id, r) for r in kept]
         if quoted:
             verdicts = anchor_module.resolve(kept, case, with_deletions=args.deletions)

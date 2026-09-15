@@ -19,11 +19,14 @@ import steps
 from adapters import DEFAULT_EVAL, load_cases
 from matching import admissible, match_all, match_one
 from schema import CASCADE, PRIMARY, Case, MatchConfig, Prediction, Span
+from dataclasses import replace
+from corpora import NARROW
+from corpora import cases as corpus_cases
 
 
 @pytest.fixture(scope="session")
 def cases() -> list[Case]:
-    return load_cases()
+    return corpus_cases(NARROW)
 
 
 @pytest.fixture(scope="session")
@@ -232,7 +235,7 @@ def test_specificity_counts_the_clean_pull_requests_left_alone():
 def test_the_step_file_leads_with_the_pull_request_verdict():
     """It is the question the product answers; burying it under the finding
     table is how a run reads as better than it is."""
-    cases = load_cases(DEFAULT_EVAL)
+    cases = corpus_cases(NARROW)
     predictions = baselines.flag_everything(cases)
     result = metrics.evaluate(cases, predictions, MatchConfig(tolerance=3, type_mode="exact"))
     text = steps.render("t", {"cases": len(cases)}, result)
@@ -240,19 +243,30 @@ def test_the_step_file_leads_with_the_pull_request_verdict():
     assert "0.50 = girdiyi yok saymak" in text
 
 
+def _neutral_case(case_id: str, with_neutral: bool = True):
+    """A pull request whose only in-scope finding is optional: confirmed by hand
+    afterwards, so neither recall nor a false alarm."""
+    from schema import Case
+    span = Span("app/views.py", 10, 12)
+    labels = (_label(span, required=False),) if with_neutral else ()
+    labels = tuple(replace(label, case_id=case_id, finding_id=f"{case_id}-f1") for label in labels)
+    return Case(case_id=case_id, pair_id=None, variant="clean", difficulty="", primary_type=None,
+                is_defective=False, pr_title="", pr_description="",
+                changed_files=("app/views.py",), noise_files=(), deleted_files=(),
+                added_lines={"app/views.py": frozenset({10})},
+                head_files={"app/views.py": "\n" * 20}, context_files={}, diff="",
+                labels=labels, distractors=())
+
+
 def test_a_neutral_finding_is_neither_recall_nor_a_false_alarm():
-    """SWRBench calls a pull request clean when no reviewer objected, not when
-    the code is right. A defect confirmed by hand afterwards must not be scored
+    """A pull request can be called clean when no reviewer objected, not when the
+    code is right. A defect confirmed by hand afterwards must not be scored
     either way -- counting it as recall would score the detector against answers
     its own output produced."""
-    swrbench = load_cases(Path(__file__).resolve().parents[1] / "datasets" / "swrbench.eval.jsonl")
-    neutral = [(case, label) for case in swrbench
-               for label in case.labels if label.in_scope and not label.required]
-    assert neutral, "the adjudicated findings are gone from the corpus"
-    for case, label in neutral:
-        assert label not in case.scored_labels
-
-    case, label = neutral[0]
+    case = _neutral_case("neutral")
+    label = case.labels[0]
+    assert label.in_scope and not label.required
+    assert label not in case.scored_labels
     reported = [Prediction(case_id=case.case_id, span=label.span, type=label.type,
                            confidence=1.0, detector="t", stage="detect", message="")]
     card = metrics.score([case], match_all([case], reported, PRIMARY))
@@ -261,21 +275,20 @@ def test_a_neutral_finding_is_neither_recall_nor_a_false_alarm():
 
 
 def test_a_clean_case_with_a_neutral_finding_is_not_a_pr_level_negative():
-    swrbench = load_cases(Path(__file__).resolve().parents[1] / "datasets" / "swrbench.eval.jsonl")
-    excluded = [case for case in swrbench
-                if not case.scored_labels and case.in_scope_labels]
-    assert excluded
-    card = metrics.pr_level(swrbench, match_all(swrbench, [], PRIMARY))
-    assert card.total == len(swrbench) - len(excluded)
+    cases = [_neutral_case("neutral"), _neutral_case("plain", with_neutral=False)]
+    excluded = [case for case in cases if not case.scored_labels and case.in_scope_labels]
+    assert [case.case_id for case in excluded] == ["neutral"]
+    card = metrics.pr_level(cases, match_all(cases, [], PRIMARY))
+    assert card.total == len(cases) - len(excluded)
 
 
-def test_a_later_stage_reads_the_corpus_the_run_used():
-    """zincir ships two splits and the holdout is reached by path, so deriving
-    it from the dataset name again loads the wrong one."""
-    import adapters, pathlib
-    datasets = pathlib.Path(__file__).resolve().parent.parent / "datasets"
-    holdout = datasets / "zincir_holdout.eval.jsonl"
-    assert adapters.corpus_of({"dataset": "zincir", "corpus": str(holdout)}, datasets) == holdout
-    assert adapters.corpus_of({"dataset": "zincir"}, datasets) == datasets / "zincir_dev.eval.jsonl"
-    assert adapters.corpus_of({"dataset": "zincir", "corpus": "/gone.jsonl"}, datasets) \
-        == datasets / "zincir_dev.eval.jsonl"
+def test_a_later_stage_reads_the_corpus_the_run_used(tmp_path):
+    """A run may be made against a file given by path; deriving it from the
+    repository name again would load another."""
+    import adapters
+    given = tmp_path / "elsewhere.eval.jsonl"
+    given.write_text("", encoding="utf-8")
+    assert adapters.corpus_of({"dataset": "repo", "corpus": str(given)}, tmp_path) == given
+    assert adapters.corpus_of({"dataset": "repo"}, tmp_path) == tmp_path / "repo.eval.jsonl"
+    assert adapters.corpus_of({"dataset": "repo", "corpus": "/gone.jsonl"}, tmp_path) \
+        == tmp_path / "repo.eval.jsonl"

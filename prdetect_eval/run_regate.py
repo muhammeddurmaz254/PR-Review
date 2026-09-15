@@ -3,8 +3,8 @@
 The harness's rule is that a score is a pure function of the artefacts a run
 left on disk, so a change to a filter should not cost a second GPU pass. This
 tool is that rule made usable: it reads the answers a detect run stored and the
-verdicts a challenge run stored, applies stage [5b] (the evidence gate) and the
-cross-file rule of stage [6] as they stand in the code today, and writes a new
+verdicts a challenge run stored, applies the scope gate [5] and the cross-file
+rule of stage [6] as they stand in the code today, and writes a new
 prediction file for ``run_eval.py``.
 
 It cannot re-ask the model, so it cannot measure a prompt change. What it does
@@ -26,7 +26,6 @@ from adapters import claims_path, eval_path, load_cases
 from detect import challenge as challenge_module
 from detect import contract
 from detect import consequence as consequence_module
-from detect import evidence as evidence_module
 from detect import scope as scope_module
 
 HERE = Path(__file__).resolve().parent
@@ -49,7 +48,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="also drop a claim of harm that named no run")
     parser.add_argument("--dataset", help="defaults to the dataset recorded in the run")
     parser.add_argument("--scope-gate", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--evidence-gate", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--cross-file-gate", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--one-per-line", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--run-id", help="defaults to <run>-regated")
@@ -65,7 +63,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     claims = [json.loads(l) for l in claims_file.read_text().splitlines() if l.strip()]
 
     counts = {"claims": len(claims), "named_no_harm": 0, "claimed_harm_without_a_run": 0,
-              "out_of_scope": 0, "off_operation": 0, "refuted": 0,
+              "out_of_scope": 0, "refuted": 0,
               "spared_cross_file": 0, "spared_unquoted": 0, "deduped": 0}
     survivors = list(claims)
 
@@ -132,20 +130,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                           f"{claim['type']} -- {decision.detail}", file=sys.stderr)
         survivors = kept
 
-    if args.evidence_gate:
-        kept = []
-        for claim in survivors:
-            case = cases[claim["case_id"]]
-            decision = evidence_module.resolve([_report(claim)], case)[0]
-            if decision.kept:
-                kept.append(claim)
-            else:
-                counts["off_operation"] += 1
-                if not args.quiet:
-                    print(f"  off-operation  {claim['case_id']}:{claim['line']}  "
-                          f"{claim['type']} -- {decision.detail}", file=sys.stderr)
-        survivors = kept
-
     if args.one_per_line:
         best: dict[tuple, dict] = {}
         for claim in survivors:
@@ -167,7 +151,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "consequence_run": args.consequence,
         "strict_consequence": bool(args.strict_consequence), "dataset": dataset,
         "scope_gate": bool(args.scope_gate),
-        "evidence_gate": bool(args.evidence_gate),
         "cross_file_gate": bool(args.cross_file_gate),
         "one_per_line": bool(args.one_per_line),
         "predictions": len(survivors), **counts,
@@ -177,7 +160,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"claims {counts['claims']}  refuted {counts['refuted']}  "
               f"no-harm {counts['named_no_harm']}  "
               f"out-of-scope {counts['out_of_scope']}  "
-              f"off-operation {counts['off_operation']}  "
               f"spared (cross-file) {counts['spared_cross_file']}  "
               f"-> {len(survivors)}")
         print(f"artefacts: {run_dir}")

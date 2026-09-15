@@ -21,25 +21,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from adapters import load_cases
 from detect import client as client_module
-from detect import anchor, challenge, consequence, contract, evidence, pack, prompt
+from detect import anchor, challenge, consequence, contract, pack, prompt
 from detect import scope as scope_module
+from corpora import NARROW, REPOSITORIES, WIDE
+from corpora import case as corpus_case
+from corpora import cases as corpus_cases
 
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
 
-@pytest.fixture(scope="session", params=["demo_repo", "swrbench", "halka"])
+@pytest.fixture(scope="session", params=list(REPOSITORIES))
 def dataset(request) -> str:
     return request.param
 
 
 @pytest.fixture(scope="session")
 def packs(dataset) -> list[pack.Pack]:
-    cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+    cases = corpus_cases(dataset)
     return [pack.build(case, dataset) for case in cases]
 
 
 def test_every_case_is_asked(dataset, packs):
-    cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+    cases = corpus_cases(dataset)
     assert {p.case_id for p in packs} == {c.case_id for c in cases}
 
 
@@ -49,13 +52,10 @@ def test_prompt_prefix_is_byte_identical(packs):
 
 
 def test_each_prompt_describes_its_own_print_format(dataset):
-    """Explaining the wrong rendering is worse than explaining none."""
+    """Explaining the wrong rendering is worse than explaining none. Every
+    repository is fetched as whole files, so no prompt describes renumbered hunks."""
     text = prompt.system(dataset)
-    if dataset == "swrbench":
-        assert "`-` and no number" in text and "# FILE" in text
-        assert "the code it changed with real line numbers" not in text
-    else:
-        assert "Lines marked `+`" in text and "`-` and no number" not in text
+    assert "Lines marked `+`" in text and "`-` and no number" not in text
 
 
 def test_prompt_lists_exactly_the_dataset_types(dataset):
@@ -65,10 +65,8 @@ def test_prompt_lists_exactly_the_dataset_types(dataset):
 
 def test_code_block_line_numbers_match_the_file(dataset):
     """The model answers with file:line, so renumbering would make every hit wrong."""
-    if dataset != "demo_repo":
-        pytest.skip("SWRBench ships hunks, not whole files")
-    for case in load_cases(DATASETS / "demo_repo.eval.jsonl"):
-        item = pack.build(case, "demo_repo")
+    for case in corpus_cases(NARROW):
+        item = pack.build(case, NARROW)
         current = None
         for text in item.user.split("\n"):
             if text.startswith("# FILE "):
@@ -82,11 +80,9 @@ def test_code_block_line_numbers_match_the_file(dataset):
 
 
 def test_changed_lines_are_marked(dataset):
-    if dataset != "demo_repo":
-        pytest.skip("SWRBench ships hunks, not whole files")
     marked = 0
-    for case in load_cases(DATASETS / "demo_repo.eval.jsonl"):
-        item = pack.build(case, "demo_repo")
+    for case in corpus_cases(NARROW):
+        item = pack.build(case, NARROW)
         current = None
         for text in item.user.split("\n"):
             if text.startswith("# FILE "):
@@ -135,31 +131,20 @@ def test_parse_diff_gives_a_removed_line_no_number():
     assert removed[0].startswith("      - | ") and "--full-trace" in removed[0]
 
 
-def test_swrbench_line_numbers_follow_the_hunk_header(dataset):
-    """The label is a file line, so a hunk that renumbers is a guaranteed miss."""
-    if dataset != "swrbench":
-        pytest.skip("demo_repo prints whole files")
-    for case in load_cases(DATASETS / "swrbench.eval.jsonl"):
-        for hunk in pack.parse_diff(case.diff):
-            expected = hunk.start
-            for row in hunk.lines:
-                head = row[:5].strip()
-                if not head:
-                    continue
-                assert int(head) == expected, f"{case.case_id} {hunk.filename}"
-                expected += 1
-
-
-def test_swrbench_marks_exactly_the_added_lines(dataset):
-    if dataset != "swrbench":
-        pytest.skip("demo_repo prints whole files")
-    for case in load_cases(DATASETS / "swrbench.eval.jsonl"):
+def test_the_diffs_added_lines_are_the_cases_added_lines(dataset):
+    """The fetcher reads added lines off the Bitbucket diff; the pack's own hunk
+    parser, read independently, must agree with it line for line. That parser was
+    written for a diff format that named the file on a bare line, so on a git
+    diff it keeps the `+++ b/` marker in the name."""
+    for case in corpus_cases(dataset):
         marked: dict[str, set[int]] = {}
         for hunk in pack.parse_diff(case.diff):
+            name = hunk.filename.removeprefix("+++ b/")
             for row in hunk.lines:
                 if row[5:8] == " + ":
-                    marked.setdefault(hunk.filename, set()).add(int(row[:5]))
-        assert marked == {name: set(lines) for name, lines in case.added_lines.items()}, case.case_id
+                    marked.setdefault(name, set()).add(int(row[:5]))
+        expected = {name: set(lines) for name, lines in case.added_lines.items() if lines}
+        assert marked == expected, case.case_id
 
 
 def test_a_pack_is_empty_only_when_the_change_touches_no_code(dataset, packs):
@@ -168,7 +153,7 @@ def test_a_pack_is_empty_only_when_the_change_touches_no_code(dataset, packs):
     model. Since only source is reviewed a change to a manifest alone is empty
     too -- which is allowed, but it must not be scored, and no case carrying a
     scored label may be one."""
-    cases = {case.case_id: case for case in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
+    cases = {case.case_id: case for case in corpus_cases(dataset)}
     for item in packs:
         case = cases[item.case_id]
         if item.shown_lines == 0:
@@ -180,7 +165,7 @@ def test_a_pack_is_empty_only_when_the_change_touches_no_code(dataset, packs):
 
 def test_clean_and_defective_packs_are_the_same_size(dataset, packs):
     """Length must not be a shortcut to the verdict."""
-    cases = {case.case_id: case for case in load_cases(DATASETS / f"{dataset}.eval.jsonl")}
+    cases = {case.case_id: case for case in corpus_cases(dataset)}
     defective = sorted(p.shown_lines for p in packs if cases[p.case_id].is_defective)
     clean = sorted(p.shown_lines for p in packs if not cases[p.case_id].is_defective)
     if not clean or not defective:
@@ -192,7 +177,7 @@ def test_clean_and_defective_packs_are_the_same_size(dataset, packs):
 def test_every_label_is_printed_in_its_pack(dataset, packs):
     """A finding the pack never shows is unreachable, not hard."""
     by_id = {item.case_id: item for item in packs}
-    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+    for case in corpus_cases(dataset):
         text = by_id[case.case_id].user
         current = ""
         for label in case.scored_labels:
@@ -211,10 +196,10 @@ def test_every_label_is_printed_in_its_pack(dataset, packs):
 
 def test_cross_file_cases_show_every_changed_file():
     """Eight demo_repo defects only exist between two files; splitting hides them."""
-    for case in load_cases(DATASETS / "demo_repo.eval.jsonl"):
+    for case in corpus_cases(NARROW):
         if not any(label.cross_file for label in case.labels):
             continue
-        text = pack.build(case, "demo_repo").user
+        text = pack.build(case, NARROW).user
         for filename in case.head_files:
             assert f"# FILE {filename}" in text, f"{case.case_id} hides {filename}"
 
@@ -400,7 +385,7 @@ def test_no_verdict_value_is_a_negation():
 
 def test_the_excerpt_carries_the_detector_line_numbers(dataset):
     """The claim names a line; an excerpt renumbered against it proves nothing."""
-    cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+    cases = corpus_cases(dataset)
     checked = 0
     for case in cases:
         for label in case.labels:
@@ -413,14 +398,13 @@ def test_the_excerpt_carries_the_detector_line_numbers(dataset):
     assert checked
 
 
-def _case(dataset: str, case_id: str = ""):
-    cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
-    return next((c for c in cases if c.case_id == case_id), cases[0])
+def _case(dataset: str, source_case: str = ""):
+    return corpus_case(dataset, source_case)
 
 
 def test_shown_lines_are_exactly_what_the_pack_printed(dataset):
     """The filter compares against these; if they drift it rejects real findings."""
-    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+    for case in corpus_cases(dataset):
         numbered, _ = pack.shown_lines(case)
         text = pack.build(case, dataset).user
         current = ""
@@ -473,16 +457,6 @@ def test_a_quote_that_was_never_shown_is_dropped(dataset):
     assert anchor.apply([decision]) == []
 
 
-def test_a_deleted_line_can_be_quoted_but_not_anchored():
-    """A defect that *is* the removal has no numbered line to point at."""
-    case = _case("swrbench", "pytest-dev__pytest-5668")
-    _, deleted = pack.shown_lines(case)
-    filename = next(iter(deleted))
-    decision = anchor.resolve(
-        [contract.Report(filename, 117, "x", "t", 0.9, quote=deleted[filename][0])], case)[0]
-    assert decision.verdict in {"deleted-line", "anchored"} and decision.kept
-
-
 def test_a_line_that_comes_back_is_not_a_removal():
     """Half of zincir_dev's deleted lines are a settings table reordered.
 
@@ -490,7 +464,7 @@ def test_a_line_that_comes_back_is_not_a_removal():
     candidate for something still there -- and on `ckpt-01-kusurlu` it would
     have handed it six, in the one case whose real defect is a key that is gone.
     """
-    case = _case("halka", "authz-01-kusurlu")
+    case = _case(WIDE, "authz-01-kusurlu")
     moved = [text for rows in pack.removed_lines(case).values() for _, text in rows]
     added = {line[1:].strip() for line in case.diff.split("\n")
              if line.startswith("+") and not line.startswith("+++")}
@@ -507,9 +481,9 @@ def test_the_whole_file_pack_prints_what_the_change_deleted():
     unsatisfiable -- the same shape of gap as a response contract asking for a
     line number against a raw diff.
     """
-    case = _case("halka", "authz-01-kusurlu")
-    lean = pack.build(case, "halka")
-    full = pack.build(case, "halka", with_deletions=True)
+    case = _case(WIDE, "authz-01-kusurlu")
+    lean = pack.build(case, WIDE)
+    full = pack.build(case, WIDE, with_deletions=True)
     assert not re.search(r"^\s+- \| ", lean.user, re.M), "off by default"
     assert re.search(r"^\s+- \| ", full.user, re.M)
     assert "Lines marked `-` were deleted" in full.user
@@ -524,7 +498,7 @@ def test_a_removal_is_quotable_only_when_the_pack_printed_it():
     against a pack that printed no removals would admit a quote the model was
     never shown -- the gate would stop being a check on the pack.
     """
-    case = _case("halka", "authz-01-kusurlu")
+    case = _case(WIDE, "authz-01-kusurlu")
     _, deleted = pack.shown_lines(case, with_deletions=True)
     filename = next(iter(deleted))
     report = contract.Report(filename, 1, "x", "t", 0.9, quote=deleted[filename][0])
@@ -542,7 +516,7 @@ def test_the_challenger_is_shown_the_same_removals_as_the_detector():
     resets the state" and refuted it. Same shape as the `conf-03` failure that
     put the counted facts into `challenge.build`.
     """
-    case = _case("halka", "authz-01-kusurlu")
+    case = _case(WIDE, "authz-01-kusurlu")
     filename, rows = next(iter(pack.removed_lines(case).items()))
     at = rows[0][0]
     lean = challenge.excerpt(case, filename, at, radius=12)
@@ -562,7 +536,7 @@ def test_a_removal_is_anchored_where_it_was_removed_from():
     false alarm at once. The pack knows where the removal sat, so the gate
     corrects it, as `snapped` already does for a quote found at another number.
     """
-    case = _case("halka", "authz-01-kusurlu")
+    case = _case(WIDE, "authz-01-kusurlu")
     filename, rows = next(iter(pack.removed_lines(case).items()))
     at, text = rows[0]
     report = contract.Report(filename, at + 4, "x", "t", 0.9, quote=text)
@@ -580,7 +554,7 @@ def test_an_absent_quote_is_never_used_to_drop_a_finding(dataset):
 
 
 def test_the_prompt_asks_for_the_quote_and_the_schema_requires_it():
-    assert "`quote` is the code on that line" in prompt.system("swrbench")
+    assert "`quote` is the code on that line" in prompt.system(WIDE)
     schema = contract.response_schema(["F.2 Logic"], quote=True)
     assert "quote" in schema["properties"]["findings"]["items"]["required"]
     plain = contract.response_schema(["F.2 Logic"])
@@ -598,59 +572,37 @@ def test_the_cap_keeps_the_most_confident_findings():
 
 def test_the_cap_sits_above_the_corpus_label_density():
     """A cap at the density would be tuning against the answer key."""
-    for dataset in ("demo_repo", "swrbench"):
-        cases = load_cases(DATASETS / f"{dataset}.eval.jsonl")
+    for dataset in REPOSITORIES:
+        cases = corpus_cases(dataset)
         densest = max(len(case.scored_labels) for case in cases)
         assert densest <= 3, f"{dataset} carries {densest} required labels on one case"
 
 
 def test_splitting_is_off_by_default_in_build(dataset):
     """`build` is the whole pull request; only `split` with a limit divides it."""
-    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+    for case in corpus_cases(dataset):
         assert pack.build(case, dataset).parts == 1
 
 
 def test_a_split_keeps_every_line_exactly_once(dataset):
     """A hunk dropped or duplicated between excerpts is a silent recall loss."""
-    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+    for case in corpus_cases(dataset):
         whole = pack.build(case, dataset)
         parts = pack.split(case, dataset, max_lines=120)
         assert sum(p.shown_lines for p in parts) == whole.shown_lines, case.case_id
         assert {p.part for p in parts} == set(range(1, len(parts) + 1))
 
 
-def test_a_split_never_divides_a_hunk(dataset):
-    if dataset != "swrbench":
-        pytest.skip("demo_repo prints whole files and is never split")
-    for case in load_cases(DATASETS / "swrbench.eval.jsonl"):
-        parts = pack.split(case, "swrbench", max_lines=120)
-        seen = [line for p in parts for line in p.user.split("\n") if line.startswith("Lines ")]
-        whole = [line for line in pack.build(case, "swrbench").user.split("\n")
-                 if line.startswith("Lines ")]
-        assert seen == whole, case.case_id
-
-
-def test_whole_file_cases_are_never_split():
-    """Eight demo_repo defects exist only between two changed files; separating
-    them would make those unreachable however small the limit."""
-    for case in load_cases(DATASETS / "demo_repo.eval.jsonl"):
-        assert len(pack.split(case, "demo_repo", max_lines=1)) == 1
-
-
-def test_a_split_pack_says_which_excerpt_it_is(dataset):
-    if dataset != "swrbench":
-        pytest.skip("demo_repo is never split")
-    divided = [p for case in load_cases(DATASETS / "swrbench.eval.jsonl")
-               for p in pack.split(case, "swrbench", max_lines=120) if p.parts > 1]
-    assert divided
-    for item in divided:
-        assert f"excerpt {item.part} of {item.parts}" in item.user
-    assert len({p.system for p in divided}) == 1, "the cached prefix must not carry the part"
+def test_whole_file_cases_are_never_split(dataset):
+    """Cross-file defects exist only between two changed files; separating them
+    would make those unreachable however small the limit."""
+    for case in corpus_cases(dataset):
+        assert len(pack.split(case, dataset, max_lines=1)) == 1
 
 
 def test_every_label_is_reachable_after_a_split(dataset):
     """The split must not put a finding in no excerpt at all."""
-    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+    for case in corpus_cases(dataset):
         text = "\n".join(p.user for p in pack.split(case, dataset, max_lines=120))
         for label in case.scored_labels:
             current = ""
@@ -670,15 +622,15 @@ def test_every_label_is_reachable_after_a_split(dataset):
 def test_halka_carries_the_repository_behind_the_diff():
     """Thirty-three of forty-nine defects are only legible against code the pull
     request does not touch; a pack without it cannot reach them."""
-    cases = load_cases(DATASETS / "halka.eval.jsonl")
+    cases = corpus_cases(WIDE)
     assert all(case.context_files for case in cases)
     for case in cases:
         assert not (set(case.context_files) & set(case.head_files)), case.case_id
 
 
 def test_with_repo_adds_the_unchanged_files_and_nothing_else():
-    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
-    lean, full = pack.build(case, "halka"), pack.build(case, "halka", context=("*",))
+    case = corpus_cases(WIDE)[0]
+    lean, full = pack.build(case, WIDE), pack.build(case, WIDE, context=("*",))
     assert lean.shown_lines == full.shown_lines, "changed-code accounting must not move"
     assert full.estimated_tokens > lean.estimated_tokens * 3
     assert lean.user in full.user or "# WHAT THIS PULL REQUEST CHANGED" in full.user
@@ -690,7 +642,7 @@ def test_with_repo_adds_the_unchanged_files_and_nothing_else():
 
 def test_the_anchor_filter_sees_the_repository_when_the_pack_does():
     """Otherwise every quote taken from an unchanged file is called invented."""
-    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
+    case = corpus_cases(WIDE)[0]
     filename, line, text = next(
         (name, n, row)
         for name in sorted(case.context_files)
@@ -712,7 +664,7 @@ def test_resume_refuses_to_mix_two_prompts(tmp_path):
         json.dumps({"case_id": "x", "part": 1, "text": '{"findings": []}'}) + "\n")
     with pytest.raises(SystemExit) as raised:
         run_detect.main([
-            "--dataset", "halka", "--stub", "silent", "--resume",
+            "--dataset", WIDE, "--stub", "silent", "--resume",
             "--run-id", "half", "--out", str(tmp_path), "--quiet",
         ])
     assert "different system prompt" in str(raised.value)
@@ -720,7 +672,7 @@ def test_resume_refuses_to_mix_two_prompts(tmp_path):
 
 def test_resume_reuses_the_answers_already_on_disk(tmp_path):
     import run_detect
-    args = ["--dataset", "halka", "--stub", "silent", "--limit", "4",
+    args = ["--dataset", WIDE, "--stub", "silent", "--limit", "4",
             "--run-id", "part", "--out", str(tmp_path), "--quiet"]
     run_detect.main(args)
     first = (tmp_path / "part" / "responses.jsonl").read_text().splitlines()
@@ -748,7 +700,7 @@ def test_a_run_that_lost_its_server_does_not_look_finished(tmp_path):
     server = HTTPServer(("127.0.0.1", 0), _DyingOllama)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     code = run_detect.main([
-        "--dataset", "halka", "--model", "test-model",
+        "--dataset", WIDE, "--model", "test-model",
         "--base-url", f"http://127.0.0.1:{server.server_port}",
         "--timeout", "2", "--limit", "2", "--run-id", "dead",
         "--out", str(tmp_path), "--quiet",
@@ -763,7 +715,7 @@ def test_a_run_that_lost_its_server_does_not_look_finished(tmp_path):
 def test_a_clean_run_is_marked_complete(tmp_path):
     import run_detect
     assert run_detect.main([
-        "--dataset", "halka", "--stub", "silent", "--limit", "2",
+        "--dataset", WIDE, "--stub", "silent", "--limit", "2",
         "--run-id", "fine", "--out", str(tmp_path), "--quiet",
     ]) == 0
     assert json.loads((tmp_path / "fine" / "config.json").read_text())["complete"] is True
@@ -774,7 +726,7 @@ def test_only_labels_the_pack_can_show_are_in_scope():
     the product's rule-id vocabulary rather than the label, so every one of them
     is scored. The single exclusion is a different thing: a label in a manifest,
     which the pack no longer prints and so cannot be found."""
-    cases = load_cases(DATASETS / "halka.eval.jsonl")
+    cases = corpus_cases(WIDE)
     labels = [label for case in cases for label in case.labels]
     assert len(labels) == 49
     for label in labels:
@@ -786,9 +738,9 @@ def test_context_can_be_narrowed_to_a_pattern():
     """Carrying everything was measured and lost, so the mechanism has to be able
     to carry a little: the conventions doc is 560 tokens against the repo's
     twelve thousand."""
-    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
-    narrow = pack.build(case, "halka", context=("halka/common/*.py",))
-    everything = pack.build(case, "halka", context=("*",))
+    case = corpus_cases(WIDE)[0]
+    narrow = pack.build(case, WIDE, context=("halka/common/*.py",))
+    everything = pack.build(case, WIDE, context=("*",))
     assert "# FILE halka/common/http.py   (unchanged)" in narrow.user
     assert narrow.estimated_tokens < everything.estimated_tokens / 2
     for filename in case.context_files:
@@ -797,7 +749,7 @@ def test_context_can_be_narrowed_to_a_pattern():
 
 
 def test_a_narrowed_context_narrows_the_anchor_filter_too():
-    case = load_cases(DATASETS / "halka.eval.jsonl")[0]
+    case = corpus_cases(WIDE)[0]
     outside, line, text = next(
         (name, n, row)
         for name in sorted(case.context_files) if not name.startswith("docs/")
@@ -834,146 +786,6 @@ def test_the_legacy_field_order_is_exactly_what_was_measured():
     assert list(plain["properties"]) == ["file", "line", "type", "title", "confidence"]
 
 
-# --- stage [5b]: the accused statement must perform the operation the type names
-
-
-def test_a_type_without_a_signature_is_never_gated(dataset):
-    """The filter is opt-in per type; everything else passes untouched.
-
-    swrbench and demo_repo name kinds of change, not operations, so no type of
-    theirs carries a signature and the stage is inert on both corpora. That is
-    the property that makes it safe to leave on by default.
-    """
-    case = _case(dataset)
-    filename = sorted(pack.shown_lines(case)[0])[0]
-    report = contract.Report(filename, 1, "no_such_type_anywhere", "t", 0.9)
-    decision = evidence.resolve([report], case)[0]
-    assert decision.verdict == "no-signature" and decision.kept
-
-
-def _synthetic(body: str, filename: str = "app/net.py"):
-    """One file of made-up source, addressed the way a Case is."""
-    from schema import Case
-    return Case(case_id="synthetic", pair_id=None, variant="", difficulty="",
-                primary_type=None, is_defective=True, pr_title="", pr_description="",
-                changed_files=(filename,), noise_files=(), deleted_files=(),
-                added_lines={filename: frozenset()}, head_files={filename: body},
-                context_files={}, diff="", labels=(), distractors=())
-
-
-EGRESS_IDIOMS = {
-    "module call": "import requests\ndef f(url):\n    return requests.get(url)\n",
-    "pooled session on self":
-        "import requests\nclass C:\n    def f(self, url):\n        return self.session.get(url)\n",
-    "opener held in a local":
-        "import urllib\ndef f(url, opener):\n    return opener.open(url)\n",
-    "awaited client":
-        "import httpx\nclass C:\n    async def f(self, url):\n        return await self.client.get(url)\n",
-    "aliased import": "import requests as rq\ndef f(url):\n    return rq.get(url)\n",
-    "session passed in":
-        "import aiohttp\nasync def f(url, sess):\n    r = sess.get(url)\n    return r\n",
-    "third-party wrapper":
-        "from vendorlib.http import fetch_url\ndef f(url):\n    return fetch_url(url)\n",
-}
-
-
-@pytest.mark.parametrize("idiom", sorted(EGRESS_IDIOMS))
-def test_every_real_world_egress_idiom_survives_the_gate(idiom):
-    """The filter must fail open on code it cannot read.
-
-    A pooled `requests.Session` or `httpx.Client` held on `self` is the dominant
-    idiom in production code, not the exception. An earlier version of this
-    signature tested the statement against a list of module prefixes; measured
-    against these seven idioms it recognised one, so in any repository but this
-    corpus it would have deleted real findings.
-    """
-    body = EGRESS_IDIOMS[idiom]
-    rows = body.split("\n")
-    line = max(i for i, row in enumerate(rows, 1)
-               if ("get(" in row or "open(" in row or "fetch_url(" in row)
-               and not row.startswith(("import", "from")))
-    report = contract.Report("app/net.py", line, "ssrf_unvalidated_fetch", "t", 0.9)
-    assert evidence.resolve([report], _synthetic(body))[0].kept, idiom
-
-
-@pytest.mark.parametrize("form", ["from app.http import fetch_url", "from .http import fetch_url"])
-def test_a_wrapper_of_this_project_does_not_survive(form):
-    """Absolute or relative, an import of this project's own code is a body the
-    reviewer was not shown, so a claim about what it does is misplaced here."""
-    body = f"{form}\ndef f(url):\n    return fetch_url(url)\n"
-    report = contract.Report("app/net.py", 3, "ssrf_unvalidated_fetch", "t", 0.9)
-    assert not evidence.resolve([report], _synthetic(body))[0].kept
-
-
-def test_an_ssrf_claim_on_a_wrapper_call_is_dropped():
-    """`fetch_url(icon_url)` performs no visible egress on the line accused.
-
-    Nothing here decides that the wrapper is safe -- the point is narrower: the
-    report names a line whose only call is a project function, so whatever it is
-    accusing lives in a body the reviewer was never shown.
-    """
-    case = _case("halka", "ssrf-01-temiz")
-    report = contract.Report("halka/integrations/client.py", 35,
-                             "ssrf_unvalidated_fetch", "fetched without a gate", 0.9)
-    decision = evidence.resolve([report], case)[0]
-    assert decision.verdict == "off-operation" and not decision.kept
-    assert evidence.apply([decision]) == []
-
-
-def test_an_ssrf_claim_on_a_raw_client_call_stands():
-    case = _case("halka", "ssrf-01-kusurlu")
-    report = contract.Report("halka/integrations/client.py", 36,
-                             "ssrf_unvalidated_fetch", "fetched without a gate", 0.9)
-    assert evidence.resolve([report], case)[0].verdict == "on-operation"
-
-
-def test_an_ssrf_claim_on_the_argument_line_of_a_wrapped_call_stands():
-    """The unit is the statement. A call split over four lines is one operation,
-    and prompt v7 anchored `ssrf-02-kusurlu` on its argument line, not its first.
-    Line-scoped, this filter dropped that true positive."""
-    case = _case("halka", "ssrf-02-kusurlu")
-    report = contract.Report("halka/integrations/services.py", 51,
-                             "ssrf_unvalidated_fetch", "callback fetched raw", 0.9)
-    assert evidence.resolve([report], case)[0].verdict == "on-operation"
-
-
-def test_a_user_value_in_the_parameter_tuple_is_not_an_injection():
-    """`raw_query("... ILIKE %s", (org_id, "%%%s%%" % terim))` interpolates a
-    user string and is safe: the placeholder tuple is where user data belongs.
-    Only an argument that carries SQL *and* is built at runtime is the defect,
-    which is why this signature reads arguments instead of the statement text."""
-    case = _case("halka", "inj-01-temiz")
-    report = contract.Report("halka/reporting/selectors.py", 42,
-                             "sql_injection", "user input concatenated into LIKE", 0.9)
-    assert evidence.resolve([report], case)[0].verdict == "off-operation"
-
-
-def test_a_user_value_inside_the_query_text_is_an_injection():
-    case = _case("halka", "inj-01-kusurlu")
-    report = contract.Report("halka/reporting/selectors.py", 39,
-                             "sql_injection", "user input concatenated into LIKE", 0.9)
-    assert evidence.resolve([report], case)[0].verdict == "on-operation"
-
-
-def test_a_file_outside_the_pull_request_is_left_alone(dataset):
-    """A report the filter cannot read pays in the false-alarm column instead."""
-    case = _case(dataset)
-    report = contract.Report("not/in/this/pr.py", 1, "ssrf_unvalidated_fetch", "t", 0.9)
-    decision = evidence.resolve([report], case)[0]
-    assert decision.verdict == "unchecked" and decision.kept
-
-
-def test_no_signature_is_given_to_a_type_that_names_no_operation():
-    """`weak_crypto_primitive` covers `token_hash == hash_token(token)` in this
-    corpus -- a timing attack, naming no primitive. A signature there would drop
-    a true positive, so the type deliberately has none."""
-    assert "weak_crypto_primitive" not in evidence.SIGNATURES
-    case = _case("halka", "crypto-03-kusurlu")
-    report = contract.Report("halka/integrations/services.py", 52,
-                             "weak_crypto_primitive", "not constant time", 0.9)
-    assert evidence.resolve([report], case)[0].kept
-
-
 # --- stage [6]: a one-file excerpt cannot settle a two-file claim
 
 
@@ -1000,7 +812,7 @@ def test_an_open_answer_has_no_type_field():
 def test_the_catalogue_holds_every_configured_kind():
     from detect import naming
     catalogue = naming.pool()
-    for dataset in ("halka", "demo_repo", "swrbench"):
+    for dataset in REPOSITORIES:
         for name in prompt.types(dataset):
             assert name in catalogue, name
     assert len(catalogue) == 74
@@ -1072,7 +884,7 @@ def test_repo_facts_are_silent_unless_they_discriminate():
     reporting any unreferenced symbol on 32 and 41. What is left speaks on two
     cases in a hundred and ten, both of them defective."""
     from detect import facts
-    cases = load_cases(DATASETS / "halka.eval.jsonl")
+    cases = corpus_cases(WIDE)
     speaking = [case for case in cases if facts.collect(case)]
     assert len(speaking) == 2
     assert all(case.is_defective for case in speaking)
@@ -1081,7 +893,7 @@ def test_repo_facts_are_silent_unless_they_discriminate():
 def test_repo_facts_only_ask_about_names_the_change_defines():
     """A fact about code the pull request never touches is an invitation to hunt."""
     from detect import facts
-    for case in load_cases(DATASETS / "halka.eval.jsonl"):
+    for case in corpus_cases(WIDE):
         collected = facts.collect(case)
         if not collected:
             continue
@@ -1095,10 +907,9 @@ def test_repo_facts_only_ask_about_names_the_change_defines():
 
 def test_the_facts_block_states_answers_not_code():
     from detect import facts
-    cases = {case.case_id: case for case in load_cases(DATASETS / "halka.eval.jsonl")}
-    case = cases["conf-03-kusurlu"]
-    lean = pack.build(case, "halka")
-    with_facts = pack.build(case, "halka", with_facts=True)
+    case = _case(WIDE, "conf-03-kusurlu")
+    lean = pack.build(case, WIDE)
+    with_facts = pack.build(case, WIDE, with_facts=True)
     assert "WHAT THE REPOSITORY SAYS" in with_facts.user
     assert "WHAT THE REPOSITORY SAYS" not in lean.user
     assert "measurements, not accusations" in with_facts.user
@@ -1110,8 +921,7 @@ def test_the_challenger_is_told_what_was_counted():
     """It refuted a true positive it could not have settled: the claim was that a
     timeout duplicates a value in another module, and the excerpt was one file."""
     from detect import facts
-    cases = {case.case_id: case for case in load_cases(DATASETS / "halka.eval.jsonl")}
-    case = cases["conf-03-kusurlu"]
+    case = _case(WIDE, "conf-03-kusurlu")
     counted = [fact.render() for fact in facts.collect(case)]
     assert counted, "the fact that settles this claim has to exist"
     claim = {"file": "halka/integrations/client.py", "line": 12,
@@ -1134,7 +944,7 @@ def test_a_pull_request_with_no_code_gets_no_findings(dataset):
     refuted the claim on `conf-01-kusurlu` and let the identical claim on
     `conf-01-temiz` stand. The rule belongs one stage earlier and mechanically.
     """
-    cases = [c for c in load_cases(DATASETS / f"{dataset}.eval.jsonl") if not c.reviewable]
+    cases = [c for c in corpus_cases(dataset) if not c.reviewable]
     if not cases:
         pytest.skip(f"{dataset} has no case without reviewable code")
     for case in cases:
@@ -1148,7 +958,7 @@ def test_a_pull_request_with_no_code_gets_no_findings(dataset):
 def test_the_scope_gate_never_drops_a_label(dataset):
     """The gate is only free if no labelled defect lies outside its own diff."""
     checked = 0
-    for case in load_cases(DATASETS / f"{dataset}.eval.jsonl"):
+    for case in corpus_cases(dataset):
         for label in case.labels:
             if not label.in_scope:
                 continue
@@ -1161,7 +971,7 @@ def test_the_scope_gate_never_drops_a_label(dataset):
 
 def test_the_scope_gate_reads_the_file_not_the_line():
     """A pure deletion has no added line to point at and is still this PR's defect."""
-    case = _case("demo_repo")
+    case = _case(NARROW)
     changed = next(iter(case.changed_files))
     report = contract.Report(file=changed, line=10 ** 6, type="secrets", title="",
                              confidence=1.0)
@@ -1227,24 +1037,25 @@ def test_the_two_verify_nodes_are_asked_different_questions():
 
 
 def test_the_catalogue_carries_no_synonym_of_a_coarse_corpus_name():
-    """A catalogue with synonyms was measured at -0.25 F1 (D10): demo_repo's
-    coarse names stay out and meet the fine ones at the family rung instead."""
-    coarse = {label.type for case in load_cases(DATASETS / "demo_repo.eval.jsonl")
-              for label in case.labels}
-    assert coarse and not set(prompt.types("halka")) & coarse
+    """A catalogue with synonyms was measured at -0.25 F1 (D10). demo_repo used
+    to label with these coarse names; its labels now use catalogue names, and the
+    coarse ones must not come back into the catalogue beside them."""
+    coarse = {"authz", "business_logic", "injection", "race_condition", "data_exposure",
+              "secrets", "error_handling", "idempotency"}
+    assert not set(prompt.types(WIDE)) & coarse
 
 
 def test_every_catalogue_name_has_a_definition():
-    definitions = prompt.definitions("halka")
-    assert list(definitions) == prompt.types("halka")
+    definitions = prompt.definitions(WIDE)
+    assert list(definitions) == prompt.types(WIDE)
     assert all(text.strip() for text in definitions.values())
 
 
 # --- per-file review --------------------------------------------------------
 
 def test_per_file_makes_one_pack_for_each_changed_code_file():
-    case = _case("halka")
-    packs = pack.split(case, "halka", prompt.PROMPT_VERSION, per_file=True)
+    case = _case(WIDE)
+    packs = pack.split(case, WIDE, prompt.PROMPT_VERSION, per_file=True)
     files = sorted(n for n in case.head_files if pack.is_code(n))
     assert len(packs) == len(files)
     assert [p.part for p in packs] == list(range(1, len(files) + 1))
@@ -1255,17 +1066,17 @@ def test_per_file_makes_one_pack_for_each_changed_code_file():
 
 
 def test_a_per_file_pack_names_the_other_changed_files():
-    case = _case("halka")
+    case = _case(WIDE)
     files = sorted(n for n in case.head_files if pack.is_code(n))
     if len(files) < 2:
         return
-    packs = pack.split(case, "halka", prompt.PROMPT_VERSION, per_file=True)
+    packs = pack.split(case, WIDE, prompt.PROMPT_VERSION, per_file=True)
     assert f"`{files[1]}`" in packs[0].user
     assert "being reviewed separately" in packs[0].user
 
 
 def test_whole_request_packing_is_untouched():
-    one = pack.split(_case("halka"), "halka", prompt.PROMPT_VERSION)
+    one = pack.split(_case(WIDE), WIDE, prompt.PROMPT_VERSION)
     assert len(one) == 1
 
 

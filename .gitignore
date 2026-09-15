@@ -1,13 +1,10 @@
 .env
 venv
-repo
-datas
 PLAN.md
-halka_bench/
 *.ipynb
 
 prdetect_eval/datasets/*.eval.jsonl
-zincir_bench/
+prdetect_eval/.bitbucket_cache/
+reports/
 analysis
 colab_a100_ollama.py
-stock_bench/

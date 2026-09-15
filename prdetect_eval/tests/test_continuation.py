@@ -6,18 +6,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from adapters import load_cases
+from corpora import WIDE, cases
 from detect import contract, continuation, pack
-
-DATASETS = Path(__file__).resolve().parents[1] / "datasets"
 
 
 def _multi_file_case():
-    for case in load_cases(DATASETS / "halka.eval.jsonl"):
+    for case in cases(WIDE):
         code = sorted(name for name in case.head_files if pack.is_code(name))
         if len(code) >= 2:
             return case, code
-    raise AssertionError("halka has a pull request touching two code files")
+    raise AssertionError(f"{WIDE} has a pull request touching two code files")
 
 
 def test_a_silent_first_read_is_not_reopened():

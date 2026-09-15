@@ -23,15 +23,14 @@ from detect import prompt
 from matching import match_all
 from schema import Case, Label, Prediction, Span
 
+from corpora import REPOSITORIES, WIDE, corpus
+
 DATASETS = Path(__file__).resolve().parents[1] / "datasets"
-CORPORA = ("halka", "demo_repo", "swrbench")
+CORPORA = REPOSITORIES
 
 
 def _existing(name: str) -> Path:
-    path = DATASETS / f"{name}.eval.jsonl"
-    if not path.exists():
-        pytest.skip(f"{path.name} is not built")
-    return path
+    return corpus(name)
 
 
 # --- 0.1 the loader drops nothing the corpus was asked to write --------------
@@ -52,7 +51,7 @@ def test_label_carries_every_field_an_exporter_writes():
 
 
 def test_halka_grounding_survives_the_round_trip():
-    cases = load_cases(_existing("halka"))
+    cases = load_cases(_existing(WIDE))
     labels = [label for case in cases for label in case.labels]
     grounded = [label for label in labels if label.grounding]
     assert len(grounded) == len(labels), "a label reached the harness with no ground"
@@ -153,7 +152,7 @@ def test_a_report_under_a_name_no_catalogue_knows_still_does_not_count():
 # --- a name the run published is a name it can be wrong under ---------------
 
 def _beyond_the_catalogue() -> tuple[str, ...]:
-    return tuple(sorted(set(prompt.types("halka")) - schema.catalog_types()))
+    return tuple(sorted(set(prompt.types(WIDE)) - schema.catalog_types()))
 
 
 def test_the_prompt_reaches_past_the_catalogue():
@@ -197,18 +196,19 @@ def test_the_scorer_reads_the_published_taxonomy_from_the_run_it_scores(tmp_path
 # --- 0.5 the prompt covers every corpus, or says so --------------------
 
 
-def test_an_uncovered_dataset_raises_instead_of_falling_back():
-    with pytest.raises(KeyError, match="unknown dataset"):
-        prompt.types("some_new_corpus")
+def test_any_repository_is_offered_the_one_catalogue():
+    """Every repository is fetched from Bitbucket the same way, so a repository
+    nobody has configured gets the catalogue instead of an error."""
+    assert prompt.types("some_new_repository") == prompt.types(WIDE)
 
 
 def test_a_corpus_may_only_use_catalogue_names():
-    """Section 0.5's rule, checked for every corpus that draws on the catalogue.
+    """Section 0.5's rule, checked for the repository labelled from the catalogue.
 
-    demo_repo and SWRBench predate it and name kinds of change, not kinds of
-    defect; merging them would invent a correspondence that does not exist.
+    The narrow repository keeps one label no catalogue name describes, and says
+    so in its own test.
     """
-    for dataset in ("halka", "zincir"):
+    for dataset in (WIDE,):
         path = DATASETS / f"{dataset}.eval.jsonl"
         if not path.exists():
             continue

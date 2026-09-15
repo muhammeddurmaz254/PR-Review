@@ -1,8 +1,9 @@
 """Loaders that turn stored artefacts into canonical objects.
 
-Scoring must be reproducible from disk alone, so nothing here reaches for the
-built git repository: ``eval.jsonl`` already carries the diff, the post-change
-file contents and the touched line numbers.
+Scoring must be reproducible from disk alone, so nothing here reaches for a
+repository: ``<repo>.eval.jsonl``, written by ``datasets/fetch_bitbucket.py`` from
+the repository's Bitbucket pull requests, already carries the diff, the
+post-change file contents and the touched line numbers.
 """
 from __future__ import annotations
 
@@ -12,36 +13,22 @@ from typing import Iterable, Iterator
 
 from schema import FAMILY_BY_TYPE, Case, Distractor, Label, Prediction, Span, catalog_family
 
-DEFAULT_EVAL = Path(__file__).resolve().parent / "datasets" / "demo_repo.eval.jsonl"
+DEFAULT_EVAL = Path(__file__).resolve().parent / "datasets" / "dar_olcum_reposu.eval.jsonl"
+
+
 def eval_path(dataset: str, datasets_dir: Path) -> Path:
-    """The eval file a dataset name refers to.
+    """The eval file a repository name refers to: `<repo>.eval.jsonl`.
 
-    `zincir_bench` ships two of them and only one is open (B9). Naming the
-    dataset and not the file gets `dev`; reaching `holdout` has to be typed out
-    and written down in the corpus README. That rule lived in `run_detect.py`
-    alone, so `run_challenge.py` and `run_regate.py` went looking for a
-    `zincir.eval.jsonl` that does not exist -- one stage of the pipeline knew
-    about the split and the next two did not.
+    One function for every stage, so no two stages look the file up differently.
     """
-    # A corpus that ships a sealed split is named `<dataset>_dev` on disk, and
-    # naming the dataset gets the open half. This used to be spelled out for
-    # zincir alone, which is exactly how a second split corpus -- stock_bench --
-    # would have fallen through to a file that does not exist.
-    split = datasets_dir / f"{dataset}_dev.eval.jsonl"
-    if split.exists():
-        return split
     return datasets_dir / f"{dataset}.eval.jsonl"
-
 
 
 def corpus_of(manifest: dict, datasets_dir: Path) -> Path:
     """The eval file a run was made against.
 
-    The manifest records the corpus a run actually used; the dataset name maps
-    to the open split only. zincir_bench ships two and a run on `holdout` is
-    made by typing its path (B9), so a later stage that re-derives the path
-    from the dataset name loads the wrong corpus -- which is what happened the
-    first time the holdout was opened.
+    The manifest records the file a run actually used, which may have been given
+    by path; re-deriving it from the repository name alone would load another.
     """
     recorded = manifest.get("corpus")
     if recorded:
@@ -121,11 +108,11 @@ def _label(row: dict, case_id: str) -> Label:
 
 def load_cases(path: Path = DEFAULT_EVAL) -> list[Case]:
     if not path.exists():
-        raise SystemExit(f"{path} is missing. Build it with python datasets/build_<dataset>.py")
+        raise SystemExit(f"{path} is missing. Fetch it with python datasets/fetch_bitbucket.py --repo <repo>")
     cases = []
     for row in _read_jsonl(path):
         if "added_lines" not in row or "head_files" not in row:
-            raise SystemExit(f"{path} predates the harness. Rebuild it with datasets/build_<dataset>.py")
+            raise SystemExit(f"{path} predates the harness. Fetch it again with datasets/fetch_bitbucket.py")
         case_id = row["case_id"]
         cases.append(Case(
             case_id=case_id, pair_id=row["pair_id"], variant=row["variant"], difficulty=row["difficulty"],

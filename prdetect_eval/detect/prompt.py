@@ -17,32 +17,11 @@ from __future__ import annotations
 
 PROMPT_VERSION = "review/v16-standard"
 
+# Every repository is fetched from Bitbucket with the whole files a pull request
+# changed, so there is one way the code is printed and no per-corpus table.
 WHOLE_FILE_FORMAT = """\
 You are given the pull request title, and the code it changed with real line numbers. Lines marked `+` are the ones this pull request added or rewrote.
 """
-
-HUNK_FORMAT = """\
-You are given the pull request title and the parts of each file it changed. The rest of every file is not available, so judge what you can see.
-
-Each excerpt is printed under a `# FILE` header naming the path, and the commit the excerpt comes from. A row reads `<line> <mark> | <code>`:
-
-- a number and no mark is a line the pull request left alone;
-- a number and `+` is a line it added or rewrote;
-- `-` and no number is a line it **deleted**. That line is gone from the new file, which is why it has no number -- and a deletion is often the defect itself, so read those rows as carefully as the added ones.
-
-Numbers are the file's own. When one file appears under two commits its numbering restarts from that commit's view, so answer with the numbers printed in the excerpt you are pointing at.
-"""
-
-# How each corpus prints the code it hands the detector.
-FORMATS = {
-    "demo_repo": WHOLE_FILE_FORMAT,
-    "halka": WHOLE_FILE_FORMAT,
-    "stock": WHOLE_FILE_FORMAT,
-    "swrbench": HUNK_FORMAT,
-    "zincir": WHOLE_FILE_FORMAT,
-}
-
-DATASETS_KNOWN = tuple(sorted(FORMATS))
 
 INSTRUCTIONS = """\
 You are reviewing one pull request. Find the defects it introduces and name the kind of each one.
@@ -180,8 +159,11 @@ CATALOGUE = {
 
 
 def _check(dataset: str, version: str | None) -> None:
-    if dataset not in FORMATS:
-        raise KeyError(f"unknown dataset {dataset!r}; have {', '.join(DATASETS_KNOWN)}")
+    """Any repository takes the one prompt; only a retired version is refused.
+
+    `dataset` is kept in the signature because every stage records which
+    repository a prompt was rendered for.
+    """
     if version not in (None, PROMPT_VERSION):
         raise KeyError(f"prompt version {version!r} is retired; the only version is {PROMPT_VERSION!r}")
 
@@ -204,7 +186,7 @@ def system(dataset: str, version: str = PROMPT_VERSION) -> str:
     head, tail = INSTRUCTIONS.split("## How to look")
     kinds = "\n".join(f"- `{name}` -- {text}" for name, text in CATALOGUE.items())
     return (
-        f"{head.format(format=FORMATS[dataset])}"
+        f"{head.format(format=WHOLE_FILE_FORMAT)}"
         f"## The kinds of defect you report\n\nReport only these, and nothing else:\n\n"
         f"{kinds}\n\n"
         f"## How to look{tail}"

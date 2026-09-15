@@ -42,9 +42,9 @@ code line lines file files call calls called caller callee value values
 """.split())
 
 
-def pool(datasets: Sequence[str] = ("halka", "demo_repo", "swrbench"),
+def pool(datasets: Sequence[str] = (),
          version: str = prompt_module.PROMPT_VERSION) -> dict[str, str]:
-    """Every kind every configured dataset names, in one catalogue.
+    """Every kind in the one catalogue; every repository shares it.
 
     A deployment against an unknown repository has exactly this problem: it
     cannot know which kinds occur, so it carries all of them. Fifty-four here is
