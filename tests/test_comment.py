@@ -48,7 +48,14 @@ def test_the_comment_carries_nothing_from_the_answer_key():
 
 
 def test_a_pull_request_without_findings_says_so():
-    assert "Bu pull request için bulgu yok." in comment.render([], "abc", None, "g")
+    raw = comment.render([], "abc", None, "g")
+    assert raw.startswith(comment.HEADING) and comment.NO_FINDINGS in raw
+    assert "|" not in raw and comment.NO_SOURCE not in raw
+
+
+def test_no_findings_without_source_to_read_is_not_a_clean_review():
+    raw = comment.render([], "abc", None, "g", reviews_source=False)
+    assert comment.NO_FINDINGS in raw and comment.NO_SOURCE in raw
 
 
 class FakeComments:
@@ -89,12 +96,11 @@ def test_a_later_run_updates_the_same_comment():
     assert comment.upsert(same, "w", "r", 7, comment.HEADING + "\nnew") == ("unchanged", 5)
 
 
-def test_no_comment_is_added_for_no_findings_but_an_old_one_is_corrected():
-    empty = FakeComments([])
-    assert comment.upsert(empty, "w", "r", 7, "x", create=False) == ("no findings", None)
-    assert not empty.posted
+def test_an_old_table_is_replaced_when_the_findings_are_gone():
     stale = FakeComments([_existing(5, comment.HEADING + "\nold table")])
-    assert comment.upsert(stale, "w", "r", 7, comment.HEADING + "\nnone", create=False)[0] == "updated"
+    raw = comment.render([], "abc", None, "g")
+    assert comment.upsert(stale, "w", "r", 7, raw) == ("updated", 5)
+    assert stale.updated == [(5, raw)] and not stale.posted
 
 
 # --- the client, against a fake Bitbucket -------------------------------------------
@@ -197,10 +203,10 @@ def test_a_post_that_times_out_is_not_asked_again(bitbucket):
 
 # --- the command ---------------------------------------------------------------------
 
-def _publish_run(tmp_path, rows):
+def _publish_run(tmp_path, rows, **manifest):
     run_dir = tmp_path / "p"
     runs.write_rows(run_dir / "predictions.jsonl", rows)
-    runs.write_manifest(run_dir, {"repository": NARROW, "model": "ollama:m"})
+    runs.write_manifest(run_dir, {"repository": NARROW, "model": "ollama:m", **manifest})
     return run_dir
 
 
@@ -216,7 +222,7 @@ def test_without_post_nothing_reaches_bitbucket(tmp_path, monkeypatch):
     assert {row["action"] for row in runs.read_rows(run_dir / "comments.jsonl")} == {"preview"}
 
 
-def test_post_writes_where_there_are_findings_and_skips_a_moved_branch(tmp_path, monkeypatch):
+def test_post_writes_under_every_pull_request_and_skips_a_moved_branch(tmp_path, monkeypatch):
     moved = case(NARROW, "PR-2")
     heads = {item.pull_request["id"]: item.head_commit for item in cases(NARROW)}
     run_dir = _publish_run(tmp_path, [
@@ -233,8 +239,27 @@ def test_post_writes_where_there_are_findings_and_skips_a_moved_branch(tmp_path,
     code = comment_cli.main(["--run", str(run_dir), "--post", "--case", "PR-2", "--case", "PR-14", "--case", "PR-1",
                              "--quiet"])
     actions = {row["case_id"]: row["action"] for row in runs.read_rows(run_dir / "comments.jsonl")}
-    assert actions == {"PR-1": "no findings", "PR-2": "source moved", "PR-14": "created"}
-    assert len(client.posted) == 1 and code == 1, "a skipped pull request is reported"
+    assert actions == {"PR-1": "created", "PR-2": "source moved", "PR-14": "created"}
+    assert len(client.posted) == 2 and code == 1, "a skipped pull request is reported"
+    assert sum(comment.NO_FINDINGS in raw for raw in client.posted) == 1
+
+
+def test_an_incomplete_run_does_not_say_there_are_no_findings(tmp_path, monkeypatch):
+    heads = {item.pull_request["id"]: item.head_commit for item in cases(NARROW)}
+    run_dir = _publish_run(tmp_path, [
+        {"case_id": "PR-14", "file": "README.md", "line": 3, "type": "hardcoded_credential", "message": "m"}],
+        call_failures=1, complete=False)
+
+    class Client(FakeComments):
+        def pull_request(self, workspace, repo, pull_id):
+            return {"source": {"commit": {"hash": heads[pull_id]}}}
+
+    client = Client([])
+    monkeypatch.setattr(comment_cli.Bitbucket, "from_env", lambda: client)
+    code = comment_cli.main(["--run", str(run_dir), "--post", "--case", "PR-1", "--case", "PR-14", "--quiet"])
+    actions = {row["case_id"]: row["action"] for row in runs.read_rows(run_dir / "comments.jsonl")}
+    assert actions == {"PR-1": "incomplete run", "PR-14": "created"}
+    assert len(client.posted) == 1 and comment.NO_FINDINGS not in client.posted[0] and code == 1
 
 
 def _client_failing_on(pull_to_fail: int, error: BitbucketError):

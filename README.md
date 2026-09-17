@@ -57,7 +57,7 @@ python -m prdetect.cli.comment --run g --post     # writes them under the pull r
 | `rules` | Deterministic checks that need no model: a bound or protection set to "off" in configuration, a list written as one string, a test left asserting less, a secret written into a file. |
 | `publish` | Claims both verifiers established, one per code site, plus the rules' findings where the model published nothing nearby, above confidence 0.6. |
 | `report` | `reports/<repo>/<run>.json`; `report_txt` prints it as text. |
-| `comment` | One general comment under each pull request with findings: a table of severity, kind, `file:line` and title, most severe first. Never inline in the code. A later run updates the same comment; a pull request whose branch moved since the fetch is skipped. Without `--post` it only writes previews. |
+| `comment` | One general comment under each pull request: a table of severity, kind, `file:line` and title, most severe first, or "Bulgu yok" when there are none (only from a complete run). Never inline in the code. A later run updates the same comment; a pull request whose branch moved since the fetch is skipped. Without `--post` it only writes previews. |
 
 Severity (HIGH, MEDIUM, LOW) belongs to the kind of defect and is read from
 `prdetect/severity.py` after publishing: HIGH is a hole someone can use or a loss

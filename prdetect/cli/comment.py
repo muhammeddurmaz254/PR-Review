@@ -5,10 +5,13 @@
 
 Without `--post` nothing leaves this machine: each comment is written to
 `runs/<run>/comments/PR-<id>.md` to be read first. With `--post`, every pull
-request with findings gets one general comment -- severity, kind, file:line and
-title, as a table -- and a pull request that already has one from an earlier run
-has it updated in place. A pull request without findings gets no comment, but an
-old one is updated to say there are none.
+request gets one general comment -- its findings as a table of severity, kind,
+file:line and title, or "Bulgu yok" when there are none -- and a pull request
+that already has one from an earlier run has it updated in place.
+
+"Bulgu yok" is written only by a complete run. When a model call or a
+verification failed, a pull request without findings may just not have been
+answered: it gets no comment, and an old one is left as it is.
 
 A pull request whose source branch has moved since it was fetched is skipped:
 its line numbers would point at other code. A pull request Bitbucket fails to
@@ -55,6 +58,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise SystemExit(f"{row['case_id']} is not a pull request of {repo}")
         findings[row["case_id"]].append(row)
 
+    # A failed call leaves some pull request unanswered, and its silence is not "no findings".
+    complete = (manifest.get("complete", True) and not manifest.get("call_failures")
+                and not manifest.get("errors"))
     client = Bitbucket.from_env() if args.post else None
     previews = run_dir / "comments"
     previews.mkdir(parents=True, exist_ok=True)
@@ -73,10 +79,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             if pull_id is None:
                 record({"case_id": case_id, "action": "no pull request"})
                 continue
-            raw = comment.render(findings[case_id], case.head_commit, manifest.get("model"), run_dir.name)
+            raw = comment.render(findings[case_id], case.head_commit, manifest.get("model"), run_dir.name,
+                                 reviews_source=case.reviewable)
             (previews / f"{case_id}.md").write_text(raw + "\n", encoding="utf-8")
             row = {"case_id": case_id, "pull_request": pull_id, "findings": len(findings[case_id])}
-            if client is None:
+            if not findings[case_id] and not complete:
+                row["action"] = "incomplete run"
+            elif client is None:
                 row["action"] = "preview"
             else:
                 try:
@@ -84,8 +93,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if not (current.startswith(case.head_commit) or case.head_commit.startswith(current)):
                         row |= {"action": "source moved", "fetched": case.head_commit, "current": current}
                     else:
-                        action, comment_id = comment.upsert(client, args.workspace, repo, pull_id, raw,
-                                                            create=bool(findings[case_id]))
+                        action, comment_id = comment.upsert(client, args.workspace, repo, pull_id, raw)
                         row |= {"action": action, "comment_id": comment_id}
                 except BitbucketError as error:
                     if error.status in (401, 403):
@@ -103,7 +111,10 @@ def main(argv: Sequence[str] | None = None) -> int:
               + (f" -> previews in {previews}" if client is None else ""))
         if counts["error"]:
             print("some pull requests failed; running the same command again is safe", file=sys.stderr)
-    return 1 if counts["source moved"] or counts["error"] else 0
+        if counts["incomplete run"]:
+            print(f"{counts['incomplete run']} pull requests without findings got no comment: the run is incomplete",
+                  file=sys.stderr)
+    return 1 if counts["source moved"] or counts["error"] or counts["incomplete run"] else 0
 
 
 if __name__ == "__main__":
