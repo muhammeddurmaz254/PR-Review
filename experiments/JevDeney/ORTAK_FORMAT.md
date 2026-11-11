@@ -45,7 +45,13 @@ Sonuçta yer almayan bir değişen dosya **işaretlenmedi** sayılır. Yalnızca
 
 - **Birim:** (vaka, değişen dosya). Değişen dosya, vakanın diff'inde bulunan dosyadır. halka'da 158, zincir'de 124 dosya vardır. 3 temiz zincir vakasının etiketi diff'te olmayan bir dosya daha listeler. Bu dosyalar ölçüme katılmaz ve özet dosyasında listelenir.
 - **Pozitif dosya:** bir kusurun `konum.dosya` değeri. halka'da 49, zincir'de 26 pozitif dosya vardır.
-- **Nötr dosya:** yalnızca bir kusurun `esdeger_konumlar` listesinde geçen dosya. İşaretlenirse FP, işaretlenmezse FN sayılmaz.
+- **Nötr dosya:** yalnızca bir kusurun `esdeger_konumlar` listesinde geçen dosya. İşaretlense de işaretlenmese de ne FP ne FN sayılır; puana hiç katılmaz.
+- **Girdi kuralları (aykırıysa değerlendirici açık hata verir, çıkış kodu 3):**
+  - `kusurlu_mu` gerçek `true`/`false` olmalıdır. `"false"` metni ya da `0`/`1` kabul edilmez.
+  - Aynı vaka iki kez, bir vakada aynı dosya iki kez yazılamaz.
+  - `veri_kumesi` etiketteki kümeyle aynı olmalıdır.
+  - `dosyalar` alanı olmayan vaka boş liste sayılır.
+- Araç adı tablo başlığında olduğu gibi görünür (`--ad` ile ya da isteğe bağlı `arac_adi` alanıyla değiştirilebilir). LaTeX özel karakterleri otomatik kaçışlanır.
 - **TP / FP / FN:** pozitif dosya işaretlendiyse TP, işaretlenmediyse FN. Diğer dosyalar işaretlendiyse FP.
 - P, R ve F1 şu kümeler için ayrı ayrı verilir: `halka`, `zincir_dev`, `zincir_holdout`, `toplam`.
 - **Süre:** PR başına toplam süre, ortalama ve medyan olarak verilir. **Maliyet:** toplam giriş token × birim fiyat.

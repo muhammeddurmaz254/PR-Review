@@ -53,3 +53,24 @@ Yapılmış ama ana yola eklenmemiş deneyler burada durur. Sonuçlar yerinde ka
 - **Dosyalar:**
   - `deneyler/sonuclar/jev_atomik_secili_2026-11-11.json`
   - `deneyler/sonuclar/secim_2026-11-11.json`
+
+## 2026-11-11 — Bağımsız inceleme ve düzeltmeler (ortak değerlendirici)
+
+- **İnceleme:** Ayrı bir ajan (Sonnet), yalnızca `veri.py`, `degerlendir.py`, `kirilim.py` ve `ORTAK_FORMAT.md` dosyalarını okudu. Yaklaşık 67 bin token tuttu. Kritik hata çıkmadı. 7 gizli açık bulundu.
+- **Düzeltilenler** (her biri önce hatayı gösteren bir testle, `tests/test_inceleme_duzeltmeleri.py`):
+  1. `kusurlu_mu` gerçek true/false değilse değerlendirici açık hata verir (çıkış kodu 3). Önceden `"false"` metni işaretli sayılıyordu.
+  2. `dosyalar` ya da `vakalar` alanı olmayan sonuç kırılım adımında çökmüyor.
+  3. `ORTAK_FORMAT.md` belgesinde nötr dosya kuralı netleştirildi ("ne FP ne FN") ve girdi kuralları eklendi.
+  4. Aynı vaka ya da aynı dosya iki kez yazılırsa ve `veri_kumesi` etiketle uyuşmazsa hata verilir.
+  5. Araç adı LaTeX başlığında olduğu gibi kalır ve kaçışlanır. Etiket ve dosya adı güvenli hâle getirildi. `--ad` seçeneği eklendi.
+  6. Kusurlu (pozitif) bir dosya diff'te yoksa veri yükleyici hata verir.
+  7. Diff bölücü dosya adını `+++ b/` ya da `--- a/` satırından okur. Tırnaklı, Türkçe karakterli ve `" b/"` içeren yollar doğru çözülür.
+- **Doğrulama:**
+  - 95 test geçiyor.
+  - Gerçek koşuların 1000 isteğinin hepsi yeni kodla önbellekte birebir eşleşti, yani sonuçlar değişmedi.
+  - Bütün sonuç dosyaları yeni doğrulamadan geçti.
+- **Bilerek bırakılan küçük sınırlar:**
+  - Bir dosyada birden çok kusur varsa kırılımda ilk kusurun ailesi sayılır. Bugünkü veride böyle bir dosya yok.
+  - `_rol` fonksiyonu yolda "config" geçen dosyayı yapılandırma sayar.
+  - PR başına süre ortalaması yalnızca süre bildiren vakalar üzerinden hesaplanır.
+  - LaTeX tablosunda yalnızca medyan süre var, ortalama `.md` özetinde.

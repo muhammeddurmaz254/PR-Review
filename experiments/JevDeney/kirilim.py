@@ -35,8 +35,10 @@ def _etiketler(repos: Path) -> dict[str, dict]:
 
 
 def _isaretliler(sonuc: dict) -> set[tuple[str, str]]:
-    return {(v["vaka_kimligi"], d["dosya"]) for v in sonuc["vakalar"]
-            for d in v["dosyalar"] if d.get("kusurlu_mu")}
+    # `dosyalar` ya da `vakalar` alanı olmayan sonuç boş sayılır (puanla ile aynı kural);
+    # yalnızca gerçek True işaretli sayılır ("false" metni sayılmaz).
+    return {(v["vaka_kimligi"], d["dosya"]) for v in sonuc.get("vakalar") or []
+            for d in v.get("dosyalar") or [] if d.get("kusurlu_mu") is True}
 
 
 def kirilim(vakalar: list[Vaka], sonuc: dict,

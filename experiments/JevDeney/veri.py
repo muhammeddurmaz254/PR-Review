@@ -7,7 +7,6 @@ Her vaka için değişen dosyaları ve dosya düzeyi altın etiketleri üretir:
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -47,6 +46,11 @@ def vakalari_yukle(repos: Path = VARSAYILAN_REPOS) -> list[Vaka]:
                        for e in k.get("esdeger_konumlar", [])}
             diff_yolu = kok / "diffs" / f"{etiket['vaka_kimligi']}.diff"
             diffteki = diffi_bol(diff_yolu.read_text(encoding="utf-8"))
+            eksik_pozitif = sorted(pozitif - set(diffteki))
+            if eksik_pozitif:
+                # Sessizce düşürülürse ne TP ne FN sayılır ve skor yanlış olur.
+                raise ValueError(f"{etiket['vaka_kimligi']}: kusurlu dosya diff'te yok: "
+                                 f"{', '.join(eksik_pozitif)}")
             # Ölçüm birimi diff'te gerçekten bulunan dosyadır. Bazı temiz
             # ikizlerin etiketi değişmeyen bir dosyayı da listeler.
             vakalar.append(Vaka(
@@ -61,32 +65,78 @@ def vakalari_yukle(repos: Path = VARSAYILAN_REPOS) -> list[Vaka]:
     return vakalar
 
 
-_BASLIK = re.compile(r"^diff --git a/(.+?) b/(.+)$")
+_DIFF_BASI = "diff --git "
+
+
+def _tirnak_coz(yol: str) -> str:
+    """Git'in tırnaklı yolunu çözer: "b/\303\274.py" -> b/ü.py (C tarzı kaçışlar)."""
+    yol = yol.strip()
+    if not (len(yol) >= 2 and yol[0] == '"' and yol[-1] == '"'):
+        return yol
+    ic, bayt, i = yol[1:-1], bytearray(), 0
+    kacis = {"n": b"\n", "t": b"\t", '"': b'"', "\\": b"\\", "a": b"\a", "b": b"\b",
+             "f": b"\f", "r": b"\r", "v": b"\v"}
+    while i < len(ic):
+        c = ic[i]
+        if c == "\\" and i + 1 < len(ic):
+            sonraki = ic[i + 1]
+            if sonraki in "01234567":
+                bayt.append(int(ic[i + 1:i + 4], 8))
+                i += 4
+                continue
+            bayt += kacis.get(sonraki, sonraki.encode("utf-8"))
+            i += 2
+            continue
+        bayt += c.encode("utf-8")
+        i += 1
+    return bayt.decode("utf-8", "replace")
+
+
+def _on_eki_at(yol: str) -> str:
+    yol = _tirnak_coz(yol.rstrip("\t"))
+    return yol[2:] if yol[:2] in ("a/", "b/") else yol
+
+
+def _parca_adi(satirlar: list[str]) -> str:
+    """Dosya adı önce `+++ b/...` satırından (silinmişse `--- a/...`) okunur.
+
+    İçerik satırı yoksa (yalnızca mod değişikliği) `diff --git` başlığından çözülür:
+    tırnaklı yollar ve "a/P b/P" biçimi (P içinde " b/" geçse bile) desteklenir.
+    """
+    eski = yeni = None
+    for satir in satirlar[1:]:
+        if satir.startswith("@@"):
+            break
+        if satir.startswith("--- "):
+            eski = satir[4:]
+        elif satir.startswith("+++ "):
+            yeni = satir[4:]
+    if yeni is not None and yeni.strip() != "/dev/null":
+        return _on_eki_at(yeni)
+    if eski is not None and eski.strip() != "/dev/null":
+        return _on_eki_at(eski)
+    kalan = satirlar[0][len(_DIFF_BASI):]
+    if kalan.startswith('"'):
+        son = kalan.index('"', 1) + 1
+        return _on_eki_at(kalan[son:].strip() or kalan[:son])
+    n = (len(kalan) - len("a/ b/")) // 2
+    if n > 0 and kalan == f"a/{kalan[2:2 + n]} b/{kalan[2:2 + n]}":
+        return kalan[2:2 + n]
+    return _on_eki_at(kalan.rsplit(" b/", 1)[-1] if " b/" in kalan else kalan)
 
 
 def diffi_bol(metin: str) -> dict[str, str]:
     """Birleşik diff'i dosya başına parçalara böler. Anahtar: dosya yolu.
 
-    Yeni dosyada ad `b/`, silinen dosyada (`+++ /dev/null`) ad `a/` tarafından alınır.
+    Yeni dosyada ad `+++ b/` satırından, silinen dosyada (`+++ /dev/null`) `--- a/`
+    satırından alınır. Git'in tırnaklı (Türkçe karakterli) yolları çözülür.
     """
     metin = metin.replace("\r\n", "\n")
-    parcalar: dict[str, str] = {}
-    satirlar: list[str] = []
-    a_adi = b_adi = None
-
-    def kapat():
-        if satirlar:
-            silindi = any(s == "+++ /dev/null" for s in satirlar)
-            parcalar[a_adi if silindi else b_adi] = "\n".join(satirlar) + "\n"
-
+    bloklar: list[list[str]] = []
     for satir in metin.split("\n"):
-        eslesme = _BASLIK.match(satir)
-        if eslesme:
-            kapat()
-            a_adi, b_adi = eslesme.group(1), eslesme.group(2)
-            satirlar = [satir]
-        elif satirlar:
-            satirlar.append(satir)
-    kapat()
+        if satir.startswith(_DIFF_BASI):
+            bloklar.append([satir])
+        elif bloklar:
+            bloklar[-1].append(satir)
     # son satırdaki boş eleman yüzünden oluşan fazla "\n" temizlenir
-    return {ad: p.rstrip("\n") + "\n" for ad, p in parcalar.items()}
+    return {_parca_adi(b): "\n".join(b).rstrip("\n") + "\n" for b in bloklar}

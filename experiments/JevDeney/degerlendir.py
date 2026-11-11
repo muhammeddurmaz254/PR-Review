@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import statistics
 from dataclasses import dataclass, field
@@ -44,11 +45,40 @@ def _bol(a: float, b: float) -> float:
     return a / b if b else 0.0
 
 
+def sonucu_oku(vakalar: list[Vaka], sonuc: dict) -> dict[str, dict[str, dict]]:
+    """Sonucu doğrular ve vaka → dosya → kayıt eşlemesine çevirir.
+
+    Başka araçların yazdığı girdiyi sessizce yanlış puanlamamak için açık hata verir:
+    - `kusurlu_mu` gerçek true/false olmalı ("false" metni ya da 1 kabul edilmez)
+    - aynı vaka ya da bir vakada aynı dosya iki kez yazılamaz
+    - `veri_kumesi` verilmişse etiketteki kümeyle aynı olmalı
+    `dosyalar` alanı olmayan vaka, boş liste sayılır.
+    """
+    kume = {v.vaka_kimligi: v.veri_kumesi for v in vakalar}
+    tahmin: dict[str, dict[str, dict]] = {}
+    for v in sonuc.get("vakalar", []):
+        kimlik = v["vaka_kimligi"]
+        if kimlik in tahmin:
+            raise ValueError(f"{kimlik}: vaka sonuçta iki kez yazılmış")
+        if "veri_kumesi" in v and kimlik in kume and v["veri_kumesi"] != kume[kimlik]:
+            raise ValueError(f"{kimlik}: veri_kumesi '{v['veri_kumesi']}' yazılmış, "
+                             f"etikette '{kume[kimlik]}'")
+        dosyalar: dict[str, dict] = {}
+        for d in v.get("dosyalar") or []:
+            if d["dosya"] in dosyalar:
+                raise ValueError(f"{kimlik}: {d['dosya']} dosyası iki kez yazılmış")
+            if not isinstance(d.get("kusurlu_mu"), bool):
+                raise ValueError(f"{kimlik}: {d['dosya']} için kusurlu_mu true/false olmalı, "
+                                 f"{d.get('kusurlu_mu')!r} verilmiş")
+            dosyalar[d["dosya"]] = d
+        tahmin[kimlik] = dosyalar
+    return tahmin
+
+
 def puanla(vakalar: list[Vaka], sonuc: dict) -> dict[str, Metrik]:
     """Küme adı → Metrik. 'toplam' bütün kümelerin birleşimidir."""
     fiyat = sonuc.get("birim_fiyat_usd_1m")
-    tahmin = {v["vaka_kimligi"]: {d["dosya"]: d for d in v.get("dosyalar", [])}
-              for v in sonuc.get("vakalar", [])}
+    tahmin = sonucu_oku(vakalar, sonuc)
     metrikler = {k: Metrik() for k in TUM_KUMELER}
     sureler: dict[str, list[float]] = {k: [] for k in TUM_KUMELER}
     tokenler: dict[str, int] = {k: 0 for k in TUM_KUMELER}
@@ -69,7 +99,7 @@ def puanla(vakalar: list[Vaka], sonuc: dict) -> dict[str, Metrik]:
 
         for dosya in vaka.degisen_dosyalar:
             kayit = dosya_tahmini.get(dosya, {})
-            isaretli = bool(kayit.get("kusurlu_mu"))
+            isaretli = kayit.get("kusurlu_mu") is True
             for m in hedefler:
                 if kayit.get("hata"):
                     m.hata_sayisi += 1
@@ -124,12 +154,32 @@ _TEX_AD = {"halka": "halka", "zincir_dev": "zincir (geliştirme)",
            "zincir_holdout": "zincir (ayrılmış test)", "toplam": "Toplam"}
 
 
+_TEX_OZEL = {"\\": "\\textbackslash{}", "&": "\\&", "%": "\\%", "$": "\\$", "#": "\\#",
+             "_": "\\_", "{": "\\{", "}": "\\}", "~": "\\textasciitilde{}",
+             "^": "\\textasciicircum{}"}
+
+
+def _tex_kacis(metin: str) -> str:
+    """LaTeX'te özel anlamı olan karakterleri kaçışlar (araç adı olduğu gibi kalır)."""
+    return "".join(_TEX_OZEL.get(c, c) for c in metin)
+
+
+def _etiket(metin: str) -> str:
+    """\\label için güvenli ad: küçük harf, harf/rakam dışı karakterler '_'."""
+    return "_".join(re.findall(r"[a-z0-9]+", metin.lower()))
+
+
+def _dosya_adi(metin: str) -> str:
+    """Dosya adında sorun çıkaran karakterleri '_' yapar; harf büyüklüğü korunur."""
+    return re.sub(r'[\\/:*?"<>|\s]+', "_", metin).strip("_")
+
+
 def tablo_tex(metrikler: dict[str, Metrik], arac_adi: str) -> str:
     """Rapor kuralı: tablo başlığı tablonun üstünde, booktabs."""
     satirlar = [
         "\\begin{table}[H]", "\\centering",
-        f"\\caption{{{arac_adi} taban çizgisinin dosya düzeyi sonuçları}}",
-        f"\\label{{tbl:{arac_adi.lower()}_dosya}}",
+        f"\\caption{{{_tex_kacis(arac_adi)} taban çizgisinin dosya düzeyi sonuçları}}",
+        f"\\label{{tbl:{_etiket(arac_adi)}_dosya}}",
         "\\begin{tabular}{lrrrrrr}", "\\toprule",
         "Veri kümesi & Dosya & P & R & F1 & Süre/PR (ms) & Maliyet (USD) \\\\", "\\midrule",
     ]
@@ -171,14 +221,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("sonuc", type=Path)
     ap.add_argument("--repos", type=Path, default=VARSAYILAN_REPOS)
     ap.add_argument("--cikti", type=Path, default=Path(__file__).parent / "sonuclar")
+    ap.add_argument("--ad", help="tablo başlığında görünecek araç adı (varsayılan: arac_adi ya da arac)")
     a = ap.parse_args(argv)
     # Windows konsolu (cp1254) basamadığı karakterde çökmesin
     sys.stdout.reconfigure(errors="replace")
 
     sonuc = json.loads(a.sonuc.read_text(encoding="utf-8"))
     vakalar = vakalari_yukle(a.repos)
-    m = puanla(vakalar, sonuc)
+    try:
+        m = puanla(vakalar, sonuc)
+    except ValueError as hata:
+        print(f"GEÇERSİZ GİRDİ: {hata}", file=sys.stderr)
+        return 3
     arac = sonuc.get("arac", "arac")
+    gorunen = a.ad or sonuc.get("arac_adi") or arac
+    dosya_adi = _dosya_adi(arac)
     baslik = (f"# {arac} — dosya düzeyi sonuçlar\n\n"
               f"Kaynak: `{a.sonuc.name}` · sürüm: {sonuc.get('surum', '?')} · "
               f"tarih: {sonuc.get('tarih', '?')}\n\n")
@@ -198,12 +255,12 @@ def main(argv: list[str] | None = None) -> int:
         govde += "\n## Uyarılar\n" + "\n".join(uyarilar) + "\n"
 
     a.cikti.mkdir(parents=True, exist_ok=True)
-    (a.cikti / f"ozet_{arac}.md").write_text(govde, encoding="utf-8")
-    tex = a.cikti / f"tablo_{arac}.tex"
+    (a.cikti / f"ozet_{dosya_adi}.md").write_text(govde, encoding="utf-8")
+    tex = a.cikti / f"tablo_{dosya_adi}.tex"
     if hatali:
         tex.unlink(missing_ok=True)   # eski geçerli tablo yanlışlıkla rapora girmesin
     else:
-        tex.write_text(tablo_tex(m, arac.capitalize()), encoding="utf-8")
+        tex.write_text(tablo_tex(m, gorunen), encoding="utf-8")
     print(govde)
     return 2 if hatali else 0
 
