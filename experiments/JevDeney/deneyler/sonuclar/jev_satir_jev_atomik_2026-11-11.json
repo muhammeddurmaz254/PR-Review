@@ -1,0 +1,2240 @@
+{
+ "arac": "jev_satir",
+ "birim": "hunk",
+ "model": "jev-1.14.0",
+ "kaynak_arac": "jev_atomik",
+ "tarih": "2026-11-11",
+ "birim_fiyat_usd_1m": 0.042,
+ "vakalar": [
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       3,
+       19
+      ],
+      [
+       42,
+       64
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.28,
+      "h1": 0.83
+     },
+     "sure_ms": 3341,
+     "giris_token": 1035,
+     "tahmin_bas": 42,
+     "tahmin_son": 64
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/selectors.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       29,
+       46
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 29,
+     "tahmin_son": 46
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       7,
+       21
+      ],
+      [
+       55,
+       70
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.15,
+      "h1": 0.75
+     },
+     "sure_ms": 3420,
+     "giris_token": 946,
+     "tahmin_bas": 55,
+     "tahmin_son": 70
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       7,
+       21
+      ],
+      [
+       55,
+       70
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.15,
+      "h1": 0.75
+     },
+     "sure_ms": 3420,
+     "giris_token": 946,
+     "tahmin_bas": 55,
+     "tahmin_son": 70
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       42,
+       61
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 42,
+     "tahmin_son": 61
+    },
+    {
+     "dosya": "halka/integrations/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       11,
+       21
+      ],
+      [
+       59,
+       73
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.84
+     },
+     "sure_ms": 298,
+     "giris_token": 871,
+     "tahmin_bas": 59,
+     "tahmin_son": 73
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       42,
+       61
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 42,
+     "tahmin_son": 61
+    },
+    {
+     "dosya": "halka/integrations/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       11,
+       21
+      ],
+      [
+       59,
+       73
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.17,
+      "h1": 0.8
+     },
+     "sure_ms": 511,
+     "giris_token": 871,
+     "tahmin_bas": 59,
+     "tahmin_son": 73
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       66,
+       90
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 66,
+     "tahmin_son": 90
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       66,
+       92
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 66,
+     "tahmin_son": 92
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       3,
+       19
+      ],
+      [
+       27,
+       58
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.13,
+      "h1": 0.82
+     },
+     "sure_ms": 407,
+     "giris_token": 1004,
+     "tahmin_bas": 27,
+     "tahmin_son": 58
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       3,
+       19
+      ],
+      [
+       27,
+       58
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.12,
+      "h1": 0.78
+     },
+     "sure_ms": 409,
+     "giris_token": 1006,
+     "tahmin_bas": 27,
+     "tahmin_son": 58
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       40,
+       63
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 40,
+     "tahmin_son": 63
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       40,
+       63
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 40,
+     "tahmin_son": 63
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "requirements.txt",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       6
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 6
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       8,
+       18
+      ],
+      [
+       23,
+       37
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.23,
+      "h1": 0.76
+     },
+     "sure_ms": 315,
+     "giris_token": 867,
+     "tahmin_bas": 23,
+     "tahmin_son": 37
+    },
+    {
+     "dosya": "halka/settings.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       38,
+       48
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 38,
+     "tahmin_son": 48
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       8,
+       18
+      ],
+      [
+       23,
+       37
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.23,
+      "h1": 0.76
+     },
+     "sure_ms": 315,
+     "giris_token": 867,
+     "tahmin_bas": 23,
+     "tahmin_son": 37
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       66,
+       92
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 66,
+     "tahmin_son": 92
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       66,
+       92
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 66,
+     "tahmin_son": 92
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       25,
+       51
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 25,
+     "tahmin_son": 51
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       25,
+       51
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 25,
+     "tahmin_son": 51
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       12,
+       22
+      ],
+      [
+       48,
+       61
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.14,
+      "h1": 0.83
+     },
+     "sure_ms": 501,
+     "giris_token": 877,
+     "tahmin_bas": 48,
+     "tahmin_son": 61
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       12,
+       23
+      ],
+      [
+       49,
+       71
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.28,
+      "h1": 0.21,
+      "h2": 0.88
+     },
+     "sure_ms": 1314,
+     "giris_token": 1059,
+     "tahmin_bas": 49,
+     "tahmin_son": 71
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       12,
+       23
+      ],
+      [
+       49,
+       71
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.12,
+      "h1": 0.24,
+      "h2": 0.85
+     },
+     "sure_ms": 631,
+     "giris_token": 1059,
+     "tahmin_bas": 49,
+     "tahmin_son": 71
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       45,
+       64
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 45,
+     "tahmin_son": 64
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       45,
+       66
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 45,
+     "tahmin_son": 66
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       22,
+       42
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 22,
+     "tahmin_son": 42
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       22,
+       42
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 22,
+     "tahmin_son": 42
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 25
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       4,
+       21
+      ],
+      [
+       52,
+       72
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.36,
+      "h1": 0.92
+     },
+     "sure_ms": 288,
+     "giris_token": 894,
+     "tahmin_bas": 52,
+     "tahmin_son": 72
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       4,
+       18
+      ],
+      [
+       49,
+       67
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.21,
+      "h1": 0.76
+     },
+     "sure_ms": 513,
+     "giris_token": 857,
+     "tahmin_bas": 49,
+     "tahmin_son": 67
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       12
+      ],
+      [
+       28,
+       38
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.19,
+      "h1": 0.78
+     },
+     "sure_ms": 428,
+     "giris_token": 822,
+     "tahmin_bas": 28,
+     "tahmin_son": 38
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       3,
+       13
+      ],
+      [
+       15,
+       25
+      ],
+      [
+       53,
+       69
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.2,
+      "h1": 0.27,
+      "h2": 0.9
+     },
+     "sure_ms": 326,
+     "giris_token": 1146,
+     "tahmin_bas": 53,
+     "tahmin_son": 69
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       3,
+       13
+      ],
+      [
+       15,
+       25
+      ],
+      [
+       53,
+       69
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.23,
+      "h1": 0.3,
+      "h2": 0.89
+     },
+     "sure_ms": 310,
+     "giris_token": 1143,
+     "tahmin_bas": 53,
+     "tahmin_son": 69
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/serializers.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       14,
+       31
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 14,
+     "tahmin_son": 31
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       7,
+       25
+      ],
+      [
+       52,
+       66
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.8
+     },
+     "sure_ms": 490,
+     "giris_token": 936,
+     "tahmin_bas": 52,
+     "tahmin_son": 66
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       7,
+       25
+      ],
+      [
+       52,
+       66
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.8
+     },
+     "sure_ms": 490,
+     "giris_token": 936,
+     "tahmin_bas": 52,
+     "tahmin_son": 66
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       30,
+       50
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 30,
+     "tahmin_son": 50
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       9,
+       19
+      ],
+      [
+       49,
+       61
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.17,
+      "h1": 0.77
+     },
+     "sure_ms": 305,
+     "giris_token": 856,
+     "tahmin_bas": 49,
+     "tahmin_son": 61
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       28,
+       50
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 28,
+     "tahmin_son": 50
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       66,
+       92
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.82
+     },
+     "sure_ms": 630,
+     "giris_token": 916,
+     "tahmin_bas": 66,
+     "tahmin_son": 92
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       66,
+       93
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.15,
+      "h1": 0.72
+     },
+     "sure_ms": 510,
+     "giris_token": 944,
+     "tahmin_bas": 66,
+     "tahmin_son": 93
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       6,
+       16
+      ],
+      [
+       45,
+       69
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.74
+     },
+     "sure_ms": 409,
+     "giris_token": 920,
+     "tahmin_bas": 45,
+     "tahmin_son": 69
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       5,
+       30
+      ],
+      [
+       56,
+       69
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.21,
+      "h1": 0.79
+     },
+     "sure_ms": 321,
+     "giris_token": 985,
+     "tahmin_bas": 56,
+     "tahmin_son": 69
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       6,
+       16
+      ],
+      [
+       45,
+       69
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.74
+     },
+     "sure_ms": 409,
+     "giris_token": 920,
+     "tahmin_bas": 45,
+     "tahmin_son": 69
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       30,
+       50
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 30,
+     "tahmin_son": 50
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       8
+      ],
+      [
+       43,
+       70
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.24,
+      "h1": 0.94
+     },
+     "sure_ms": 261,
+     "giris_token": 886,
+     "tahmin_bas": 43,
+     "tahmin_son": 70
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       42,
+       67
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 42,
+     "tahmin_son": 67
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/views.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       33,
+       50
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 33,
+     "tahmin_son": 50
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       24,
+       45
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 24,
+     "tahmin_son": 45
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-04-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       7,
+       21
+      ],
+      [
+       55,
+       70
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.15,
+      "h1": 0.8
+     },
+     "sure_ms": 598,
+     "giris_token": 907,
+     "tahmin_bas": 55,
+     "tahmin_son": 70
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       26,
+       44
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.14,
+      "h1": 0.84
+     },
+     "sure_ms": 317,
+     "giris_token": 863,
+     "tahmin_bas": 26,
+     "tahmin_son": 44
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       10
+      ],
+      [
+       24,
+       49
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.18,
+      "h1": 0.63
+     },
+     "sure_ms": 409,
+     "giris_token": 897,
+     "tahmin_bas": 24,
+     "tahmin_son": 49
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       8,
+       19
+      ],
+      [
+       28,
+       41
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.94,
+      "h1": 0.43
+     },
+     "sure_ms": 293,
+     "giris_token": 875,
+     "tahmin_bas": 8,
+     "tahmin_son": 19
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/settings.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       25,
+       43
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 25,
+     "tahmin_son": 43
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       26,
+       39
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 26,
+     "tahmin_son": 39
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       11
+      ],
+      [
+       27,
+       36
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.27,
+      "h1": 0.92
+     },
+     "sure_ms": 308,
+     "giris_token": 788,
+     "tahmin_bas": 27,
+     "tahmin_son": 36
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       26,
+       35
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 26,
+     "tahmin_son": 35
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       43,
+       62
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.17,
+      "h1": 0.92
+     },
+     "sure_ms": 231,
+     "giris_token": 785,
+     "tahmin_bas": 43,
+     "tahmin_son": 62
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       2,
+       12
+      ],
+      [
+       43,
+       58
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.21,
+      "h1": 0.89
+     },
+     "sure_ms": 321,
+     "giris_token": 802,
+     "tahmin_bas": 43,
+     "tahmin_son": 58
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       14
+      ],
+      [
+       27,
+       44
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.32,
+      "h1": 0.86
+     },
+     "sure_ms": 293,
+     "giris_token": 877,
+     "tahmin_bas": 27,
+     "tahmin_son": 44
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       2,
+       12
+      ],
+      [
+       25,
+       42
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.2,
+      "h1": 0.86
+     },
+     "sure_ms": 258,
+     "giris_token": 861,
+     "tahmin_bas": 25,
+     "tahmin_son": 42
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-06-senkron-komutu-ayarlara",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       9
+      ],
+      [
+       11,
+       20
+      ],
+      [
+       34,
+       52
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.14,
+      "h1": 0.31,
+      "h2": 0.53
+     },
+     "sure_ms": 396,
+     "giris_token": 1078,
+     "tahmin_bas": 34,
+     "tahmin_son": 52
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_billing_services.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       1,
+       14
+      ],
+      [
+       21,
+       30
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.16,
+      "h1": 0.7
+     },
+     "sure_ms": 309,
+     "giris_token": 794,
+     "tahmin_bas": 21,
+     "tahmin_son": 30
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "batch-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       34,
+       55
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 34,
+     "tahmin_son": 55
+    },
+    {
+     "dosya": "zincir/pipeline/batch.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       38
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 38
+    },
+    {
+     "dosya": "zincir/transport/sink.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       3,
+       13
+      ],
+      [
+       29,
+       42
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.11,
+      "h1": 0.79
+     },
+     "sure_ms": 408,
+     "giris_token": 894,
+     "tahmin_bas": 29,
+     "tahmin_son": 42
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "bus-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "zincir/defaults.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       12,
+       22
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 12,
+     "tahmin_son": 22
+    },
+    {
+     "dosya": "zincir/transport/bus.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       14,
+       24
+      ],
+      [
+       31,
+       41
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.38,
+      "h1": 0.6
+     },
+     "sure_ms": 296,
+     "giris_token": 788,
+     "tahmin_bas": 31,
+     "tahmin_son": 41
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "bus-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "zincir/transport/bus.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       14,
+       24
+      ],
+      [
+       31,
+       41
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.38,
+      "h1": 0.6
+     },
+     "sure_ms": 296,
+     "giris_token": 788,
+     "tahmin_bas": 31,
+     "tahmin_son": 41
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "ckpt-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_worker.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       16,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 16,
+     "tahmin_son": 25
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       56,
+       75
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 56,
+     "tahmin_son": 75
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-bus-drain",
+   "dosyalar": [
+    {
+     "dosya": "zincir/transport/bus.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       30,
+       47
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 30,
+     "tahmin_son": 47
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-codec-encode",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_codec.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       31,
+       54
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 31,
+     "tahmin_son": 54
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-inventory-handler",
+   "dosyalar": [
+    {
+     "dosya": "zincir/pipeline/handlers/inventory.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       22
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 22
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-settings-describe",
+   "dosyalar": [
+    {
+     "dosya": "zincir/settings.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       45,
+       63
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 45,
+     "tahmin_son": 63
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "dlq-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_reprocess.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       24
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 24
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       24,
+       36
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 24,
+     "tahmin_son": 36
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       59,
+       70
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 59,
+     "tahmin_son": 70
+    },
+    {
+     "dosya": "zincir/transport/source.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       33,
+       48
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 33,
+     "tahmin_son": 48
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "dlq-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_reprocess.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       21
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 21
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       24,
+       37
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 24,
+     "tahmin_son": 37
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       59,
+       70
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 59,
+     "tahmin_son": 70
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "log-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/conftest.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       6,
+       24
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 6,
+     "tahmin_son": 24
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "replay-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_replay.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       22
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 22
+    },
+    {
+     "dosya": "zincir/pipeline/replay.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       34
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 34
+    },
+    {
+     "dosya": "zincir/runtime/deadletter.py",
+     "tek_hunk": false,
+     "hunk_araliklari": [
+      [
+       2,
+       13
+      ],
+      [
+       27,
+       45
+      ]
+     ],
+     "olasiliklar": {
+      "h0": 0.19,
+      "h1": 0.64
+     },
+     "sure_ms": 304,
+     "giris_token": 891,
+     "tahmin_bas": 27,
+     "tahmin_son": 45
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "replay-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "zincir/pipeline/replay.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       1,
+       34
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 1,
+     "tahmin_son": 34
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "schema-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_registry.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       14,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 14,
+     "tahmin_son": 25
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "timeout-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "zincir/defaults.py",
+     "tek_hunk": true,
+     "hunk_araliklari": [
+      [
+       15,
+       25
+      ]
+     ],
+     "olasiliklar": {},
+     "sure_ms": null,
+     "giris_token": null,
+     "tahmin_bas": 15,
+     "tahmin_son": 25
+    }
+   ]
+  }
+ ],
+ "degerlendirme": {
+  "dogru_dosya": 50,
+  "isabet": 50,
+  "hata": 0,
+  "isabet_orani": 1.0,
+  "cok_hunk_dosya": 21,
+  "cok_hunk_isabet": 21,
+  "cok_hunk_orani": 1.0,
+  "rastgele_beklenen": 0.7833333333333333,
+  "rastgele_cok_hunk": 0.48412698412698413,
+  "en_buyuk_cok_hunk_isabet": 16,
+  "uctan_uca_satir_r": 0.6666666666666666
+ }
+}

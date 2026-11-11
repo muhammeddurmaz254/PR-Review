@@ -1,0 +1,4071 @@
+{
+ "arac": "jev",
+ "surum": "jev-1.14.0",
+ "model": "jev-1.14.0",
+ "tarih": "2026-11-10",
+ "esik": 0.5,
+ "karar_kurali": "kusurlu_mu = max(olasiliklar) >= esik",
+ "sorular": {
+  "introduces_defect": {
+   "type": "noul",
+   "instructions": {
+    "question": "Do the added or changed lines in `diff` introduce a functional defect into `file_path`?",
+    "focus": "Judge only what this change adds or changes. Assume the code before the change was correct."
+   },
+   "criteria": {
+    "true": {
+     "what": "The new or changed lines make the code, its tests or its configuration behave incorrectly"
+    },
+    "false": {
+     "what": "The new or changed lines behave correctly",
+     "not_for": "Style, naming or formatting preferences"
+    }
+   }
+  },
+  "introduces_vulnerability": {
+   "type": "noul",
+   "instructions": {
+    "question": "Do the added or changed lines in `diff` introduce a security vulnerability into `file_path`?",
+    "focus": "Judge only what this change adds or changes. Assume the code before the change was correct."
+   },
+   "criteria": {
+    "true": {
+     "what": "The change lets an attacker or an unauthorized user read, change or run something they should not"
+    },
+    "false": {
+     "what": "The change keeps security as it was",
+     "not_for": "A bug with no security impact"
+    }
+   }
+  }
+ },
+ "birim_fiyat_usd_1m": 0.042,
+ "vakalar": [
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/permissions.py",
+     "kusurlu_mu": false,
+     "skor": 0.42,
+     "olasiliklar": {
+      "introduces_defect": 0.42,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 3432,
+     "giris_token": 751
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 374,
+     "giris_token": 698
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": true,
+     "skor": 0.68,
+     "olasiliklar": {
+      "introduces_defect": 0.35,
+      "introduces_vulnerability": 0.68
+     },
+     "sure_ms": 316,
+     "giris_token": 1064
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/permissions.py",
+     "kusurlu_mu": false,
+     "skor": 0.42,
+     "olasiliklar": {
+      "introduces_defect": 0.42,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 3432,
+     "giris_token": 751
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 374,
+     "giris_token": 698
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.24
+     },
+     "sure_ms": 311,
+     "giris_token": 1066
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/selectors.py",
+     "kusurlu_mu": true,
+     "skor": 0.62,
+     "olasiliklar": {
+      "introduces_defect": 0.31,
+      "introduces_vulnerability": 0.62
+     },
+     "sure_ms": 338,
+     "giris_token": 779
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 224,
+     "giris_token": 693
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 323,
+     "giris_token": 976
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.19,
+     "olasiliklar": {
+      "introduces_defect": 0.19,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 325,
+     "giris_token": 782
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 224,
+     "giris_token": 693
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 323,
+     "giris_token": 976
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.22
+     },
+     "sure_ms": 313,
+     "giris_token": 763
+    },
+    {
+     "dosya": "halka/integrations/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 290,
+     "giris_token": 691
+    },
+    {
+     "dosya": "halka/integrations/views.py",
+     "kusurlu_mu": true,
+     "skor": 0.55,
+     "olasiliklar": {
+      "introduces_defect": 0.3,
+      "introduces_vulnerability": 0.55
+     },
+     "sure_ms": 349,
+     "giris_token": 898
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.22
+     },
+     "sure_ms": 313,
+     "giris_token": 763
+    },
+    {
+     "dosya": "halka/integrations/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 290,
+     "giris_token": 691
+    },
+    {
+     "dosya": "halka/integrations/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.26,
+     "olasiliklar": {
+      "introduces_defect": 0.25,
+      "introduces_vulnerability": 0.26
+     },
+     "sure_ms": 310,
+     "giris_token": 899
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.67,
+     "olasiliklar": {
+      "introduces_defect": 0.67,
+      "introduces_vulnerability": 0.4
+     },
+     "sure_ms": 328,
+     "giris_token": 839
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.58,
+     "olasiliklar": {
+      "introduces_defect": 0.58,
+      "introduces_vulnerability": 0.23
+     },
+     "sure_ms": 264,
+     "giris_token": 857
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.48,
+     "olasiliklar": {
+      "introduces_defect": 0.48,
+      "introduces_vulnerability": 0.1
+     },
+     "sure_ms": 337,
+     "giris_token": 1034
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.27,
+     "olasiliklar": {
+      "introduces_defect": 0.27,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 319,
+     "giris_token": 1036
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.4,
+     "olasiliklar": {
+      "introduces_defect": 0.4,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 234,
+     "giris_token": 822
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conc-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.4,
+     "olasiliklar": {
+      "introduces_defect": 0.4,
+      "introduces_vulnerability": 0.15
+     },
+     "sure_ms": 259,
+     "giris_token": 827
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "requirements-dev.txt",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 303,
+     "giris_token": 631
+    },
+    {
+     "dosya": "requirements.txt",
+     "kusurlu_mu": true,
+     "skor": 0.55,
+     "olasiliklar": {
+      "introduces_defect": 0.48,
+      "introduces_vulnerability": 0.55
+     },
+     "sure_ms": 286,
+     "giris_token": 677
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "requirements-dev.txt",
+     "kusurlu_mu": false,
+     "skor": 0.09,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 303,
+     "giris_token": 619
+    },
+    {
+     "dosya": "requirements.txt",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.37,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 350,
+     "giris_token": 667
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.37
+     },
+     "sure_ms": 299,
+     "giris_token": 896
+    },
+    {
+     "dosya": "halka/settings.py",
+     "kusurlu_mu": true,
+     "skor": 0.51,
+     "olasiliklar": {
+      "introduces_defect": 0.51,
+      "introduces_vulnerability": 0.19
+     },
+     "sure_ms": 318,
+     "giris_token": 720
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.37
+     },
+     "sure_ms": 299,
+     "giris_token": 896
+    },
+    {
+     "dosya": "halka/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.28,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.28
+     },
+     "sure_ms": 312,
+     "giris_token": 707
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 317,
+     "giris_token": 913
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "conf-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 314,
+     "giris_token": 802
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.48,
+     "olasiliklar": {
+      "introduces_defect": 0.48,
+      "introduces_vulnerability": 0.18
+     },
+     "sure_ms": 318,
+     "giris_token": 852
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.44,
+     "olasiliklar": {
+      "introduces_defect": 0.44,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 309,
+     "giris_token": 852
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "kusurlu_mu": true,
+     "skor": 0.78,
+     "olasiliklar": {
+      "introduces_defect": 0.78,
+      "introduces_vulnerability": 0.29
+     },
+     "sure_ms": 282,
+     "giris_token": 841
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.42,
+     "olasiliklar": {
+      "introduces_defect": 0.42,
+      "introduces_vulnerability": 0.24
+     },
+     "sure_ms": 299,
+     "giris_token": 842
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.19,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.19
+     },
+     "sure_ms": 289,
+     "giris_token": 815
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 308,
+     "giris_token": 701
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.33,
+     "olasiliklar": {
+      "introduces_defect": 0.28,
+      "introduces_vulnerability": 0.33
+     },
+     "sure_ms": 329,
+     "giris_token": 907
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "corr-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.19,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.19
+     },
+     "sure_ms": 289,
+     "giris_token": 815
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 308,
+     "giris_token": 701
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 307,
+     "giris_token": 962
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/webhooks.py",
+     "kusurlu_mu": true,
+     "skor": 0.7,
+     "olasiliklar": {
+      "introduces_defect": 0.32,
+      "introduces_vulnerability": 0.7
+     },
+     "sure_ms": 665,
+     "giris_token": 928
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/webhooks.py",
+     "kusurlu_mu": false,
+     "skor": 0.41,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.41
+     },
+     "sure_ms": 254,
+     "giris_token": 933
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.48,
+     "olasiliklar": {
+      "introduces_defect": 0.36,
+      "introduces_vulnerability": 0.48
+     },
+     "sure_ms": 249,
+     "giris_token": 951
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.26,
+      "introduces_vulnerability": 0.37
+     },
+     "sure_ms": 279,
+     "giris_token": 951
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.25,
+      "introduces_vulnerability": 0.29
+     },
+     "sure_ms": 310,
+     "giris_token": 759
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "crypto-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 242,
+     "giris_token": 810
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 314,
+     "giris_token": 780
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 265,
+     "giris_token": 781
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.28
+     },
+     "sure_ms": 333,
+     "giris_token": 777
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.15
+     },
+     "sure_ms": 309,
+     "giris_token": 797
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.31,
+     "olasiliklar": {
+      "introduces_defect": 0.31,
+      "introduces_vulnerability": 0.1
+     },
+     "sure_ms": 340,
+     "giris_token": 843
+    },
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.39,
+     "olasiliklar": {
+      "introduces_defect": 0.39,
+      "introduces_vulnerability": 0.34
+     },
+     "sure_ms": 302,
+     "giris_token": 849
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "data-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.39,
+     "olasiliklar": {
+      "introduces_defect": 0.39,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 355,
+     "giris_token": 828
+    },
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.39,
+     "olasiliklar": {
+      "introduces_defect": 0.39,
+      "introduces_vulnerability": 0.34
+     },
+     "sure_ms": 302,
+     "giris_token": 849
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.75,
+     "olasiliklar": {
+      "introduces_defect": 0.68,
+      "introduces_vulnerability": 0.75
+     },
+     "sure_ms": 310,
+     "giris_token": 844
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.03,
+     "olasiliklar": {
+      "introduces_defect": 0.03,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 302,
+     "giris_token": 726
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.82,
+     "olasiliklar": {
+      "introduces_defect": 0.3,
+      "introduces_vulnerability": 0.82
+     },
+     "sure_ms": 335,
+     "giris_token": 927
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.33,
+     "olasiliklar": {
+      "introduces_defect": 0.33,
+      "introduces_vulnerability": 0.2
+     },
+     "sure_ms": 327,
+     "giris_token": 891
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.23
+     },
+     "sure_ms": 281,
+     "giris_token": 849
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "deser-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 279,
+     "giris_token": 862
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.27,
+     "olasiliklar": {
+      "introduces_defect": 0.27,
+      "introduces_vulnerability": 0.16
+     },
+     "sure_ms": 329,
+     "giris_token": 690
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": true,
+     "skor": 0.57,
+     "olasiliklar": {
+      "introduces_defect": 0.57,
+      "introduces_vulnerability": 0.5
+     },
+     "sure_ms": 306,
+     "giris_token": 1029
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.27,
+     "olasiliklar": {
+      "introduces_defect": 0.27,
+      "introduces_vulnerability": 0.16
+     },
+     "sure_ms": 329,
+     "giris_token": 690
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": true,
+     "skor": 0.55,
+     "olasiliklar": {
+      "introduces_defect": 0.55,
+      "introduces_vulnerability": 0.43
+     },
+     "sure_ms": 337,
+     "giris_token": 1026
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/serializers.py",
+     "kusurlu_mu": true,
+     "skor": 0.61,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.61
+     },
+     "sure_ms": 275,
+     "giris_token": 774
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.18
+     },
+     "sure_ms": 237,
+     "giris_token": 698
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.39,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.39
+     },
+     "sure_ms": 327,
+     "giris_token": 966
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/serializers.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.09
+     },
+     "sure_ms": 342,
+     "giris_token": 909
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.18
+     },
+     "sure_ms": 237,
+     "giris_token": 698
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.39,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.39
+     },
+     "sure_ms": 327,
+     "giris_token": 966
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 235,
+     "giris_token": 689
+    },
+    {
+     "dosya": "halka/integrations/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.42,
+     "olasiliklar": {
+      "introduces_defect": 0.42,
+      "introduces_vulnerability": 0.36
+     },
+     "sure_ms": 246,
+     "giris_token": 996
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "disc-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 235,
+     "giris_token": 689
+    },
+    {
+     "dosya": "halka/integrations/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.34,
+     "olasiliklar": {
+      "introduces_defect": 0.34,
+      "introduces_vulnerability": 0.2
+     },
+     "sure_ms": 395,
+     "giris_token": 963
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.31,
+     "olasiliklar": {
+      "introduces_defect": 0.31,
+      "introduces_vulnerability": 0.16
+     },
+     "sure_ms": 325,
+     "giris_token": 856
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 251,
+     "giris_token": 858
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.25,
+     "olasiliklar": {
+      "introduces_defect": 0.25,
+      "introduces_vulnerability": 0.21
+     },
+     "sure_ms": 342,
+     "giris_token": 699
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.27,
+      "introduces_vulnerability": 0.29
+     },
+     "sure_ms": 302,
+     "giris_token": 887
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.25,
+     "olasiliklar": {
+      "introduces_defect": 0.25,
+      "introduces_vulnerability": 0.21
+     },
+     "sure_ms": 342,
+     "giris_token": 699
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.19
+     },
+     "sure_ms": 313,
+     "giris_token": 913
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/webhooks.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 300,
+     "giris_token": 854
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "edge-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/webhooks.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 291,
+     "giris_token": 900
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 322,
+     "giris_token": 805
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/tasks.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.09
+     },
+     "sure_ms": 308,
+     "giris_token": 806
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.54,
+     "olasiliklar": {
+      "introduces_defect": 0.54,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 373,
+     "giris_token": 945
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 352,
+     "giris_token": 972
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.24
+     },
+     "sure_ms": 265,
+     "giris_token": 954
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.2
+     },
+     "sure_ms": 315,
+     "giris_token": 697
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.34,
+     "olasiliklar": {
+      "introduces_defect": 0.3,
+      "introduces_vulnerability": 0.34
+     },
+     "sure_ms": 352,
+     "giris_token": 1017
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "err-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.24
+     },
+     "sure_ms": 265,
+     "giris_token": 954
+    },
+    {
+     "dosya": "halka/workspaces/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.2
+     },
+     "sure_ms": 315,
+     "giris_token": 697
+    },
+    {
+     "dosya": "halka/workspaces/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.24
+     },
+     "sure_ms": 328,
+     "giris_token": 1065
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "kusurlu_mu": true,
+     "skor": 0.86,
+     "olasiliklar": {
+      "introduces_defect": 0.81,
+      "introduces_vulnerability": 0.86
+     },
+     "sure_ms": 1413,
+     "giris_token": 846
+    },
+    {
+     "dosya": "halka/reporting/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.19,
+     "olasiliklar": {
+      "introduces_defect": 0.19,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 302,
+     "giris_token": 711
+    },
+    {
+     "dosya": "halka/reporting/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.14
+     },
+     "sure_ms": 318,
+     "giris_token": 904
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.33,
+     "olasiliklar": {
+      "introduces_defect": 0.33,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 253,
+     "giris_token": 849
+    },
+    {
+     "dosya": "halka/reporting/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.19,
+     "olasiliklar": {
+      "introduces_defect": 0.19,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 302,
+     "giris_token": 711
+    },
+    {
+     "dosya": "halka/reporting/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.14
+     },
+     "sure_ms": 318,
+     "giris_token": 904
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.82,
+     "olasiliklar": {
+      "introduces_defect": 0.45,
+      "introduces_vulnerability": 0.82
+     },
+     "sure_ms": 403,
+     "giris_token": 916
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.33,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.33
+     },
+     "sure_ms": 329,
+     "giris_token": 831
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 366,
+     "giris_token": 709
+    },
+    {
+     "dosya": "halka/reporting/views.py",
+     "kusurlu_mu": true,
+     "skor": 0.79,
+     "olasiliklar": {
+      "introduces_defect": 0.79,
+      "introduces_vulnerability": 0.71
+     },
+     "sure_ms": 276,
+     "giris_token": 822
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "inj-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 366,
+     "giris_token": 709
+    },
+    {
+     "dosya": "halka/reporting/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.09
+     },
+     "sure_ms": 282,
+     "giris_token": 825
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.87,
+     "olasiliklar": {
+      "introduces_defect": 0.87,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 362,
+     "giris_token": 830
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 355,
+     "giris_token": 829
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.25,
+     "olasiliklar": {
+      "introduces_defect": 0.25,
+      "introduces_vulnerability": 0.18
+     },
+     "sure_ms": 324,
+     "giris_token": 962
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 340,
+     "giris_token": 916
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 304,
+     "giris_token": 1025
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.2
+     },
+     "sure_ms": 309,
+     "giris_token": 984
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-04-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.17
+     },
+     "sure_ms": 265,
+     "giris_token": 817
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 345,
+     "giris_token": 691
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.32,
+     "olasiliklar": {
+      "introduces_defect": 0.32,
+      "introduces_vulnerability": 0.18
+     },
+     "sure_ms": 300,
+     "giris_token": 935
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "maint-04-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 307,
+     "giris_token": 820
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 345,
+     "giris_token": 691
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.26,
+     "olasiliklar": {
+      "introduces_defect": 0.26,
+      "introduces_vulnerability": 0.14
+     },
+     "sure_ms": 358,
+     "giris_token": 939
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.34,
+     "olasiliklar": {
+      "introduces_defect": 0.34,
+      "introduces_vulnerability": 0.25
+     },
+     "sure_ms": 325,
+     "giris_token": 892
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.15
+     },
+     "sure_ms": 304,
+     "giris_token": 895
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.28,
+      "introduces_vulnerability": 0.37
+     },
+     "sure_ms": 293,
+     "giris_token": 951
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.36,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.36
+     },
+     "sure_ms": 350,
+     "giris_token": 956
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.15
+     },
+     "sure_ms": 352,
+     "giris_token": 925
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "perf-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 307,
+     "giris_token": 949
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": true,
+     "skor": 0.94,
+     "olasiliklar": {
+      "introduces_defect": 0.52,
+      "introduces_vulnerability": 0.94
+     },
+     "sure_ms": 353,
+     "giris_token": 903
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.15
+     },
+     "sure_ms": 262,
+     "giris_token": 851
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/settings.py",
+     "kusurlu_mu": true,
+     "skor": 0.93,
+     "olasiliklar": {
+      "introduces_defect": 0.51,
+      "introduces_vulnerability": 0.93
+     },
+     "sure_ms": 333,
+     "giris_token": 822
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.34,
+     "olasiliklar": {
+      "introduces_defect": 0.34,
+      "introduces_vulnerability": 0.21
+     },
+     "sure_ms": 348,
+     "giris_token": 819
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.82,
+     "olasiliklar": {
+      "introduces_defect": 0.52,
+      "introduces_vulnerability": 0.82
+     },
+     "sure_ms": 328,
+     "giris_token": 730
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "sec-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 337,
+     "giris_token": 723
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": true,
+     "skor": 0.68,
+     "olasiliklar": {
+      "introduces_defect": 0.45,
+      "introduces_vulnerability": 0.68
+     },
+     "sure_ms": 289,
+     "giris_token": 815
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/client.py",
+     "kusurlu_mu": false,
+     "skor": 0.47,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.47
+     },
+     "sure_ms": 425,
+     "giris_token": 715
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.71,
+     "olasiliklar": {
+      "introduces_defect": 0.43,
+      "introduces_vulnerability": 0.71
+     },
+     "sure_ms": 346,
+     "giris_token": 814
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.61,
+     "olasiliklar": {
+      "introduces_defect": 0.38,
+      "introduces_vulnerability": 0.61
+     },
+     "sure_ms": 407,
+     "giris_token": 832
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.69,
+     "olasiliklar": {
+      "introduces_defect": 0.48,
+      "introduces_vulnerability": 0.69
+     },
+     "sure_ms": 291,
+     "giris_token": 904
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "ssrf-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/services.py",
+     "kusurlu_mu": true,
+     "skor": 0.7,
+     "olasiliklar": {
+      "introduces_defect": 0.37,
+      "introduces_vulnerability": 0.7
+     },
+     "sure_ms": 255,
+     "giris_token": 890
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-01-kilit-anahtari-yardimciya",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 353,
+     "giris_token": 802
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-02-baslik-kirpma-yardimcisi",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 334,
+     "giris_token": 907
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-03-olu-kod-temizligi",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/webhooks.py",
+     "kusurlu_mu": false,
+     "skor": 0.42,
+     "olasiliklar": {
+      "introduces_defect": 0.42,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 287,
+     "giris_token": 681
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-04-uyelik-arama-yardimcisi",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.08,
+     "olasiliklar": {
+      "introduces_defect": 0.08,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 319,
+     "giris_token": 991
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-05-sayfalama-yardimcisi",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 269,
+     "giris_token": 892
+    },
+    {
+     "dosya": "halka/common/pagination.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 364,
+     "giris_token": 748
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-06-senkron-komutu-ayarlara",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/services.py",
+     "kusurlu_mu": false,
+     "skor": 0.47,
+     "olasiliklar": {
+      "introduces_defect": 0.47,
+      "introduces_vulnerability": 0.33
+     },
+     "sure_ms": 341,
+     "giris_token": 962
+    },
+    {
+     "dosya": "halka/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.47,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.47
+     },
+     "sure_ms": 339,
+     "giris_token": 693
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-07-kapsam-testi",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_workspaces_selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 309,
+     "giris_token": 941
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-08-alan-listesi-genisletildi",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/serializers.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.11
+     },
+     "sure_ms": 311,
+     "giris_token": 794
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-09-siralama-yonu",
+   "dosyalar": [
+    {
+     "dosya": "halka/reporting/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.09
+     },
+     "sure_ms": 333,
+     "giris_token": 1032
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-10-hata-mesaji-tek-tiplestirildi",
+   "dosyalar": [
+    {
+     "dosya": "halka/integrations/views.py",
+     "kusurlu_mu": false,
+     "skor": 0.32,
+     "olasiliklar": {
+      "introduces_defect": 0.32,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 333,
+     "giris_token": 958
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-11-ornek-ortam-dosyasi",
+   "dosyalar": [
+    {
+     "dosya": ".env.example",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.04,
+      "introduces_vulnerability": 0.15
+     },
+     "sure_ms": 304,
+     "giris_token": 707
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "temiz-12-uye-listesine-rol-suzgeci",
+   "dosyalar": [
+    {
+     "dosya": "halka/workspaces/selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.23
+     },
+     "sure_ms": 234,
+     "giris_token": 878
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_billing_services.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 341,
+     "giris_token": 816
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_billing_services.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 337,
+     "giris_token": 831
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_workspaces_api.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 3302,
+     "giris_token": 753
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_workspaces_api.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 323,
+     "giris_token": 750
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-03-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_workspaces_selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 373,
+     "giris_token": 1045
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "test-03-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_workspaces_selectors.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 368,
+     "giris_token": 1168
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "audit-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_handlers_audit.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 394,
+     "giris_token": 869
+    },
+    {
+     "dosya": "zincir/observability/counters.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.16
+     },
+     "sure_ms": 368,
+     "giris_token": 703
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "audit-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_handlers_audit.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 334,
+     "giris_token": 899
+    },
+    {
+     "dosya": "zincir/observability/counters.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.16
+     },
+     "sure_ms": 368,
+     "giris_token": 703
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "batch-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/factories.py",
+     "kusurlu_mu": false,
+     "skor": 0.28,
+     "olasiliklar": {
+      "introduces_defect": 0.28,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 270,
+     "giris_token": 704
+    },
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.32,
+     "olasiliklar": {
+      "introduces_defect": 0.32,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 3423,
+     "giris_token": 831
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 241,
+     "giris_token": 717
+    },
+    {
+     "dosya": "zincir/pipeline/batch.py",
+     "kusurlu_mu": true,
+     "skor": 0.7,
+     "olasiliklar": {
+      "introduces_defect": 0.7,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 340,
+     "giris_token": 1019
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 480,
+     "giris_token": 861
+    },
+    {
+     "dosya": "zincir/transport/sink.py",
+     "kusurlu_mu": false,
+     "skor": 0.26,
+     "olasiliklar": {
+      "introduces_defect": 0.26,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 354,
+     "giris_token": 925
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "batch-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/factories.py",
+     "kusurlu_mu": false,
+     "skor": 0.28,
+     "olasiliklar": {
+      "introduces_defect": 0.28,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 270,
+     "giris_token": 704
+    },
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 346,
+     "giris_token": 831
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 269,
+     "giris_token": 717
+    },
+    {
+     "dosya": "zincir/pipeline/batch.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 313,
+     "giris_token": 1004
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 480,
+     "giris_token": 861
+    },
+    {
+     "dosya": "zincir/transport/sink.py",
+     "kusurlu_mu": false,
+     "skor": 0.26,
+     "olasiliklar": {
+      "introduces_defect": 0.26,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 349,
+     "giris_token": 739
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "bus-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 336,
+     "giris_token": 754
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.37,
+      "introduces_vulnerability": 0.1
+     },
+     "sure_ms": 254,
+     "giris_token": 725
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 330,
+     "giris_token": 846
+    },
+    {
+     "dosya": "zincir/transport/bus.py",
+     "kusurlu_mu": true,
+     "skor": 0.64,
+     "olasiliklar": {
+      "introduces_defect": 0.64,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 360,
+     "giris_token": 821
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "bus-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 294,
+     "giris_token": 762
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 294,
+     "giris_token": 724
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 330,
+     "giris_token": 846
+    },
+    {
+     "dosya": "zincir/transport/bus.py",
+     "kusurlu_mu": true,
+     "skor": 0.64,
+     "olasiliklar": {
+      "introduces_defect": 0.64,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 360,
+     "giris_token": 821
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "ckpt-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_worker.py",
+     "kusurlu_mu": false,
+     "skor": 0.43,
+     "olasiliklar": {
+      "introduces_defect": 0.43,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 284,
+     "giris_token": 724
+    },
+    {
+     "dosya": "zincir/runtime/checkpoint.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 384,
+     "giris_token": 727
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.47,
+     "olasiliklar": {
+      "introduces_defect": 0.47,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 328,
+     "giris_token": 1116
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "ckpt-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "zincir/runtime/checkpoint.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 384,
+     "giris_token": 727
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 341,
+     "giris_token": 1144
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-bus-drain",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 346,
+     "giris_token": 768
+    },
+    {
+     "dosya": "zincir/transport/bus.py",
+     "kusurlu_mu": false,
+     "skor": 0.32,
+     "olasiliklar": {
+      "introduces_defect": 0.32,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 374,
+     "giris_token": 769
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-ci-profile",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 267,
+     "giris_token": 768
+    },
+    {
+     "dosya": "zincir/profiles.py",
+     "kusurlu_mu": false,
+     "skor": 0.09,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 332,
+     "giris_token": 711
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-clock-tests",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_clock.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 330,
+     "giris_token": 824
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-codec-encode",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_codec.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 293,
+     "giris_token": 855
+    },
+    {
+     "dosya": "zincir/codec.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 334,
+     "giris_token": 894
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-context-count",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_handlers_orders.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 343,
+     "giris_token": 816
+    },
+    {
+     "dosya": "zincir/pipeline/context.py",
+     "kusurlu_mu": false,
+     "skor": 0.04,
+     "olasiliklar": {
+      "introduces_defect": 0.04,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 268,
+     "giris_token": 679
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-counters-many",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_counters.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 305,
+     "giris_token": 759
+    },
+    {
+     "dosya": "zincir/observability/counters.py",
+     "kusurlu_mu": false,
+     "skor": 0.09,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 251,
+     "giris_token": 737
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-dlq-batch",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_worker.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 239,
+     "giris_token": 847
+    },
+    {
+     "dosya": "zincir/runtime/deadletter.py",
+     "kusurlu_mu": false,
+     "skor": 0.09,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 389,
+     "giris_token": 758
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-factory-batch",
+   "dosyalar": [
+    {
+     "dosya": "tests/factories.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 326,
+     "giris_token": 808
+    },
+    {
+     "dosya": "tests/test_codec.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 354,
+     "giris_token": 868
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-inventory-handler",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_worker.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 343,
+     "giris_token": 1131
+    },
+    {
+     "dosya": "zincir/pipeline/handlers/inventory.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 368,
+     "giris_token": 862
+    },
+    {
+     "dosya": "zincir/pipeline/router.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 259,
+     "giris_token": 786
+    },
+    {
+     "dosya": "zincir/registry/schemas.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 387,
+     "giris_token": 787
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-key-prefix",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_keys.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 303,
+     "giris_token": 753
+    },
+    {
+     "dosya": "zincir/keys.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 314,
+     "giris_token": 767
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-log-stage",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_worker.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 300,
+     "giris_token": 865
+    },
+    {
+     "dosya": "zincir/observability/logging.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.09
+     },
+     "sure_ms": 633,
+     "giris_token": 788
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-retry-jitter",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_retry.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.01
+     },
+     "sure_ms": 280,
+     "giris_token": 810
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 309,
+     "giris_token": 729
+    },
+    {
+     "dosya": "zincir/runtime/retry.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 311,
+     "giris_token": 883
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 473,
+     "giris_token": 849
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-schema-v4",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_registry.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 303,
+     "giris_token": 969
+    },
+    {
+     "dosya": "zincir/registry/schemas.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 311,
+     "giris_token": 778
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-settings-describe",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 265,
+     "giris_token": 834
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": true,
+     "skor": 0.6,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.6
+     },
+     "sure_ms": 293,
+     "giris_token": 783
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "clean-sink-retry",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 299,
+     "giris_token": 842
+    },
+    {
+     "dosya": "zincir/transport/sink.py",
+     "kusurlu_mu": false,
+     "skor": 0.17,
+     "olasiliklar": {
+      "introduces_defect": 0.17,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 260,
+     "giris_token": 1026
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "clean-state-paused",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_state.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.01
+     },
+     "sure_ms": 304,
+     "giris_token": 804
+    },
+    {
+     "dosya": "zincir/runtime/state.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 293,
+     "giris_token": 843
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "dlq-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_reprocess.py",
+     "kusurlu_mu": false,
+     "skor": 0.27,
+     "olasiliklar": {
+      "introduces_defect": 0.27,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 340,
+     "giris_token": 945
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": true,
+     "skor": 0.68,
+     "olasiliklar": {
+      "introduces_defect": 0.68,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 321,
+     "giris_token": 748
+    },
+    {
+     "dosya": "zincir/pipeline/reprocess.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 225,
+     "giris_token": 899
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.49,
+     "olasiliklar": {
+      "introduces_defect": 0.49,
+      "introduces_vulnerability": 0.1
+     },
+     "sure_ms": 331,
+     "giris_token": 867
+    },
+    {
+     "dosya": "zincir/transport/source.py",
+     "kusurlu_mu": false,
+     "skor": 0.32,
+     "olasiliklar": {
+      "introduces_defect": 0.32,
+      "introduces_vulnerability": 0.22
+     },
+     "sure_ms": 303,
+     "giris_token": 738
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "dlq-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_reprocess.py",
+     "kusurlu_mu": false,
+     "skor": 0.26,
+     "olasiliklar": {
+      "introduces_defect": 0.26,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 319,
+     "giris_token": 851
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": true,
+     "skor": 0.58,
+     "olasiliklar": {
+      "introduces_defect": 0.58,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 303,
+     "giris_token": 761
+    },
+    {
+     "dosya": "zincir/pipeline/reprocess.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 313,
+     "giris_token": 896
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.49,
+     "olasiliklar": {
+      "introduces_defect": 0.49,
+      "introduces_vulnerability": 0.1
+     },
+     "sure_ms": 331,
+     "giris_token": 867
+    },
+    {
+     "dosya": "zincir/transport/source.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 293,
+     "giris_token": 690
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "log-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/conftest.py",
+     "kusurlu_mu": true,
+     "skor": 0.59,
+     "olasiliklar": {
+      "introduces_defect": 0.59,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 294,
+     "giris_token": 725
+    },
+    {
+     "dosya": "tests/test_logging.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 663,
+     "giris_token": 796
+    },
+    {
+     "dosya": "zincir/observability/logging.py",
+     "kusurlu_mu": false,
+     "skor": 0.06,
+     "olasiliklar": {
+      "introduces_defect": 0.06,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 329,
+     "giris_token": 736
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "log-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_logging.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 663,
+     "giris_token": 796
+    },
+    {
+     "dosya": "zincir/observability/logging.py",
+     "kusurlu_mu": false,
+     "skor": 0.06,
+     "olasiliklar": {
+      "introduces_defect": 0.06,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 329,
+     "giris_token": 736
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "profile-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "zincir/profiles.py",
+     "kusurlu_mu": false,
+     "skor": 0.15,
+     "olasiliklar": {
+      "introduces_defect": 0.15,
+      "introduces_vulnerability": 0.06
+     },
+     "sure_ms": 347,
+     "giris_token": 829
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "profile-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "zincir/profiles.py",
+     "kusurlu_mu": false,
+     "skor": 0.13,
+     "olasiliklar": {
+      "introduces_defect": 0.13,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 322,
+     "giris_token": 831
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "profile-02-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 307,
+     "giris_token": 819
+    },
+    {
+     "dosya": "zincir/profiles.py",
+     "kusurlu_mu": false,
+     "skor": 0.25,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.25
+     },
+     "sure_ms": 312,
+     "giris_token": 1044
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "profile-02-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 307,
+     "giris_token": 819
+    },
+    {
+     "dosya": "zincir/profiles.py",
+     "kusurlu_mu": false,
+     "skor": 0.3,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.3
+     },
+     "sure_ms": 307,
+     "giris_token": 1056
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "replay-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_replay.py",
+     "kusurlu_mu": true,
+     "skor": 0.76,
+     "olasiliklar": {
+      "introduces_defect": 0.76,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 270,
+     "giris_token": 841
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.09,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 255,
+     "giris_token": 745
+    },
+    {
+     "dosya": "zincir/pipeline/replay.py",
+     "kusurlu_mu": false,
+     "skor": 0.37,
+     "olasiliklar": {
+      "introduces_defect": 0.37,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 318,
+     "giris_token": 933
+    },
+    {
+     "dosya": "zincir/runtime/deadletter.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 274,
+     "giris_token": 918
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 359,
+     "giris_token": 843
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "replay-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_replay.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 295,
+     "giris_token": 847
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.07,
+     "olasiliklar": {
+      "introduces_defect": 0.07,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 341,
+     "giris_token": 739
+    },
+    {
+     "dosya": "zincir/pipeline/replay.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 238,
+     "giris_token": 923
+    },
+    {
+     "dosya": "zincir/runtime/deadletter.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 236,
+     "giris_token": 751
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 359,
+     "giris_token": 843
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "retryable-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_retry.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 331,
+     "giris_token": 759
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.36,
+     "olasiliklar": {
+      "introduces_defect": 0.36,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 380,
+     "giris_token": 751
+    },
+    {
+     "dosya": "zincir/runtime/retry.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 358,
+     "giris_token": 734
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 297,
+     "giris_token": 787
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "retryable-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_retry.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 331,
+     "giris_token": 759
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.11,
+     "olasiliklar": {
+      "introduces_defect": 0.11,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 293,
+     "giris_token": 753
+    },
+    {
+     "dosya": "zincir/runtime/retry.py",
+     "kusurlu_mu": false,
+     "skor": 0.22,
+     "olasiliklar": {
+      "introduces_defect": 0.22,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 358,
+     "giris_token": 734
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.21,
+     "olasiliklar": {
+      "introduces_defect": 0.21,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 297,
+     "giris_token": 787
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "schema-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_registry.py",
+     "kusurlu_mu": false,
+     "skor": 0.18,
+     "olasiliklar": {
+      "introduces_defect": 0.18,
+      "introduces_vulnerability": 0.01
+     },
+     "sure_ms": 285,
+     "giris_token": 731
+    },
+    {
+     "dosya": "zincir/registry/validate.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 353,
+     "giris_token": 793
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_dev",
+   "vaka_kimligi": "schema-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_registry.py",
+     "kusurlu_mu": false,
+     "skor": 0.09,
+     "olasiliklar": {
+      "introduces_defect": 0.09,
+      "introduces_vulnerability": 0.01
+     },
+     "sure_ms": 296,
+     "giris_token": 710
+    },
+    {
+     "dosya": "zincir/registry/validate.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 353,
+     "giris_token": 793
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "sink-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 350,
+     "giris_token": 771
+    },
+    {
+     "dosya": "zincir/transport/sink.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 307,
+     "giris_token": 798
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "sink-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.1,
+     "olasiliklar": {
+      "introduces_defect": 0.1,
+      "introduces_vulnerability": 0.02
+     },
+     "sure_ms": 271,
+     "giris_token": 779
+    },
+    {
+     "dosya": "zincir/transport/sink.py",
+     "kusurlu_mu": false,
+     "skor": 0.16,
+     "olasiliklar": {
+      "introduces_defect": 0.16,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 307,
+     "giris_token": 798
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "source-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.39,
+     "olasiliklar": {
+      "introduces_defect": 0.39,
+      "introduces_vulnerability": 0.04
+     },
+     "sure_ms": 304,
+     "giris_token": 848
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.19,
+     "olasiliklar": {
+      "introduces_defect": 0.19,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 340,
+     "giris_token": 715
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 291,
+     "giris_token": 869
+    },
+    {
+     "dosya": "zincir/transport/source.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 326,
+     "giris_token": 889
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "source-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "tests/test_transport.py",
+     "kusurlu_mu": false,
+     "skor": 0.23,
+     "olasiliklar": {
+      "introduces_defect": 0.23,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 276,
+     "giris_token": 852
+    },
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": false,
+     "skor": 0.12,
+     "olasiliklar": {
+      "introduces_defect": 0.12,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 342,
+     "giris_token": 715
+    },
+    {
+     "dosya": "zincir/settings.py",
+     "kusurlu_mu": false,
+     "skor": 0.2,
+     "olasiliklar": {
+      "introduces_defect": 0.2,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 291,
+     "giris_token": 869
+    },
+    {
+     "dosya": "zincir/transport/source.py",
+     "kusurlu_mu": false,
+     "skor": 0.14,
+     "olasiliklar": {
+      "introduces_defect": 0.14,
+      "introduces_vulnerability": 0.03
+     },
+     "sure_ms": 326,
+     "giris_token": 889
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "timeout-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "zincir/defaults.py",
+     "kusurlu_mu": true,
+     "skor": 0.66,
+     "olasiliklar": {
+      "introduces_defect": 0.66,
+      "introduces_vulnerability": 0.13
+     },
+     "sure_ms": 332,
+     "giris_token": 723
+    },
+    {
+     "dosya": "zincir/pipeline/worker.py",
+     "kusurlu_mu": false,
+     "skor": 0.36,
+     "olasiliklar": {
+      "introduces_defect": 0.36,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 238,
+     "giris_token": 883
+    },
+    {
+     "dosya": "zincir/runtime/concurrency.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 304,
+     "giris_token": 798
+    }
+   ]
+  },
+  {
+   "veri_kumesi": "zincir_holdout",
+   "vaka_kimligi": "timeout-01-temiz",
+   "dosyalar": [
+    {
+     "dosya": "zincir/pipeline/worker.py",
+     "kusurlu_mu": false,
+     "skor": 0.36,
+     "olasiliklar": {
+      "introduces_defect": 0.36,
+      "introduces_vulnerability": 0.05
+     },
+     "sure_ms": 238,
+     "giris_token": 883
+    },
+    {
+     "dosya": "zincir/runtime/concurrency.py",
+     "kusurlu_mu": false,
+     "skor": 0.29,
+     "olasiliklar": {
+      "introduces_defect": 0.29,
+      "introduces_vulnerability": 0.07
+     },
+     "sure_ms": 304,
+     "giris_token": 798
+    }
+   ]
+  }
+ ]
+}

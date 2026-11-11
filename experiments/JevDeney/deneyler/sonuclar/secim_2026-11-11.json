@@ -1,0 +1,30 @@
+{
+ "siniflar": [
+  "v1:exposes_sensitive_data",
+  "v2:exposes_sensitive_data",
+  "v2:weak_crypto",
+  "v2:unsafe_deserialization",
+  "v1:resource_problem",
+  "v2:resource_problem",
+  "ana:introduces_vulnerability",
+  "v2:wrong_logic",
+  "v1:weakened_test",
+  "v2:weakened_test",
+  "ana:introduces_defect",
+  "v1:mishandled_error",
+  "v1:wrong_logic",
+  "v2:mishandled_error",
+  "v1:missing_check",
+  "v2:missing_authorization",
+  "v1:unsafe_input_use",
+  "v1:broken_configuration"
+ ],
+ "esik": 0.6,
+ "dev_f1": 0.6719999999999999,
+ "dev_p": 0.7,
+ "dev_r": 0.6461538461538462,
+ "gelistirme": [
+  "halka",
+  "zincir_dev"
+ ]
+}

@@ -1,0 +1,84 @@
+{
+ "arac": "jev",
+ "surum": "jev-1.14.0",
+ "model": "jev-1.14.0",
+ "tarih": "2026-11-10",
+ "esik": 0.5,
+ "karar_kurali": "kusurlu_mu = max(olasiliklar) >= esik",
+ "sorular": {
+  "introduces_defect": {
+   "type": "noul",
+   "instructions": {
+    "question": "Do the added or changed lines in `diff` introduce a functional defect into `file_path`?",
+    "focus": "Judge only what this change adds or changes. Assume the code before the change was correct."
+   },
+   "criteria": {
+    "true": {
+     "what": "The new or changed lines make the code, its tests or its configuration behave incorrectly"
+    },
+    "false": {
+     "what": "The new or changed lines behave correctly",
+     "not_for": "Style, naming or formatting preferences"
+    }
+   }
+  },
+  "introduces_vulnerability": {
+   "type": "noul",
+   "instructions": {
+    "question": "Do the added or changed lines in `diff` introduce a security vulnerability into `file_path`?",
+    "focus": "Judge only what this change adds or changes. Assume the code before the change was correct."
+   },
+   "criteria": {
+    "true": {
+     "what": "The change lets an attacker or an unauthorized user read, change or run something they should not"
+    },
+    "false": {
+     "what": "The change keeps security as it was",
+     "not_for": "A bug with no security impact"
+    }
+   }
+  }
+ },
+ "birim_fiyat_usd_1m": 0.042,
+ "vakalar": [
+  {
+   "veri_kumesi": "halka",
+   "vaka_kimligi": "authz-01-kusurlu",
+   "dosyalar": [
+    {
+     "dosya": "halka/billing/permissions.py",
+     "kusurlu_mu": false,
+     "skor": 0.42,
+     "olasiliklar": {
+      "introduces_defect": 0.42,
+      "introduces_vulnerability": 0.08
+     },
+     "sure_ms": 3432,
+     "giris_token": 751
+    },
+    {
+     "dosya": "halka/billing/urls.py",
+     "kusurlu_mu": false,
+     "skor": 0.24,
+     "olasiliklar": {
+      "introduces_defect": 0.24,
+      "introduces_vulnerability": 0.12
+     },
+     "sure_ms": 374,
+     "giris_token": 698
+    },
+    {
+     "dosya": "halka/billing/views.py",
+     "kusurlu_mu": true,
+     "skor": 0.68,
+     "olasiliklar": {
+      "introduces_defect": 0.35,
+      "introduces_vulnerability": 0.68
+     },
+     "sure_ms": 316,
+     "giris_token": 1064
+    }
+   ]
+  }
+ ]
+}
